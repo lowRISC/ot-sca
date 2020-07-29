@@ -1,0 +1,12 @@
+device:
+  fpga_bitstream: objs/lowrisc_systems_top_earlgrey_cw305_0.1.bit
+  fw_bin: objs/aes_serial_fpga_nexysvideo.bin
+  pll_frequency: 25000000
+  baudrate: 57600
+capture:
+  # Only AES-128 ECB is supported at this moment.
+  key_len_bytes: 16
+  plain_text_len_bytes: 16
+  num_traces: 5000
+  project_file: projects/opentitan_simple_aes.cwp
+  trace_image_filename: projects/sample_traces.html

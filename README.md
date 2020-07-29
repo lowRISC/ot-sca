@@ -5,7 +5,10 @@
 This repository contains infrastructure code useful for performing side-channel
 analysis (SCA) for [OpenTitan](https://github.com/lowRISC/OpenTitan).
 
+See [getting started](doc/getting_started.md) instructions.
+
 ## Python Dependencies
+
 `pip install -r python_requirements.txt`
 
 ## How to contribute

@@ -1,4 +1,9 @@
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
 r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
+
 import subprocess
 import time
 

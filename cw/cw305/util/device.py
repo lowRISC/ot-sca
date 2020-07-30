@@ -51,9 +51,9 @@ class OpenTitan(object):
   def initialize_scope(self):
     """Initializes chipwhisperer scope."""
     self.scope = cw.scope()
-    self.scope.gain.db = 25
-    self.scope.adc.samples =  200
-    self.scope.adc.offset = 0
+    self.scope.gain.db = 15
+    self.scope.adc.samples =  100
+    self.scope.adc.offset = 300
     self.scope.adc.basic_mode = "rising_edge"
     self.scope.clock.clkgen_freq = 18425000
     self.scope.clock.adc_src = "extclk_x4"

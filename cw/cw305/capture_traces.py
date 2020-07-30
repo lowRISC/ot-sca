@@ -24,6 +24,7 @@ def initialize_test(device_cfg):
     device_cfg['pll_frequency'],
     device_cfg['baudrate'])
   ot.initialize()
+  print('Scope setup with sampling rate {} S/s'.format(ot.scope.clock.adc_rate))
   return ot
 
 
@@ -56,9 +57,6 @@ def run_capture(capture_cfg, ot):
 
   for i in tqdm(range(capture_cfg['num_traces']), desc='Capturing', ncols=80):
     key, text = ktp.next()
-    textin.append(text)
-    keys.append(key)
-
     ret = cw.capture_trace(ot.scope, ot.target, text, key)
     if not ret:
         print('Failed capture')

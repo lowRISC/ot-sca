@@ -40,27 +40,29 @@ Saving sample trace image to: doc/sample_traces.html
 Sample analysis run (Failed):
 
 ```console
-Performing Attack: 100%|████████████████████| 5000/5000 [02:31<00:00, 33.21it/s]
+$ python3 cpa_attack.py 
+Performing Attack: 100%|████████████████████| 5000/5000 [03:41<00:00, 22.77it/s]
 known_key: b'2b7e151628aed2a6abf7158809cf4f3c'
-key guess: b'd836a6637fe0c056e2ac7cbd7673a4ce'
+key guess: b'97f0e4c3bc14ff64effa5fce0697d9e0'
 Subkey KGuess Correlation
-  00    0xD8    0.05796
-  01    0x36    0.06194
-  02    0xA6    0.05526
-  03    0x63    0.05977
-  04    0x7F    0.05814
-  05    0xE0    0.05497
-  06    0xC0    0.05825
-  07    0x56    0.05971
-  08    0xE2    0.06239
-  09    0xAC    0.05983
-  10    0x7C    0.05809
-  11    0xBD    0.06266
-  12    0x76    0.06423
-  13    0x73    0.06197
-  14    0xA4    0.06361
-  15    0xCE    0.05945
+ 00    0x84    0.05677
+ 01    0xC1    0.05662
+ 02    0xF1    0.06032
+ 03    0x5F    0.05537
+ 04    0x7E    0.06062
+ 05    0xBF    0.05854
+ 06    0x6B    0.06673
+ 07    0x84    0.06018
+ 08    0x01    0.05967
+ 09    0x73    0.06864
+ 10    0xD7    0.05885
+ 11    0x92    0.05246
+ 12    0x18    0.06996
+ 13    0xA1    0.05271
+ 14    0x62    0.05984
+ 15    0xB2    0.05733
 
 FAIL: key_guess != known_key
 Saving results
+
 ```

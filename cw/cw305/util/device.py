@@ -15,70 +15,62 @@ SPIFLASH=r'bin/linux/spiflash'
 
 class OpenTitan(object):
   def __init__(self, bitstream, fw_image, pll_frequency, baudrate):
-      self.bitstream = bitstream
-      self.fw_image = fw_image
-      self.pll_frequency = pll_frequency
-      self.initialized = False
-      self.fpga = None
-      self.scope = None
-      self.target = None
-      self.baudrate = baudrate
+      self.fpga = self.initialize_fpga(bitstream, pll_frequency)
+      self.scope = self.initialize_scope()
+      self.target = self.initialize_target(self.scope, fw_image, baudrate)
 
-  def initialize(self):
-    """Initializes FPGA target."""
-    self.initialize_fpga()
-    self.initialize_scope()
-    self.initialize_target()
-
-  def initialize_fpga(self):
+  def initialize_fpga(self, bitstream, pll_frequency):
     """Initializes FPGA bitstream and sets PLL frequency."""
     print('Connecting and loading FPGA')
-    self.fpga = cw.capture.targets.CW305()
-    self.fpga.con(bsfile=self.bitstream, force=True)
-    self.fpga.vccint_set(1.0)
+    fpga = cw.capture.targets.CW305()
+    fpga.con(bsfile=bitstream, force=True)
+    fpga.vccint_set(1.0)
 
     print('Initializing PLL1')
-    self.fpga.pll.pll_enable_set(True)
-    self.fpga.pll.pll_outenable_set(False, 0)
-    self.fpga.pll.pll_outenable_set(True, 1)
-    self.fpga.pll.pll_outenable_set(False, 2)
-    self.fpga.pll.pll_outfreq_set(self.pll_frequency, 1)
+    fpga.pll.pll_enable_set(True)
+    fpga.pll.pll_outenable_set(False, 0)
+    fpga.pll.pll_outenable_set(True, 1)
+    fpga.pll.pll_outenable_set(False, 2)
+    fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
     # 1ms is plenty of idling time
-    self.fpga.clkusbautooff = True
-    self.fpga.clksleeptime = 1
+    fpga.clkusbautooff = True
+    fpga.clksleeptime = 1
+    return fpga
 
   def initialize_scope(self):
     """Initializes chipwhisperer scope."""
-    self.scope = cw.scope()
-    self.scope.gain.db = 15
-    self.scope.adc.samples =  100
-    self.scope.adc.offset = 300
-    self.scope.adc.basic_mode = "rising_edge"
-    self.scope.clock.clkgen_freq = 18425000
-    self.scope.clock.adc_src = "extclk_x4"
-    self.scope.trigger.triggers = "tio4"
-    self.scope.io.tio1 = "serial_tx"
-    self.scope.io.tio2 = "serial_rx"
-    self.scope.io.hs2 = "disabled"
+    scope = cw.scope()
+    scope.gain.db = 15
+    scope.adc.samples =  200
+    scope.adc.offset = 600
+    scope.adc.basic_mode = "rising_edge"
+    scope.clock.clkgen_freq = 18425000
+    scope.clock.adc_src = "extclk_x4"
+    scope.trigger.triggers = "tio4"
+    scope.io.tio1 = "serial_tx"
+    scope.io.tio2 = "serial_rx"
+    scope.io.hs2 = "disabled"
 
     # TODO: Need to update error handling.
-    self.scope.clock.reset_adc()
+    scope.clock.reset_adc()
     time.sleep(0.5)
-    assert (self.scope.clock.adc_locked), "ADC failed to lock"
+    assert (scope.clock.adc_locked), "ADC failed to lock"
+    return scope
 
-  def load_fw(self):
+  def load_fw(self, fw_image):
     """Loads firmware image."""
     # TODO: Make settings configurable.
     command = [SPIFLASH, '--dev-id=0403:6014', '--dev-sn=FT2U2SK1',
-           '--input=' + self.fw_image]
+           '--input=' + fw_image]
     subprocess.check_call(command)
 
-  def initialize_target(self):
+  def initialize_target(self, scope, fw_image, baudrate):
     """Loads firmware image and initializes test target."""
-    self.load_fw()
+    self.load_fw(fw_image)
     time.sleep(0.5)
-    self.target = cw.target(self.scope)
-    self.target.output_len = 16
-    self.target.baud = self.baudrate
-    self.target.flush()
+    target = cw.target(scope)
+    target.output_len = 16
+    target.baud = baudrate
+    target.flush()
+    return target

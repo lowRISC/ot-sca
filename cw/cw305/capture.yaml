@@ -8,5 +8,5 @@ capture:
   key_len_bytes: 16
   plain_text_len_bytes: 16
   num_traces: 5000
-  project_file: projects/opentitan_simple_aes.cwp
+  project_name: projects/opentitan_simple_aes
   trace_image_filename: projects/sample_traces.html

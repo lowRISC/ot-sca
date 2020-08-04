@@ -7,6 +7,26 @@ In the meantime, check the following PRs:
 * https://github.com/lowRISC/opentitan/pull/2587
 * https://github.com/lowRISC/opentitan/pull/2735
 
+### Downloading code via FTDI
+
+Currently the target firmware is downloaded via a SPI FTDI interface using the
+[spiflash](https://docs.opentitan.org/sw/host/spiflash/README/) utility.
+A debian-compatible pre-built binary is available at
+`cw/cw305/bin/linux/spiflash`. See the following table for details on how to
+connect the FTDI interface to the CW305 FPGA target board.
+
+| FTDI Signal | CW305 FPGA | OpenTitan IO        |
+| ----------- | ---------- | ------------------- |
+| TCK         | JP3.A14    | TCK (IO_DPS0)       |
+| TDI         | JP3.A13    | TDI (IO_DPS1)       |
+| TDO         | JP3.A15    | TDO (IO_DPS2)       |
+| TMS         | JP3.B15    | TMS (IO_DPS3)       |
+| GPIOL0      | JP3.C12    | nTRST (IO_DPS4)     |
+| GPIOL1      | JP3.C11    | nSRST (IO_DPS5)     |
+| GPIOL2      | JP3.B14    | JTAG_SEL (IO_DPS6)  |
+| GPIOL3      | JP3.C14    | BOOTSTRAP (IO_DPS7) |
+| GND         | GND        | -                   |
+
 ## Running capture and attack
 
 Sample capture run:
@@ -40,7 +60,7 @@ Saving sample trace image to: doc/sample_traces.html
 Sample analysis run (Failed):
 
 ```console
-$ python3 cpa_attack.py 
+$ python3 cpa_attack.py
 Performing Attack: 100%|████████████████████| 5000/5000 [03:41<00:00, 22.77it/s]
 known_key: b'2b7e151628aed2a6abf7158809cf4f3c'
 key guess: b'97f0e4c3bc14ff64effa5fce0697d9e0'

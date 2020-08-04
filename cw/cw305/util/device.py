@@ -14,10 +14,10 @@ SPIFLASH=r'bin/linux/spiflash'
 
 
 class OpenTitan(object):
-  def __init__(self, bitstream, fw_image, pll_frequency, baudrate):
+  def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
       self.fpga = self.initialize_fpga(bitstream, pll_frequency)
       self.scope = self.initialize_scope()
-      self.target = self.initialize_target(self.scope, fw_image, baudrate)
+      self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
 
   def initialize_fpga(self, bitstream, pll_frequency):
     """Initializes FPGA bitstream and sets PLL frequency."""
@@ -58,16 +58,9 @@ class OpenTitan(object):
     assert (scope.clock.adc_locked), "ADC failed to lock"
     return scope
 
-  def load_fw(self, fw_image):
-    """Loads firmware image."""
-    # TODO: Make settings configurable.
-    command = [SPIFLASH, '--dev-id=0403:6014', '--dev-sn=FT2U2SK1',
-           '--input=' + fw_image]
-    subprocess.check_call(command)
-
-  def initialize_target(self, scope, fw_image, baudrate):
+  def initialize_target(self, scope, fw_programmer, baudrate):
     """Loads firmware image and initializes test target."""
-    self.load_fw(fw_image)
+    fw_programmer.run()
     time.sleep(0.5)
     target = cw.target(scope)
     target.output_len = 16

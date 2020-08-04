@@ -14,13 +14,20 @@ import chipwhisperer as cw
 
 from util import device
 from util import plot
+from util import spiflash
 
 
-def initialize_test(device_cfg):
-  """Initialize test setup."""
+def initialize_capture(device_cfg, spiflash_cfg):
+  """Initialize capture."""
+  fw_programmer = spiflash.FtdiProgrammer(
+    spiflash_cfg['bin'],
+    spiflash_cfg['dev_id'],
+    spiflash_cfg['dev_sn'],
+    device_cfg['fw_bin'])
+
   ot = device.OpenTitan(
+    fw_programmer,
     device_cfg['fpga_bitstream'],
-    device_cfg['fw_bin'],
     device_cfg['pll_frequency'],
     device_cfg['baudrate'])
   print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
@@ -83,5 +90,5 @@ def run_capture(capture_cfg, ot):
 if __name__ == "__main__":
   with open('capture.yaml') as f:
     cfg_file = yaml.load(f, Loader=yaml.FullLoader)
-  ot = initialize_test(cfg_file['device'])
+  ot = initialize_capture(cfg_file['device'], cfg_file['spiflash'])
   run_capture(cfg_file['capture'], ot)

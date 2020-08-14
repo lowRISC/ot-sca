@@ -1,0 +1,4 @@
+cw/cw305/bin/linux/spiflash filter=lfs diff=lfs merge=lfs -text
+cw/cw305/objs/aes_serial_fpga_nexysvideo.bin filter=lfs diff=lfs merge=lfs -text
+cw/cw305/objs/lowrisc_systems_top_earlgrey_cw305_0.1.bit filter=lfs diff=lfs merge=lfs -text
+doc/sample_traces.png filter=lfs diff=lfs merge=lfs -text

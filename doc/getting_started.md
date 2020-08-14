@@ -7,6 +7,20 @@ In the meantime, check the following PRs:
 * https://github.com/lowRISC/opentitan/pull/2587
 * https://github.com/lowRISC/opentitan/pull/2735
 
+### Git Large File Storage (LFS)
+
+This project uses Git LFS for storing binaries like the SPI flash tool and the
+target FPGA bitstream on a remote server. The repository itself just contains
+diff-able text pointers to the binaries. It is recommended to install the
+`git-lfs` tool for transparently accessing the binaries. Alternatively, they
+can be downloaded manually from GitHub.
+
+You can run
+```
+	sudo apt install git-lfs
+```
+to install the `git-lfs` tool on your Ubuntu machine.
+
 ### Downloading code via FTDI
 
 Currently the target firmware is downloaded via a SPI FTDI interface using the

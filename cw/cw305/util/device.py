@@ -23,7 +23,8 @@ class OpenTitan(object):
     """Initializes FPGA bitstream and sets PLL frequency."""
     print('Connecting and loading FPGA')
     fpga = cw.capture.targets.CW305()
-    fpga.con(bsfile=bitstream, force=True)
+    # Do not program the FPGA if it is already programmed.
+    fpga.con(bsfile=bitstream, force=False)
     fpga.vccint_set(1.0)
 
     print('Initializing PLL1')
@@ -41,9 +42,9 @@ class OpenTitan(object):
   def initialize_scope(self):
     """Initializes chipwhisperer scope."""
     scope = cw.scope()
-    scope.gain.db = 15
+    scope.gain.db = 25
     scope.adc.samples =  200
-    scope.adc.offset = 600
+    scope.adc.offset = 0
     scope.adc.basic_mode = "rising_edge"
     scope.clock.clkgen_freq = 18425000
     scope.clock.adc_src = "extclk_x4"

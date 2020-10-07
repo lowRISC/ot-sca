@@ -43,11 +43,13 @@ class OpenTitan(object):
     """Initializes chipwhisperer scope."""
     scope = cw.scope()
     scope.gain.db = 25
-    scope.adc.samples =  200
+    # Samples per trace - We oversample by 10x and AES is doing ~12/16 cycles per encryption.
+    scope.adc.samples = 180
     scope.adc.offset = 0
     scope.adc.basic_mode = "rising_edge"
-    scope.clock.clkgen_freq = 18425000
-    scope.clock.adc_src = "extclk_x4"
+    scope.clock.clkgen_freq = 100000000
+    # We sample using the target clock (100 MHz).
+    scope.clock.adc_src = "extclk_dir"
     scope.trigger.triggers = "tio4"
     scope.io.tio1 = "serial_tx"
     scope.io.tio2 = "serial_rx"

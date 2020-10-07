@@ -1,8 +1,8 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_top_earlgrey_cw305_0.1.bit
   fw_bin: objs/aes_serial_fpga_nexysvideo.bin
-  pll_frequency: 25000000
-  baudrate: 57600
+  pll_frequency: 100000000
+  baudrate: 115200
 spiflash:
   bin: bin/linux/spiflash
   # FTDI USB id (vendor:product) ID and serial number can be extracted using the

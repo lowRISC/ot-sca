@@ -2,7 +2,7 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
+import argparse
 import binascii
 from Crypto.Cipher import AES
 import numpy as np
@@ -34,26 +34,18 @@ def initialize_capture(device_cfg, spiflash_cfg):
   return ot
 
 
-def run_capture(capture_cfg, ot):
+def run_capture(capture_cfg, ot, ktp):
   """Run ChipWhisperer capture.
 
-  Based on https://github.com/newaetech/chipwhisperer-jupyter/blob/master/PA_HW_CW305_1-Attacking_AES_on_an_FPGA.ipynb
+  Args:
+    capture_cfg: Dictionary with capture configuration settings.
+    ot: Initialized OpenTitan target.
+    ktp: Key and plaintext generator.
   """
-
-  # Key and plaintext generator
-  ktp = cw.ktp.Basic()
-  ktp.key_len = capture_cfg['key_len_bytes']
-  ktp.text_len = capture_cfg['plain_text_len_bytes']
-  ot.target.output_len = capture_cfg['plain_text_len_bytes']
-
   key, text = ktp.next()
 
   cipher = AES.new(bytes(key), AES.MODE_ECB)
   print(f'Using key: {binascii.b2a_hex(bytes(key))}')
-
-  traces = []
-  textin = []
-  keys = []
 
   print('Reading from FPGA using simpleserial protocol.')
   ot.target.write('v'+'\n')
@@ -67,28 +59,67 @@ def run_capture(capture_cfg, ot):
     key, text = ktp.next()
     ret = cw.capture_trace(ot.scope, ot.target, text, key)
     if not ret:
-        print('Failed capture')
-        continue
+      print('Failed capture')
+      continue
+    elif min(ret.wave) < -0.25:
+      continue
 
     expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
     got = binascii.b2a_hex(ret.textout)
     assert (got == expected), (
         f'Incorrect encryption result!\ngot: {got}\nexpected: {expected}\n')
 
-    traces.append(ret.wave)
     project.traces.append(ret)
 
     ot.target.flush()
 
   project.save()
-  ot.scope.dis()
-  ot.target.dis()
-  print(f'Saving sample trace image to: {capture_cfg["trace_image_filename"]}')
-  plot.save_plot_to_file(traces, capture_cfg['trace_image_filename'])
+
+
+def plot_results(plot_cfg, project_name):
+  """Plots traces from `project_name` using `plot_cfg` settings."""
+  project = cw.open_project(project_name)
+  plot.save_plot_to_file(project.waves, plot_cfg['num_traces'],
+                         plot_cfg['trace_image_filename'])
+
+
+def parse_args():
+  """Parse command line arguments."""
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--num-traces',
+                      '-n',
+                      type=int,
+                      help="Override number of traces.")
+  parser.add_argument('--plot-traces',
+                      '-p',
+                      type=int,
+                      help="Plot number of traces.")
+  args = parser.parse_args()
+  return args
 
 
 if __name__ == "__main__":
+  args = parse_args()
+
   with open('capture.yaml') as f:
     cfg_file = yaml.load(f, Loader=yaml.FullLoader)
+
+  if args.num_traces:
+    cfg_file['capture']['num_traces'] = args.num_traces
+
+  if args.plot_traces:
+    cfg_file['plot_capture']['show'] = True
+    cfg_file['plot_capture']['num_traces'] = args.plot_traces
+
   ot = initialize_capture(cfg_file['device'], cfg_file['spiflash'])
-  run_capture(cfg_file['capture'], ot)
+
+  # Key and plaintext generator
+  ktp = cw.ktp.Basic()
+  ktp.key_len = cfg_file['capture']['key_len_bytes']
+  ktp.text_len = cfg_file['capture']['plain_text_len_bytes']
+  ot.target.output_len = cfg_file['capture']['plain_text_len_bytes']
+
+  run_capture(cfg_file['capture'], ot, ktp)
+
+  project_name = cfg_file['capture']['project_name']
+  plot_results(cfg_file['plot_capture'], project_name)

@@ -61,7 +61,8 @@ def run_capture(capture_cfg, ot, ktp):
     if not ret:
       print('Failed capture')
       continue
-    elif min(ret.wave) < -0.25:
+    # This value may need to be updated if the trace dB factor changes.
+    elif min(ret.wave) < -0.45:
       continue
 
     expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))

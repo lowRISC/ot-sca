@@ -195,7 +195,7 @@ Then run the following commands:
 
 ```console
 $ cd cw/cw305
-$ python3 capture_traces.py
+$ ./simple_capture_traces.py --num-traces 5000 --plot-traces 5000
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
@@ -206,7 +206,7 @@ should produce console output similar to the following output:
 Connecting and loading FPGA
 Initializing PLL1
 Running SPI flash update.
-Image divided into 8 frames.
+Image divided into 13 frames.
 frame: 0x00000000 to offset: 0x00000000
 frame: 0x00000001 to offset: 0x000003d8
 frame: 0x00000002 to offset: 0x000007b0
@@ -214,14 +214,19 @@ frame: 0x00000003 to offset: 0x00000b88
 frame: 0x00000004 to offset: 0x00000f60
 frame: 0x00000005 to offset: 0x00001338
 frame: 0x00000006 to offset: 0x00001710
-frame: 0x80000007 to offset: 0x00001ae8
+frame: 0x00000007 to offset: 0x00001ae8
+frame: 0x00000008 to offset: 0x00001ec0
+frame: 0x00000009 to offset: 0x00002298
+frame: 0x0000000a to offset: 0x00002670
+frame: 0x0000000b to offset: 0x00002a48
+frame: 0x8000000c to offset: 0x00002e20
 Serial baud rate = 38400
-Serial baud rate = 57600
+Serial baud rate = 115200
+Scope setup with sampling rate 100003589.0 S/s
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Reading from FPGA using simpleserial protocol.
-Checking version:
-Capturing: 100%|████████████████████████████| 5000/5000 [01:35<00:00, 52.26it/s]
-Saving sample trace image to: doc/sample_traces.html
+Checking version: 
+Capturing: 100%|████████████████████████████| 5000/5000 [00:57<00:00, 86.78it/s]
 ```
 
 In case you see console output like
@@ -245,7 +250,7 @@ Sample analysis run (Failed):
 To perform the attack, run the following command:
 
 ```console
-$ python3 cpa_attack.py
+$ ./simple_cpa_attack.py
 ```
 
 This should produce console output similar to the output below in case
@@ -273,7 +278,13 @@ Subkey KGuess Correlation
  14    0x62    0.05984
  15    0xB2    0.05733
 
-FAIL: key_guess != known_key
+FAILED: key_guess != known_key
+        0/16 bytes guessed correctly.
 Saving results
 
 ```
+
+Note that this particular attack is supposed to fail on the OpenTitan AES
+implementation as the attack tries to exploit the Hamming distance leakage
+of the state register in the last round, whereas the hardware does not write
+the output of the last round back into the state register.

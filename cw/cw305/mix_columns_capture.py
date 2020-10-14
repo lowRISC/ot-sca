@@ -13,7 +13,7 @@ See mix_columns_cpa_attack.py for attack portion.
 import chipwhisperer as cw
 import yaml
 
-import capture_traces as cp
+import simple_capture_traces as cp
 
 if __name__ == "__main__":
   with open('capture.yaml') as f:

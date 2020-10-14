@@ -24,3 +24,6 @@ __pypackages__/
 
 # ChipWhisperer project files
 projects/
+
+# Python requirements source directory
+src/

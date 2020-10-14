@@ -21,13 +21,22 @@ projects = [cw.open_project(p) for p in PROJECTS]
 attack = AttackMixColumns(projects)
 results = attack.run()
 
-known_key = binascii.b2a_hex(bytearray(projects[0].keys[0]))
+known_key_bytes = projects[0].keys[0]
+key_guess_bytes = results['guess']
+
+known_key = binascii.b2a_hex(bytearray(known_key_bytes))
 print('known_key: {}'.format(known_key))
 
-key_guess = binascii.b2a_hex(bytearray(results['guess']))
+key_guess = binascii.b2a_hex(bytearray(key_guess_bytes))
 print('key guess: {}'.format(key_guess))
 
 if key_guess != known_key:
-  print('FAIL: key_guess != known_key')
+  num_bytes_match = 0
+  for i in range(len(known_key_bytes)):
+    if known_key_bytes[i] == key_guess_bytes[i]:
+      num_bytes_match += 1
+  print('FAILED: key_guess != known_key')
+  print('        ' + str(num_bytes_match) + '/' + \
+    str(len(known_key_bytes)) + ' bytes guessed correctly.')
 else:
-  print('ATTACK SUCCEED!')
+  print('SUCCESS!')

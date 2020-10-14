@@ -27,20 +27,30 @@ def cb():
 attack_results = attack.run(callback=cb, update_interval=update_interval)
 progress_bar.close()
 
+known_key_bytes = project.keys[0]
+
 key_last_round = [kguess[0][0] for kguess in attack_results.find_maximums()]
-key_guess = cwa.attacks.models.aes.key_schedule.key_schedule_rounds(
+key_guess_bytes = cwa.attacks.models.aes.key_schedule.key_schedule_rounds(
     key_last_round, 10, 0)
 
-known_key = binascii.b2a_hex(bytearray(project.keys[0]))
+known_key = binascii.b2a_hex(bytearray(known_key_bytes))
 print('known_key: {}'.format(known_key))
 
-key_guess = binascii.b2a_hex(bytearray(key_guess))
+key_guess = binascii.b2a_hex(bytearray(key_guess_bytes))
 print('key guess: {}'.format(key_guess))
 
 print(attack_results)
 
 if key_guess != known_key:
-  print('FAIL: key_guess != known_key')
+  num_bytes_match = 0
+  for i in range(len(known_key_bytes)):
+    if known_key_bytes[i] == key_guess_bytes[i]:
+      num_bytes_match += 1
+  print('FAILED: key_guess != known_key')
+  print('        ' + str(num_bytes_match) + '/' + \
+    str(len(known_key_bytes)) + ' bytes guessed correctly.')
+else:
+  print('SUCCESS!')
 
 print('Saving results')
 pickle_file = project_file + ".results.pickle"

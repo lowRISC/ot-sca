@@ -1,5 +1,13 @@
+# Copyright lowRISC contributors.
+# Licensed under the Apache License, Version 2.0, see LICENSE for details.
+# SPDX-License-Identifier: Apache-2.0
+
+# Keep sorted.
+bokeh
 pyyaml
-chipwhisperer
 scared
 tqdm
-bokeh
+
+# The development version of the ChipWhisperer toolchain with latest features
+# and bug fixes needs to be installed in editable mode.
+-e git+https://github.com/newaetech/chipwhisperer.git#egg=chipwhisperer

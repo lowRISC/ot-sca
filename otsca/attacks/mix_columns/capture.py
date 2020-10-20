@@ -13,12 +13,16 @@ See mix_columns_cpa_attack.py for attack portion.
 import chipwhisperer as cw
 import yaml
 
-import simple_capture_traces as cp
+from otsca.capture.cw import open_adc
+from otsca.attacks.simple import capture
 
 if __name__ == "__main__":
-  with open('capture.yaml') as f:
+  with open('otsca/config/capture.yaml') as f:
     cfg_file = yaml.load(f, Loader=yaml.FullLoader)
-  ot = cp.initialize_capture(cfg_file['device'], cfg_file['spiflash'])
+
+  scope = open_adc.initialize_scope()
+  ot = capture.initialize_capture(cfg_file['device'], cfg_file['spiflash'],
+                                  scope)
   ot.target.output_len = cfg_file['capture']['plain_text_len_bytes']
 
   # Key and plaintext generator
@@ -34,7 +38,7 @@ if __name__ == "__main__":
   for var_vec in range(4):
     cfg_file['capture']['project_name'] = f'{project_name}_{var_vec}'
     ktp.var_vec = var_vec
-    cp.run_capture(cfg_file['capture'], ot, ktp)
+    capture.run_capture(cfg_file['capture'], ot, scope, ktp)
 
-  ot.scope.dis()
+  scope.dis()
   ot.target.dis()

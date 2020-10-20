@@ -6,18 +6,20 @@ import argparse
 import binascii
 from Crypto.Cipher import AES
 import numpy as np
+import sys
 import time
 from tqdm import tqdm
 import yaml
 
 import chipwhisperer as cw
 
-from util import device
-from util import plot
-from util import spiflash
+from otsca.capture.cw import open_adc
+from otsca.targets.cw305 import device
+from otsca.util import plot
+from otsca.util import spiflash
 
 
-def initialize_capture(device_cfg, spiflash_cfg):
+def initialize_capture(device_cfg, spiflash_cfg, scope):
   """Initialize capture."""
   fw_programmer = spiflash.FtdiProgrammer(
     spiflash_cfg['bin'],
@@ -29,17 +31,19 @@ def initialize_capture(device_cfg, spiflash_cfg):
     fw_programmer,
     device_cfg['fpga_bitstream'],
     device_cfg['pll_frequency'],
-    device_cfg['baudrate'])
-  print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
+    device_cfg['baudrate'],
+    scope)
+  print(f'Scope setup with sampling rate {scope.clock.adc_rate} S/s')
   return ot
 
 
-def run_capture(capture_cfg, ot, ktp):
+def run_capture(capture_cfg, ot, scope, ktp):
   """Run ChipWhisperer capture.
 
   Args:
     capture_cfg: Dictionary with capture configuration settings.
     ot: Initialized OpenTitan target.
+    scope: Initialized scope.
     ktp: Key and plaintext generator.
   """
   key, text = ktp.next()
@@ -57,12 +61,12 @@ def run_capture(capture_cfg, ot, ktp):
 
   for i in tqdm(range(capture_cfg['num_traces']), desc='Capturing', ncols=80):
     key, text = ktp.next()
-    ret = cw.capture_trace(ot.scope, ot.target, text, key)
+    ret = cw.capture_trace(scope, ot.target, text, key)
     if not ret:
       print('Failed capture')
       continue
     # This value may need to be updated if the trace dB factor changes.
-    elif min(ret.wave) < -0.45:
+    elif min(ret.wave) < -0.8:
       continue
 
     expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -87,6 +91,11 @@ def plot_results(plot_cfg, project_name):
 def parse_args():
   """Parse command line arguments."""
   parser = argparse.ArgumentParser()
+  parser.add_argument('--cfg',
+                      '-c',
+                      type=str,
+                      required=True,
+                      help="Configuration file.")
   parser.add_argument('--num-traces',
                       '-n',
                       type=int,
@@ -102,7 +111,7 @@ def parse_args():
 if __name__ == "__main__":
   args = parse_args()
 
-  with open('capture.yaml') as f:
+  with open(args.cfg) as f:
     cfg_file = yaml.load(f, Loader=yaml.FullLoader)
 
   if args.num_traces:
@@ -112,7 +121,8 @@ if __name__ == "__main__":
     cfg_file['plot_capture']['show'] = True
     cfg_file['plot_capture']['num_traces'] = args.plot_traces
 
-  ot = initialize_capture(cfg_file['device'], cfg_file['spiflash'])
+  scope = open_adc.initialize_scope()
+  ot = initialize_capture(cfg_file['device'], cfg_file['spiflash'], scope)
 
   # Key and plaintext generator
   ktp = cw.ktp.Basic()
@@ -120,7 +130,10 @@ if __name__ == "__main__":
   ktp.text_len = cfg_file['capture']['plain_text_len_bytes']
   ot.target.output_len = cfg_file['capture']['plain_text_len_bytes']
 
-  run_capture(cfg_file['capture'], ot, ktp)
+  run_capture(cfg_file['capture'], ot, scope, ktp)
 
   project_name = cfg_file['capture']['project_name']
   plot_results(cfg_file['plot_capture'], project_name)
+
+  scope.dis()
+  ot.target.dis()

@@ -163,9 +163,8 @@ in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instr
 ### Configuring the Setup
 
 The main configuration of the OpenTitan SCA analysis setup is stored in the file
-```
-cw/cw305/capture.yaml
-```
+`otsca/config/capture.yaml`.
+
 For example, this file allows to specify the FPGA bitstream to be loaded,
 the SPI Flash tool to use, and the OpenTitan application binary to execute.
 By default, the prebuilt binaries delivered with this repository are used.
@@ -188,14 +187,14 @@ traces.
 ### Capture Power Traces
 
 Make sure all boards and adapters are powered up and connected to your PC and
-that you have adjusted the configuration in `cw/cw305/capture.yaml`
+that you have adjusted the configuration in `otsca/config/capture.yaml`
 according to your system.
 
 Then run the following commands:
 
 ```console
-$ cd cw/cw305
-$ ./simple_capture_traces.py --num-traces 5000 --plot-traces 5000
+$ otsca/attacks/simple/capture.py --cfg=otsca/config/capture.yaml \
+    --num-traces 5000 --plot-traces 5000
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
@@ -225,7 +224,7 @@ Serial baud rate = 115200
 Scope setup with sampling rate 100003589.0 S/s
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Reading from FPGA using simpleserial protocol.
-Checking version: 
+Checking version:
 Capturing: 100%|████████████████████████████| 5000/5000 [00:57<00:00, 86.78it/s]
 ```
 
@@ -250,7 +249,7 @@ Sample analysis run (Failed):
 To perform the attack, run the following command:
 
 ```console
-$ ./simple_cpa_attack.py
+$ otsca/attacks/simple/cpa_attack.py
 ```
 
 This should produce console output similar to the output below in case

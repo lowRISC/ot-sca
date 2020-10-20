@@ -193,6 +193,7 @@ according to your system.
 Then run the following commands:
 
 ```console
+$ . setenv.sh
 $ otsca/attacks/simple/capture.py --cfg=otsca/config/capture.yaml \
     --num-traces 5000 --plot-traces 5000
 ```

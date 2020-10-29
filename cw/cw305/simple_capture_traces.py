@@ -56,23 +56,36 @@ def run_capture(capture_cfg, ot, ktp):
   project = cw.create_project(project_file, overwrite=True)
 
   for i in tqdm(range(capture_cfg['num_traces']), desc='Capturing', ncols=80):
-    key, text = ktp.next()
-    ret = cw.capture_trace(ot.scope, ot.target, text, key)
-    if not ret:
-      print('Failed capture')
-      continue
-    # This value may need to be updated if the trace dB factor changes.
-    elif min(ret.wave) < -0.45:
-      continue
+    done = False
+    # Get at most one print about failures per status bar percent.
+    if i % (int(capture_cfg['num_traces']/100)) == 0:
+      print_fail = True
+    # The capture might fail, we keep trying until we succeed.
+    while not done:
+      key, text = ktp.next()
+      ret = cw.capture_trace(ot.scope, ot.target, text, key)
+      if not ret:
+        if print_fail:
+          print(f' Capture failed. Keep trying.')
+          print_fail = False
+        continue
+      # This value may need to be updated if the trace dB factor changes.
+      elif min(ret.wave) < -0.45:
+        if print_fail:
+          print(f' Signal too strong. Discard capture, keep trying.')
+          print_fail = False
+        continue
+      else:
+        done = True
 
-    expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
-    got = binascii.b2a_hex(ret.textout)
-    assert (got == expected), (
-        f'Incorrect encryption result!\ngot: {got}\nexpected: {expected}\n')
+      expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
+      got = binascii.b2a_hex(ret.textout)
+      assert (got == expected), (
+          f'Incorrect encryption result!\ngot: {got}\nexpected: {expected}\n')
 
-    project.traces.append(ret)
+      project.traces.append(ret)
 
-    ot.target.flush()
+      ot.target.flush()
 
   project.save()
 

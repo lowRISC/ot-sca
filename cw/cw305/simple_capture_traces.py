@@ -19,11 +19,14 @@ from util import spiflash
 
 def initialize_capture(device_cfg, spiflash_cfg):
   """Initialize capture."""
+  # TODO: Remove after the new programmer is verified to work for everyone.
   fw_programmer = spiflash.FtdiProgrammer(
     spiflash_cfg['bin'],
     spiflash_cfg['dev_id'],
     spiflash_cfg['dev_sn'],
     device_cfg['fw_bin'])
+
+  fw_programmer = spiflash.SAM3UProgrammer(device_cfg['fw_bin'])
 
   ot = device.OpenTitan(
     fw_programmer,

@@ -59,7 +59,7 @@ class OpenTitan(object):
 
   def initialize_target(self, scope, fw_programmer, baudrate):
     """Loads firmware image and initializes test target."""
-    fw_programmer.run()
+    fw_programmer.run(self.fpga)
     time.sleep(0.5)
     target = cw.target(scope)
     target.output_len = 16

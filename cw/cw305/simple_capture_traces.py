@@ -80,6 +80,11 @@ def run_capture(capture_cfg, ot, ktp):
 def plot_results(plot_cfg, project_name):
   """Plots traces from `project_name` using `plot_cfg` settings."""
   project = cw.open_project(project_name)
+
+  if len(project.waves) == 0:
+    print('Project contains no traces. Did the capture fail?')
+    return
+
   plot.save_plot_to_file(project.waves, plot_cfg['num_traces'],
                          plot_cfg['trace_image_filename'])
 

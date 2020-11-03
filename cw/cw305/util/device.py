@@ -9,10 +9,6 @@ import time
 
 import chipwhisperer as cw
 
-
-SPIFLASH=r'bin/linux/spiflash'
-
-
 class OpenTitan(object):
   def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
       self.fpga = self.initialize_fpga(bitstream, pll_frequency)

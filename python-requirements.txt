@@ -4,6 +4,7 @@
 
 # Keep sorted.
 bokeh
+pycryptodome
 pyyaml
 scared
 tqdm

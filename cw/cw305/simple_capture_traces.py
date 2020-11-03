@@ -61,9 +61,6 @@ def run_capture(capture_cfg, ot, ktp):
     if not ret:
       print('Failed capture')
       continue
-    # This value may need to be updated if the trace dB factor changes.
-    elif min(ret.wave) < -0.45:
-      continue
 
     expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
     got = binascii.b2a_hex(ret.textout)
@@ -84,6 +81,16 @@ def plot_results(plot_cfg, project_name):
   if len(project.waves) == 0:
     print('Project contains no traces. Did the capture fail?')
     return
+
+  # The ADC output is in the interval [-0.5, 0.5). Check that the recorded
+  # traces are within that range with some safety margin.
+  if not (np.all(np.greater(project.waves, -plot_cfg['amplitude_max'])) and
+          np.all(np.less(project.waves, plot_cfg['amplitude_max']))):
+    print('WARNING: Some traces have samples outside the range (' +
+          str(-plot_cfg['amplitude_max']) + ', ' +
+          str(plot_cfg['amplitude_max']) + ').')
+    print('         The ADC has a max range of [-0.5, 0.5) and might saturate.')
+    print('         It is recommended to reduce the scope gain (see device.py).')
 
   plot.save_plot_to_file(project.waves, plot_cfg['num_traces'],
                          plot_cfg['trace_image_filename'])

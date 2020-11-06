@@ -15,6 +15,7 @@ import argparse
 import binascii
 import chipwhisperer as cw
 import trsfile
+from tqdm import tqdm
 
 
 def gen_trs_headers(project, export_key):
@@ -112,10 +113,11 @@ def cw_project_to_trs(project_name, trs_filename, export_keys):
   calc_data_offsets(p.traces[0], export_keys, h)
 
   traces = []
-  for trace in p.traces:
+  for trace in tqdm(p.traces, desc='Converting', ncols=80):
     traces.append(trsfile.Trace(trsfile.SampleCoding.FLOAT, trace.wave,
                                 data=gen_trs_data(trace, export_keys)))
 
+  print('Writing output file, this may take a while.')
   with trsfile.trs_open(trs_filename, 'w', engine='TrsEngine', headers=h,
                         live_update=True) as t:
     t.extend(traces)
@@ -136,8 +138,7 @@ def parse_args():
                       help="Output trs filename.")
   parser.add_argument('--export-key',
                       '-k',
-                      default=False,
-                      type=bool,
+                      action='store_true',
                       help="Include keys in data output.")
   args = parser.parse_args()
   return args

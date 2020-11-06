@@ -179,7 +179,7 @@ class _Bootstrap:
       time.sleep(self._INTER_FRAME_DELAY)
     print(f'Transferring {frame}.')
     # Acknowledgement is the same size as digests.
-    return b''.join(self._fpga_io.spi1_transfer(bytes(frame)))[:_SpiFlashFrame.DIGEST_SIZE]
+    return bytes(self._fpga_io.spi1_transfer(bytes(frame))[:_SpiFlashFrame.DIGEST_SIZE])
 
 
 class SAM3UProgrammer:

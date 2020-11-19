@@ -11,19 +11,25 @@ See simple_cpa_attack.py for capture portion.
 
 import binascii
 import chipwhisperer as cw
+import chipwhisperer.analyzer as cwa
 import numpy as np
 import scared
 
 from util import plot
 
 # Configuration
-start_sample_use = 35
-num_samples_use = 100
+start_sample_use = 110  # Focus on last S-Box evaluation in final AES round.
+num_samples_use = 20
 stop_sample_use = start_sample_use + num_samples_use
 
 num_sigmas = 3  # Amount of tolerable deviation from average during filtering.
 
+attack_output = True  # Perform attack from the output.
+
 plot_debug = False
+plot_rho = True
+if plot_debug:
+    plot_rho = True
 
 
 def get_okay_traces(traces, upper_trace, lower_trace):
@@ -58,10 +64,10 @@ def get_max_rho(m_alpha_j, a, b):
     #   c(b_255,a_0) .. c(b_255,a_255) | c(b_255, b_0) .. c(b_255, b_255)
     #
     #   where b_255 is m_alpha_j[b,255], i.e., the average of all traces with
-    #   plaintext byte 255 at position b.
+    #   plain/cipher-text byte 255 at position b.
     #
     #   We only need the upper right square matrix and need to average that
-    #   along the same  delta = plaintext_a ^ plaintext_b.
+    #   along the same  delta = text_a ^ text_b.
     #
     # Extract the upper right quarter.
     rho_mat = rho_mat[0:256, 256:512]
@@ -75,6 +81,9 @@ def get_max_rho(m_alpha_j, a, b):
             rho_avg_delta_num[delta] += 1
     for delta in range(256):
         rho_avg_delta[delta] /= rho_avg_delta_num[delta]
+    # Normalize
+    mean = rho_avg_delta.mean()
+    rho_avg_delta /= mean
     # Extract the maximum
     max_rho[1] = np.argmax(rho_avg_delta)
     max_rho[0] = rho_avg_delta[max_rho[1]]
@@ -146,7 +155,7 @@ if __name__ == '__main__':
     ###########################################################
     # Get average traces with value alpha at byte position j. #
     ###########################################################
-    # Generate lists of all traces with value alpha at plaintext byte
+    # Generate lists of all traces with value alpha at plain/cipher-text byte
     # position j. That's 16 x 2^8 = 4096 lists.
 
     # Pre-allocate the array of lists and average traces.
@@ -157,7 +166,10 @@ if __name__ == '__main__':
     for i in range(num_traces):
         if okay_traces[i]:
             for j in range(16):
-                alpha = project.textins[i][j]
+                if not attack_output:
+                    alpha = project.textins[i][j]
+                else:
+                    alpha = project.textouts[i][j]
                 lists[j][alpha].append(i)
 
     # Detect empty lists.
@@ -173,7 +185,7 @@ if __name__ == '__main__':
     # position j.
     for j in range(16):
         for alpha in range(256):
-            # Get number of traces with value alpha at plaintext byte
+            # Get number of traces with value alpha at plain/cipher-text byte
             # position j.
             num_alpha_traces = len(lists[j][alpha])
             if num_alpha_traces:
@@ -201,8 +213,8 @@ if __name__ == '__main__':
         plot.save_plot_to_file(plot_m_alpha_j[0:3], 3, 'm_alpha_j.html')
 
     ##########################################################################
-    # Find maximum correlation of m_alpha_j for every pair of plaintext byte #
-    # positions a and b.                                                     #
+    # Find maximum correlation of m_alpha_j for every pair of plain/cipher-  #
+    # text positions a and b.                                                #
     ##########################################################################
     max_rho_list = []
     rho_list = []
@@ -212,8 +224,8 @@ if __name__ == '__main__':
             max_rho_list.append(max_rho)
             rho_list.append(rho)
 
-    # Plot correlation coefficients for delta of plaintext byte pairs.
-    if plot_debug:
+    # Plot correlation coefficients for delta of plain/cipher-text byte pairs.
+    if plot_rho:
         plot.save_plot_to_file(rho_list[0:3], 3, 'rho.html')
 
     # Convert into matrix.
@@ -270,6 +282,12 @@ if __name__ == '__main__':
                         key_temp[a] = key_temp[b] ^ delta
                         status[a] = True
                     continue
+        if attack_output:
+            # When attacking from the output, we get the deltas for the last
+            # round key. We need to do an inverse key expand to get the
+            # initial key.
+            start_key = cwa.aes_funcs.key_schedule_rounds(key_temp, 10, 0)
+            key_temp = np.asarray(start_key, np.uint8)
 
         # Encrypt and compare.
         ciphertext_temp = scared.aes.base.encrypt(plaintext, key_temp)
@@ -307,6 +325,12 @@ if __name__ == '__main__':
         print('SUCCESS!')
 
     # Get known deltas.
+    if attack_output:
+        # When attacking from the output, we get the deltas for the last
+        # round key. We need to a forward key expand of the known key
+        # to get the detlas of the final round key.
+        end_key = cwa.aes_funcs.key_schedule_rounds(known_key_bytes, 0, 10)
+        known_key_bytes = np.asarray(end_key, np.uint8)
     known_deltas = np.zeros((16, 16), np.uint8)
     known_rho_deltas = []
     for a in range(16):

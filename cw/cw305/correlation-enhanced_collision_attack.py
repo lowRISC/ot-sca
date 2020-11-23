@@ -14,7 +14,8 @@ import chipwhisperer as cw
 import chipwhisperer.analyzer as cwa
 import numpy as np
 import scared
-
+import multiprocessing
+from joblib import Parallel, delayed
 from util import plot
 
 # Configuration
@@ -44,6 +45,21 @@ def get_okay_traces(traces, upper_trace, lower_trace):
                 np.all(traces[i] >= lower_trace)):
             okay_traces[i] = 1
     return okay_traces
+
+
+def get_m_alpha_j(list_alpha_j, traces, num_traces_use):
+    m_alpha_j = np.zeros(len(traces[0]), np.double)
+    # Get number of traces with value alpha at plain/cipher-text byte
+    # position j.
+    num_alpha_traces = len(
+        [trace for trace in list_alpha_j if trace < num_traces_use])
+    if num_alpha_traces:
+        # Sum up all traces.
+        for trace in range(num_alpha_traces):
+            m_alpha_j += traces[list_alpha_j[trace]]
+        # Get the average.
+        m_alpha_j /= num_alpha_traces
+    return m_alpha_j
 
 
 def get_max_rho(m_alpha_j, a, b):
@@ -202,22 +218,10 @@ if __name__ == '__main__':
 
         # Compute m_alpha_j = average traces with value alpha at byte
         # position j.
-        m_alpha_j = np.zeros((16, 256, num_samples_use), np.double)
-        for j in range(16):
-            for alpha in range(256):
-                # Get number of traces with value alpha at plain/cipher-text byte
-                # position j.
-                num_alpha_traces = len([
-                    trace for trace in lists[j][alpha]
-                    if trace < num_traces_use
-                ])
-                if num_alpha_traces:
-                    # Sum up all traces.
-                    for trace in range(num_alpha_traces):
-                        m_alpha_j[j, alpha] += traces[
-                            lists[j][alpha][trace]][0:num_samples_use]
-                    # Get the average.
-                    m_alpha_j[j, alpha] /= num_alpha_traces
+        m_alpha_j = Parallel(n_jobs=multiprocessing.cpu_count())(
+            delayed(get_m_alpha_j)(lists[j][alpha], traces, num_traces_use)
+            for j in range(16) for alpha in range(256))
+        m_alpha_j = np.reshape(m_alpha_j, [16, 256, 20])
 
         # Assign average trace to m_alpha_j with zero traces.
         for j, alpha in empty_lists:

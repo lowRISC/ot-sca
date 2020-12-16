@@ -4,8 +4,12 @@
 
 # Keep sorted.
 bokeh
+codetiming
+more-itertools
+networkx
 pycryptodome
 pyyaml
+ray
 scared
 tqdm
 trsfile

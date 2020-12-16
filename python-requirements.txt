@@ -9,6 +9,8 @@ pyyaml
 scared
 tqdm
 trsfile
+# can be removed after switching to ray
+joblib
 
 # The development version of the ChipWhisperer toolchain with latest features
 # and bug fixes needs to be installed in editable mode.

@@ -221,7 +221,7 @@ if __name__ == '__main__':
         m_alpha_j = Parallel(n_jobs=multiprocessing.cpu_count())(
             delayed(get_m_alpha_j)(lists[j][alpha], traces, num_traces_use)
             for j in range(16) for alpha in range(256))
-        m_alpha_j = np.reshape(m_alpha_j, [16, 256, 20])
+        m_alpha_j = np.reshape(m_alpha_j, [16, 256, num_samples_use])
 
         # Assign average trace to m_alpha_j with zero traces.
         for j, alpha in empty_lists:

@@ -22,7 +22,14 @@ equipment is required:
   for this purpose but other similar adapters should work as well.
 
 
-### Python Dependencies
+### Software Requirements
+
+Software required by this repository can either be directly installed on a machine or
+obtained using the provided [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile).
+
+#### Installing on a Machine
+
+##### Python Dependencies
 
 This repository has a couple of Python dependencies. You can run
 ```console
@@ -30,8 +37,12 @@ $ pip install --user -r python_requirements.txt
 ```
 to install those dependencies.
 
+##### ChipWhisperer Dependencies
 
-### Git Large File Storage (LFS)
+Please see [this page](https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html#packages)
+to install the packages required by ChipWhisperer.
+
+##### Git Large File Storage (LFS)
 
 This project uses Git LFS for storing binaries like a debian-compatible
 pre-built binary of the tool for loading the OpenTitan application binary over
@@ -49,6 +60,102 @@ to install the `git-lfs` tool on your Ubuntu machine.
 Alternatively, you can rebuild those binaries yourself from the
 [OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
 
+#### Using the Docker Image
+
+**Note**: This is a WIP and currently supports only Linux hosts.
+
+The
+[Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile) in
+this repository can be used to build a ready-to-use image with all the dependencies
+installed. To build the image:
+1. If not already installed, install the Docker Engine following the instructions
+[here](https://docs.docker.com/engine/install/), and
+2. Build the container image using
+[build\_image.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/run_container.sh)
+(you may have to use `sudo` to be able to run docker commands depending on your setup):
+```console
+$ util/docker/build_image.sh
+```
+
+Once the image is built, you can run it using
+[run\_container.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/run_container.sh):
+```console
+$ util/docker/run_container.sh -h
+
+Run OpenTitan SCA/FI image.
+
+Usage: util/docker/run_container.sh -d DEVICE [-d DEVICE] -m SHM_SIZE -w HOST_WORK_DIR [-h]
+ 
+  -d: Host device to be added to the container. This option can be used multiple times.
+  -m: Shared memory size (/dev/shm) of the container. Should be at least 1/3 of total memory.
+  -w: Host directory that will be mounted into the container as /repo
+  -h: Print usage information and exit.
+```
+
+For example, if the host has 32+ GB RAM, the ot-sca repository is at `~/repos/ot-sca`, and ChipWhisperer
+devices are at `/dev/bus/usb/001/036` and `/dev/bus/usb/001/038`, you can use:
+```console
+$ util/docker/run_container.sh -d /dev/bus/usb/001/036 -d /dev/bus/usb/001/038 -m 12g -w ~/repos/ot-sca
+```
+
+If ChipWhisperer devices are the only USB devices that are connected to the host, you
+can use the following to add all USB devices to the container:
+```console
+$ util/docker/run_container.sh $(find /dev/bus/usb -type c | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
+```
+
+If you want to add only ChipWhisperer devices to the container and don't want
+to search for the correct device nodes every time they are disconnected and
+connected, you can add the following rules in `/etc/udev/rules.d/90-opentitan.rules`
+to create stable symbolic links using the `SYMLINK` attribute:
+```
+# CW-Lite
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
+
+# CW-305 (Artix Target)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
+```
+
+Load the new rules:
+```console
+$ sudo udevadm control --reload
+```
+
+Reconnect the devices and use the following to run the image in a container:
+```console
+$ util/docker/run_container.sh $(find /dev/opentitan -type l -exec readlink -f {} \; | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
+```
+
+Once the container is running, try capturing some traces to verify that everything is working correctly:
+```console
+Creating user 'ot' with UID=1000, GID=1000.
+ot@ot-sca:/repo$ cd cw/cw305/
+ot@ot-sca:/repo/cw/cw305$ ./simple_capture_traces.py 
+Connecting and loading FPGA
+Initializing PLL1
+Programming OpenTitan with "objs/aes_serial_fpga_nexysvideo.bin"...
+Transferring frame 0x00000000 @ 0x00000000.
+Transferring frame 0x00000001 @ 0x000003D8.
+Transferring frame 0x00000002 @ 0x000007B0.
+Transferring frame 0x00000003 @ 0x00000B88.
+Transferring frame 0x00000004 @ 0x00000F60.
+Transferring frame 0x00000005 @ 0x00001338.
+Transferring frame 0x00000006 @ 0x00001710.
+Transferring frame 0x00000007 @ 0x00001AE8.
+Transferring frame 0x00000008 @ 0x00001EC0.
+Transferring frame 0x00000009 @ 0x00002298.
+Transferring frame 0x0000000A @ 0x00002670.
+Transferring frame 0x0000000B @ 0x00002A48.
+Transferring frame 0x0000000C @ 0x00002E20.
+Transferring frame 0x8000000D @ 0x000031F8.
+Serial baud rate = 38400
+Serial baud rate = 115200
+Scope setup with sampling rate 100003051.0 S/s
+Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
+Reading from FPGA using simpleserial protocol.
+Checking version: 
+Capturing: 100%|████████████████████████████| 5000/5000 [00:55<00:00, 90.34it/s]
+```
 
 ### Generating OpenTitan Binaries
 

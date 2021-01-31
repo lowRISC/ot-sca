@@ -8,6 +8,8 @@ codetiming
 more-itertools
 networkx
 pycryptodome
+# TODO: Use pyvisa instead after switching to a dedicated PRNG
+python-vxi11
 pyyaml
 ray
 scared

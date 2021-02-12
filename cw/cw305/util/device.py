@@ -4,10 +4,37 @@
 
 r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
 
+import inspect
 import subprocess
 import time
 
 import chipwhisperer as cw
+
+class RuntimePatchFPGAProgram:
+    """Replaces the FPGAProgram method of an FPGA object with a function
+    that calls the given callback before calling the original method.
+
+    This class can be used to detect if the FPGA was actually programmed or not.
+    """
+    def __init__(self, fpga, callback):
+        """Inits a RuntimePatchFPGAProgram.
+
+        Args:
+            fpga: An FPGA object.
+            callback: Callback to call when fpga.FPGAProgram() is called.
+        """
+        self._fpga = fpga
+        self._callback = callback
+        self._orig_fn = fpga.FPGAProgram
+
+    def __enter__(self):
+        def wrapped_fn(*args, **kwargs):
+            self._callback()
+            return self._orig_fn(*args, **kwargs)
+        self._fpga.FPGAProgram = wrapped_fn
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._fpga.FPGAProgram = self._orig_fn
 
 class OpenTitan(object):
   def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
@@ -17,10 +44,29 @@ class OpenTitan(object):
 
   def initialize_fpga(self, bitstream, pll_frequency):
     """Initializes FPGA bitstream and sets PLL frequency."""
-    print('Connecting and loading FPGA')
-    fpga = cw.capture.targets.CW305()
     # Do not program the FPGA if it is already programmed.
-    fpga.con(bsfile=bitstream, force=False)
+    # Note: Set this to True to force programming the FPGA when using a new
+    # bitstream.
+    # TODO: We should have this in the CLI.
+    force_programming = False
+    print('Connecting and loading FPGA... ', end = '')
+    fpga = cw.capture.targets.CW305()
+    # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
+    # Note: This is fragile and may break but it is easy to miss that the FPGA
+    # was not programmed.
+    programmed = False
+    def program_callback():
+        nonlocal programmed
+        programmed = True
+    with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
+        # Connect to the FPGA and program it.
+        fpga.con(bsfile=bitstream, force=force_programming)
+        if not programmed:
+            # TODO: Update this message when we have this in the CLI.
+            stack_top = inspect.stack()[0]
+            print(f"SKIPPED! (see: {stack_top[1]}:{stack_top[3]})")
+        else:
+            print("Done!")
     fpga.vccint_set(1.0)
 
     print('Initializing PLL1')

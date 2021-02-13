@@ -134,8 +134,8 @@ class WaveRunner:
         commands = [
             # DC coupling, 1 Mohm.
             "C3:CPL D1M",
-            "C3:VDIV 15MV",
-            "C3:OFST 25MV",
+            "C3:VDIV 40MV",
+            "C3:OFST 140MV",
         ]
         self._write(";".join(commands))
         self._write("vbs 'app.Acquisition.C3.BandwidthLimit = \"200MHz\"'")
@@ -173,7 +173,7 @@ class WaveRunner:
             # include the samples that we are interested in.
             # Note: This number is tuned to align WaveRunner traces with ChipWhisperer
             # traces.
-            "TRDL -940NS",
+            "TRDL -960NS",
         ]
         self._write(";".join(commands))
 

@@ -68,7 +68,7 @@ def run_capture(capture_cfg, ot, ktp):
 
   for i in tqdm(range(capture_cfg['num_traces']), desc='Capturing', ncols=80):
     key, text = ktp.next()
-    ret = cw.capture_trace(ot.scope, ot.target, text, key)
+    ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
     if not ret:
       print('Failed capture')
       continue

@@ -27,14 +27,6 @@ def run_batch_capture(capture_cfg, ot, ktp):
       ot: Initialized OpenTitan target.
       ktp: Key and plaintext generator.
     """
-    # Ping target
-    print("Reading from FPGA using simpleserial protocol.")
-    version = None
-    while not version:
-        ot.target.write("v" + "\n")
-        time.sleep(0.5)
-        version = ot.target.read().strip()
-    print(f"Target simpleserial version: '{version}'.")
     # Set key
     assert ktp.fixed_key
     key = ktp.next_key()

@@ -6,6 +6,7 @@ import argparse
 import binascii
 from Crypto.Cipher import AES
 import numpy as np
+import sys
 import time
 from tqdm import tqdm
 import yaml
@@ -34,6 +35,18 @@ def initialize_capture(device_cfg, spiflash_cfg):
     device_cfg['pll_frequency'],
     device_cfg['baudrate'])
   print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
+  # Ping target
+  print('Reading from FPGA using simpleserial protocol.')
+  version = None
+  ping_cnt = 0
+  while not version:
+    if ping_cnt == 3:
+      raise RuntimeError(f'No response from the target (attempts: {ping_cnt}).')
+    ot.target.write('v' + '\n')
+    ping_cnt += 1
+    time.sleep(0.5)
+    version = ot.target.read().strip()
+  print(f'Target simpleserial version: {version} (attempts: {ping_cnt}).')
   return ot
 
 
@@ -49,11 +62,6 @@ def run_capture(capture_cfg, ot, ktp):
 
   cipher = AES.new(bytes(key), AES.MODE_ECB)
   print(f'Using key: {binascii.b2a_hex(bytes(key))}')
-
-  print('Reading from FPGA using simpleserial protocol.')
-  ot.target.write('v'+'\n')
-  time.sleep(0.5)
-  print(f'Checking version: {ot.target.read().strip()}')
 
   project_file = capture_cfg['project_name']
   project = cw.create_project(project_file, overwrite=True)

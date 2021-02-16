@@ -84,9 +84,10 @@ class OpenTitan(object):
   def initialize_scope(self):
     """Initializes chipwhisperer scope."""
     scope = cw.scope()
-    scope.gain.db = 12
-    # Samples per trace - We oversample by 10x and AES is doing ~12/16 cycles per encryption.
-    scope.adc.samples = 180
+    scope.gain.db = 23
+    # Samples per trace - We oversample by 10x and AES with DOM is doing
+    # ~56/72 cycles per encryption (AES-128/256).
+    scope.adc.samples = 740
     scope.adc.offset = 0
     scope.adc.basic_mode = "rising_edge"
     scope.clock.clkgen_freq = 100000000

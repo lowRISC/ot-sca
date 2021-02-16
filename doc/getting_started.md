@@ -200,11 +200,11 @@ build/lowrisc_systems_top_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_system
    `prepare_sw.py` script has been run before executing
 ```console
 $ ./meson_init.sh
-$ ninja -C build-out sw/device/sca/aes_serial/aes_serial_export_fpga_nexysvideo
+$ ninja -C build-out sw/device/sca/aes_serial_export_fpga_nexysvideo
 ```
    The generated binary can be found in
 ```
-build-bin/sw/device/sca/aes_serial/aes_serial_fpga_nexysvideo.bin
+build-bin/sw/device/sca/aes_serial_fpga_nexysvideo.bin
 ```
 
 

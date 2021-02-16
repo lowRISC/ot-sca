@@ -60,7 +60,7 @@ class _SpiFlashFrame:
   DIGEST_SIZE = HASH_FUNCTION().digest_size
   FRAME_NUMBER_SIZE = 4
   FLASH_OFFSET_SIZE = 4
-  PAYLOAD_SIZE = 1024 - DIGEST_SIZE - FRAME_NUMBER_SIZE - FLASH_OFFSET_SIZE
+  PAYLOAD_SIZE = 2048 - DIGEST_SIZE - FRAME_NUMBER_SIZE - FLASH_OFFSET_SIZE
 
   def __init__(self, frame_number, flash_offset, payload):
     """Inits a _SpiFlashFrame.
@@ -126,8 +126,8 @@ class _Bootstrap:
   _PIN_BOOTSTRAP='USB_A20'
   # Delays below are in seconds.
   _BOOTSTRAP_DELAY=0.1
-  _FIRST_FRAME_DELAY=0.1
-  _INTER_FRAME_DELAY=0.01
+  _FIRST_FRAME_DELAY=0.2
+  _INTER_FRAME_DELAY=0.02
 
   def __init__(self, fpga):
     """Inits a _Bootstrap with a CW305.

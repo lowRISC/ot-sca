@@ -69,7 +69,7 @@ class WaveRunner:
         """
         self._ip_addr = ip_addr
         self.seq_num_waves = 1000
-        self._num_samples = 180
+        self._num_samples = 740
         self._instr = vxi11.Instrument(self._ip_addr)
         self._populate_device_info()
         self._print_device_info()
@@ -134,8 +134,8 @@ class WaveRunner:
         commands = [
             # DC coupling, 1 Mohm.
             "C3:CPL D1M",
-            "C3:VDIV 40MV",
-            "C3:OFST 140MV",
+            "C3:VDIV 35MV",
+            "C3:OFST 105MV",
         ]
         self._write(";".join(commands))
         self._write("vbs 'app.Acquisition.C3.BandwidthLimit = \"200MHz\"'")
@@ -168,12 +168,12 @@ class WaveRunner:
 
     def _configure_timebase(self):
         commands = [
-            "TDIV 200NS",
+            "TDIV 800NS",
             # Trigger delay: Trigger is centered by default. Move to the left to
             # include the samples that we are interested in.
             # Note: This number is tuned to align WaveRunner traces with ChipWhisperer
             # traces.
-            "TRDL -960NS",
+            "TRDL -4950NS",
         ]
         self._write(";".join(commands))
 
@@ -189,7 +189,7 @@ class WaveRunner:
             # NP: number of points, self._num_samples.
             # FP: first point (without decimation).
             # SN: All sequences: 0
-            f"WFSU SP,10,NP,{self._num_samples},FP,0,SN,0",
+            f"WFSU SP,10,NP,{self._num_samples},FP,10,SN,0",
             # Data format: with DEF9 header, bytes (8-bit signed integers), binary encoding.
             # TODO: byte vs. word.
             "CFMT DEF9,BYTE,BIN",

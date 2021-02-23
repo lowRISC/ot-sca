@@ -3,12 +3,6 @@ device:
   fw_bin: objs/aes_serial_fpga_nexysvideo.bin
   pll_frequency: 100000000
   baudrate: 115200
-spiflash:
-  bin: bin/linux/spiflash
-  # FTDI USB id (vendor:product) ID and serial number can be extracted using
-  # the lsusb command.
-  dev_id: 0403:6014
-  dev_sn: FT2U2SK1
 capture:
   # Only AES-128 ECB is supported at this moment.
   key_len_bytes: 16

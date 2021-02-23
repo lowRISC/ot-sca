@@ -90,7 +90,7 @@ def main():
     """Loads the configuration file, captures and plots traces."""
     with open("capture.yaml") as f:
         cfg = yaml.safe_load(f)
-    ot = simple_capture.initialize_capture(cfg["device"], cfg["spiflash"])
+    ot = simple_capture.initialize_capture(cfg["device"])
     # Seed the PRNG.
     # TODO: Replace this with a dedicated PRNG to avoid other packages breaking
     # our code.

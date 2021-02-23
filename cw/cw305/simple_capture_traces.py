@@ -18,15 +18,8 @@ from util import plot
 from util import spiflash
 
 
-def initialize_capture(device_cfg, spiflash_cfg):
+def initialize_capture(device_cfg):
   """Initialize capture."""
-  # TODO: Remove after the new programmer is verified to work for everyone.
-  fw_programmer = spiflash.FtdiProgrammer(
-    spiflash_cfg['bin'],
-    spiflash_cfg['dev_id'],
-    spiflash_cfg['dev_sn'],
-    device_cfg['fw_bin'])
-
   fw_programmer = spiflash.SAM3UProgrammer(device_cfg['fw_bin'])
 
   ot = device.OpenTitan(
@@ -135,7 +128,7 @@ if __name__ == "__main__":
     cfg_file['plot_capture']['show'] = True
     cfg_file['plot_capture']['num_traces'] = args.plot_traces
 
-  ot = initialize_capture(cfg_file['device'], cfg_file['spiflash'])
+  ot = initialize_capture(cfg_file['device'])
 
   # Key and plaintext generator
   ktp = cw.ktp.Basic()

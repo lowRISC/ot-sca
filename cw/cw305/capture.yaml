@@ -1,5 +1,5 @@
 device:
-  fpga_bitstream: objs/lowrisc_systems_top_earlgrey_cw305_0.1.bit
+  fpga_bitstream: objs/lowrisc_systems_top_englishbreakfast_cw305_0.1.bit
   fw_bin: objs/aes_serial_fpga_nexysvideo.bin
   pll_frequency: 100000000
   baudrate: 115200

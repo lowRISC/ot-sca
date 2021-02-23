@@ -4,7 +4,7 @@
 
 ### Hardware Requirements
 
-To perform side-channel attack (SCA) analysis for [OpenTitan](https://github.com/lowRISC/OpenTitan).
+To perform side-channel analysis (SCA) for [OpenTitan](https://github.com/lowRISC/OpenTitan).
 using the infrastructure provided in this repository, the following hardware
 equipment is required:
 * [ChipWhisperer CW305-A100 FPGA Board](https://rtfm.newae.com/Targets/CW305%20Artix%20FPGA/)
@@ -21,8 +21,8 @@ equipment is required:
 
 ### Software Requirements
 
-Software required by this repository can either be directly installed on a machine or
-obtained using the provided [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile).
+Software required by this repository can either be directly installed on a
+machine or obtained using the provided [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile).
 
 #### Installing on a Machine
 
@@ -57,14 +57,15 @@ to install the `git-lfs` tool on your Ubuntu machine.
 Alternatively, you can rebuild those binaries yourself from the
 [OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
 
+
 #### Using the Docker Image
 
 **Note**: This is a WIP and currently supports only Linux hosts.
 
 The
-[Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile) in
-this repository can be used to build a ready-to-use image with all the dependencies
-installed. To build the image:
+[Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile)
+in this repository can be used to build a ready-to-use image with all the
+dependencies installed. To build the image:
 1. If not already installed, install the Docker Engine following the instructions
 [here](https://docs.docker.com/engine/install/), and
 2. Build the container image using
@@ -89,22 +90,24 @@ Usage: util/docker/run_container.sh -d DEVICE [-d DEVICE] -m SHM_SIZE -w HOST_WO
   -h: Print usage information and exit.
 ```
 
-For example, if the host has 32+ GB RAM, the ot-sca repository is at `~/repos/ot-sca`, and ChipWhisperer
-devices are at `/dev/bus/usb/001/036` and `/dev/bus/usb/001/038`, you can use:
+For example, if the host has 32+ GB RAM, the ot-sca repository is at
+`~/repos/ot-sca`, and ChipWhisperer devices are at `/dev/bus/usb/001/036`
+and `/dev/bus/usb/001/038`, you can use:
 ```console
 $ util/docker/run_container.sh -d /dev/bus/usb/001/036 -d /dev/bus/usb/001/038 -m 12g -w ~/repos/ot-sca
 ```
 
-If ChipWhisperer devices are the only USB devices that are connected to the host, you
-can use the following to add all USB devices to the container:
+If ChipWhisperer devices are the only USB devices that are connected to the
+host, you can use the following to add all USB devices to the container:
 ```console
 $ util/docker/run_container.sh $(find /dev/bus/usb -type c | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
 ```
 
 If you want to add only ChipWhisperer devices to the container and don't want
 to search for the correct device nodes every time they are disconnected and
-connected, you can add the following rules in `/etc/udev/rules.d/90-opentitan.rules`
-to create stable symbolic links using the `SYMLINK` attribute:
+connected, you can add the following rules in
+`/etc/udev/rules.d/90-opentitan.rules` to create stable symbolic links using
+the `SYMLINK` attribute:
 ```
 # CW-Lite
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
@@ -123,12 +126,13 @@ Reconnect the devices and use the following to run the image in a container:
 $ util/docker/run_container.sh $(find /dev/opentitan -type l -exec readlink -f {} \; | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
 ```
 
-Once the container is running, try capturing some traces to verify that everything is working correctly:
+Once the container is running, try capturing some traces to verify that
+everything is working correctly:
 ```console
 Creating user 'ot' with UID=1000, GID=1000.
 ot@ot-sca:/repo$ cd cw/cw305/
 ot@ot-sca:/repo/cw/cw305$ ./simple_capture_traces.py 
-Connecting and loading FPGA
+Connecting and loading FPGA... Done!
 Initializing PLL1
 Programming OpenTitan with "objs/aes_serial_fpga_nexysvideo.bin"...
 Transferring frame 0x00000000 @ 0x00000000.
@@ -142,23 +146,23 @@ Transferring frame 0x00000007 @ 0x00001AE8.
 Transferring frame 0x00000008 @ 0x00001EC0.
 Transferring frame 0x00000009 @ 0x00002298.
 Transferring frame 0x0000000A @ 0x00002670.
-Transferring frame 0x0000000B @ 0x00002A48.
-Transferring frame 0x0000000C @ 0x00002E20.
-Transferring frame 0x8000000D @ 0x000031F8.
+Transferring frame 0x8000000B @ 0x00002A48.
 Serial baud rate = 38400
 Serial baud rate = 115200
 Scope setup with sampling rate 100003051.0 S/s
+Target simpleserial version: z01 (attempts: 2).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Reading from FPGA using simpleserial protocol.
 Checking version: 
 Capturing: 100%|████████████████████████████| 5000/5000 [00:55<00:00, 90.34it/s]
 ```
 
+
 ### Generating OpenTitan Binaries
 
 Instead of using the example binaries provided by this repository via Git LFS,
-you can regenerate them from the [OpenTitan](https://github.com/lowRISC/OpenTitan)
-repository.
+you can regenerate them from the
+[OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
 
 To this end, follow these steps:
 
@@ -202,6 +206,7 @@ $ ninja -C build-out sw/device/sca/aes_serial/aes_serial_export_fpga_nexysvideo
 ```
 build-bin/sw/device/sca/aes_serial/aes_serial_fpga_nexysvideo.bin
 ```
+
 
 ## Setup
 
@@ -273,7 +278,7 @@ and out of the target while capturing power traces on the capture board. It
 should produce console output similar to the following output:
 
 ```console
-Connecting and loading FPGA
+Connecting and loading FPGA... Done!
 Initializing PLL1
 Programming OpenTitan with "objs/aes_serial_fpga_nexysvideo.bin"...
 frame: 0x00000000 to offset: 0x00000000
@@ -286,12 +291,12 @@ frame: 0x00000006 to offset: 0x00001710
 frame: 0x00000007 to offset: 0x00001ae8
 frame: 0x00000008 to offset: 0x00001ec0
 frame: 0x00000009 to offset: 0x00002298
-frame: 0x0000000a to offset: 0x00002670
-frame: 0x0000000b to offset: 0x00002a48
-frame: 0x8000000c to offset: 0x00002e20
+frame: 0x0000000A to offset: 0x00002670
+frame: 0x8000000B to offset: 0x00002a48
 Serial baud rate = 38400
 Serial baud rate = 115200
 Scope setup with sampling rate 100003589.0 S/s
+Target simpleserial version: z01 (attempts: 2).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Reading from FPGA using simpleserial protocol.
 Checking version: 

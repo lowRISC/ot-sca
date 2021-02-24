@@ -33,7 +33,7 @@ class WaveRunner:
     2-channel mode to maximize sampling rate. Trigger and power signals must be
     connected to channels 2 and 3, respectively.
 
-    When in sequence mode, the oscilloscope captures a total of `seq_num_waves` waves
+    When in sequence mode, the oscilloscope captures a total of `num_segments` waves
     each starting at a trigger event. This is much more efficient than sending a
     separate command for each wave.
 
@@ -50,13 +50,15 @@ class WaveRunner:
     >>> waverunner.configure()
     >>> while foo:
     >>>     ...
-    >>>     waverunner.seq_num_waves = seq_num_waves
+    >>>     waverunner.num_segments = num_segments
     >>>     waverunner.arm()
     >>>     waves = waverunner.wait_for_acquisition_and_transfer_waves()
     >>>     ...
 
     Attributes:
-        seq_num_waves: Number of waves per sequence.
+        num_segments_max: Maximum number of waves per sequence.
+        num_segments: Number of waves per sequence.
+        num_segments_actual: Equal to ``num_segments``.
     """
 
     def __init__(self, ip_addr):
@@ -68,11 +70,20 @@ class WaveRunner:
             ip_addr: IP address of the oscilloscope.
         """
         self._ip_addr = ip_addr
-        self.seq_num_waves = 1000
+        self.num_segments = 1000
         self._num_samples = 740
         self._instr = vxi11.Instrument(self._ip_addr)
         self._populate_device_info()
         self._print_device_info()
+        self._configure()
+
+    @property
+    def num_segments_max(self):
+        return 2000
+
+    @property
+    def num_segments_actual(self):
+        return self.num_segments
 
     def _write(self, cmd):
         self._instr.write(cmd)
@@ -198,7 +209,7 @@ class WaveRunner:
         ]
         self._write(";".join(commands))
 
-    def configure(self):
+    def _configure(self):
         """Configures the oscilloscope for acquisition."""
         self._default_setup()
         self._configure_power_channel()
@@ -211,7 +222,7 @@ class WaveRunner:
     def arm(self):
         """Arms the oscilloscope in sequence mode."""
         commands = [
-            f"SEQ ON,{self.seq_num_waves}",
+            f"SEQ ON,{self.num_segments}",
             "TRMD SINGLE",
             "*OPC?",
         ]
@@ -223,10 +234,10 @@ class WaveRunner:
         len_ = int(data[7:16])
         # Note: We use frombufer to minimize processing overhead.
         waves = np.frombuffer(data, np.int8, int(len_), 16)
-        waves = waves.reshape((self.seq_num_waves, self._num_samples))
+        waves = waves.reshape((self.num_segments, self._num_samples))
         return waves
 
-    def wait_for_acquisition_and_transfer_waves(self):
+    def capture_and_transfer_waves(self):
         """Waits until the acquisition is complete and transfers waveforms.
 
         Returns:

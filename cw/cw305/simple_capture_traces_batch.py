@@ -3,7 +3,14 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Captures traces using the 'b' (batch encryption) command and WaveRunner."""
+"""Captures traces using the 'b' (batch encryption) command. Supports both
+ChipWhisperer-Lite and WaveRunner 9104.
+
+Typical usage:
+>>> ./simple_capture_traces_batch.py -s SCOPE
+
+SCOPE must be either "cw_lite" or "waverunner".
+"""
 
 import argparse
 import random
@@ -17,15 +24,35 @@ import yaml
 
 import simple_capture_traces as simple_capture
 from waverunner import WaveRunner
+from cw_lite_segmented import CwLiteSegmented
 
 
-def run_batch_capture(capture_cfg, ot, ktp):
+def create_waverunner(ot, capture_cfg):
+    return WaveRunner(capture_cfg["waverunner_ip"])
+
+
+def create_cw_lite_segmented(ot, capture_cfg):
+    # TODO: Remove this disconnect after removing cw-lite init from device.py.
+    ot.scope.dis()
+    # Default samples per trace - We oversample by 10x and AES with DOM is doing
+    # ~56/72 cycles per encryption (AES-128/256).
+    return CwLiteSegmented(num_samples=740)
+
+
+SCOPE_FACTORY = {
+    "cw_lite": create_cw_lite_segmented,
+    "waverunner": create_waverunner,
+}
+
+
+def run_batch_capture(capture_cfg, ot, ktp, scope):
     """Captures traces using the 'b' (batch encryption) command and WaveRunner.
 
     Args:
       capture_cfg: Dictionary with capture configuration settings.
       ot: Initialized OpenTitan target.
       ktp: Key and plaintext generator.
+      scope: Scope to use for capture.
     """
     # Set key
     assert ktp.fixed_key
@@ -36,9 +63,6 @@ def run_batch_capture(capture_cfg, ot, ktp):
     ot.target.simpleserial_write(
         "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
     )
-    # Initialize waverunner
-    waverunner = WaveRunner(capture_cfg["waverunner_ip"])
-    waverunner.configure()
     # Create the ChipWhisperer project.
     project_file = capture_cfg["project_name"]
     project = cw.create_project(project_file, overwrite=True)
@@ -47,17 +71,18 @@ def run_batch_capture(capture_cfg, ot, ktp):
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
-            num_waves = min(rem_num_traces, capture_cfg["waverunner_max_seq_traces"])
-            waverunner.seq_num_waves = num_waves
-            waverunner.arm()
+            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+            scope.arm()
             # Start batch encryption.
-            ot.target.simpleserial_write("b", num_waves.to_bytes(4, "little"))
+            ot.target.simpleserial_write(
+                "b", scope.num_segments_actual.to_bytes(4, "little")
+            )
             # Transfer traces
-            waves = waverunner.wait_for_acquisition_and_transfer_waves()
-            assert waves.shape[0] == num_waves
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == scope.num_segments
             # Generate plaintexts and ciphertexts for the batch.
             # Note: Plaintexts are encrypted in parallel.
-            plaintexts = [ktp.next()[1] for _ in range(num_waves)]
+            plaintexts = [ktp.next()[1] for _ in range(scope.num_segments_actual)]
             ciphertexts = [
                 bytearray(c)
                 for c in scared.aes.base.encrypt(
@@ -80,14 +105,31 @@ def run_batch_capture(capture_cfg, ot, ktp):
                     cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key)
                 )
             # Update the loop variable and the progress bar.
-            rem_num_traces -= num_waves
-            pbar.update(num_waves)
+            rem_num_traces -= scope.num_segments
+            pbar.update(scope.num_segments)
     assert len(project.traces) == capture_cfg["num_traces"]
     project.save()
 
 
+def parse_args():
+    """Parses command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="""Captures traces using the 'b' (batch encryption) command.
+        Supports both ChipWhisperer-Lite and WaveRunner 9104."""
+    )
+    parser.add_argument(
+        "-s",
+        "--scope",
+        choices=["cw_lite", "waverunner"],
+        required=True,
+        help="scope to use",
+    )
+    return parser.parse_args()
+
+
 def main():
-    """Loads the configuration file, captures and plots traces."""
+    """Loads the configuration file, parses command-line arguments, captures and plots traces."""
+    args = parse_args()
     with open("capture.yaml") as f:
         cfg = yaml.safe_load(f)
     ot = simple_capture.initialize_capture(cfg["device"])
@@ -100,8 +142,11 @@ def main():
     ktp.key_len = cfg["capture"]["key_len_bytes"]
     ktp.text_len = cfg["capture"]["plain_text_len_bytes"]
     ot.target.output_len = cfg["capture"]["plain_text_len_bytes"]
+    # Init scope
+    # TODO: Define a proper interface and cleanup this part.
+    scope = SCOPE_FACTORY[args.scope](ot, cfg["capture"])
     # Capture traces.
-    run_batch_capture(cfg["capture"], ot, ktp)
+    run_batch_capture(cfg["capture"], ot, ktp, scope)
     # Plot a few traces.
     project_name = cfg["capture"]["project_name"]
     simple_capture.plot_results(cfg["plot_capture"], project_name)

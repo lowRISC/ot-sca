@@ -7,6 +7,7 @@ bokeh
 cffi
 codetiming
 libusb1
+matplotlib
 more-itertools
 networkx
 pycryptodome

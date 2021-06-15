@@ -97,6 +97,13 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
                 f"actual: {actual_last_ciphertext}\n"
                 f"expected: {expected_last_ciphertext}"
             )
+            # Make sure to allocate sufficient memory for the storage segment array during the
+            # first resize operation. By default, the ChipWhisperer API starts every new segment
+            # with 1 trace and then increases it on demand by 25 traces at a time. This results in
+            # frequent array resizing and decreasing capture rate.
+            # See addWave() in chipwhisperer/common/traces/_base.py.
+            if project.traces.cur_seg.tracehint < project.traces.seg_len:
+                project.traces.cur_seg.setTraceHint(project.traces.seg_len)
             # Add traces of this batch to the project.
             # TODO: This seems to scale with the total number of traces, not just the number of
             #       new traces. We should take a closer look.

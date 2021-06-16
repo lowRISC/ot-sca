@@ -68,6 +68,7 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
     project = cw.create_project(project_file, overwrite=True)
     # Capture traces.
     rem_num_traces = capture_cfg["num_traces"]
+    num_segments_storage = 1
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
@@ -104,9 +105,17 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
             # See addWave() in chipwhisperer/common/traces/_base.py.
             if project.traces.cur_seg.tracehint < project.traces.seg_len:
                 project.traces.cur_seg.setTraceHint(project.traces.seg_len)
+            # Only keep the latest two trace storage segments enabled. By default the ChipWhisperer
+            # API keeps all segments enabled and after appending a new trace, the trace ranges are
+            # updated for all segments. This leads to a decreasing capture rate after time.
+            # See:
+            # - _updateRanges() in chipwhisperer/common/api/TraceManager.py.
+            # - https://github.com/newaetech/chipwhisperer/issues/344
+            if num_segments_storage != len(project.segments):
+                if num_segments_storage >= 2:
+                    project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2, False)
+                num_segments_storage = len(project.segments)
             # Add traces of this batch to the project.
-            # TODO: This seems to scale with the total number of traces, not just the number of
-            #       new traces. We should take a closer look.
             for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
                 project.traces.append(
                     cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key)
@@ -114,7 +123,11 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
             # Update the loop variable and the progress bar.
             rem_num_traces -= scope.num_segments
             pbar.update(scope.num_segments)
+    # Before saving the project, re-enable all trace storage segments.
+    for s in range(len(project.segments)):
+        project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
+    # Save the project to disk.
     project.save()
 
 

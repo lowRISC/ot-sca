@@ -14,7 +14,6 @@ SCOPE must be either "cw_lite" or "waverunner".
 
 import argparse
 import random
-import time
 
 from tqdm import tqdm
 import chipwhisperer as cw

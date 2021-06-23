@@ -101,27 +101,24 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
 
 
-def compute_leakage_aes(keylist, plaintext, n_round, n_byte, leakage_model):
+def compute_leakage_aes(keylist, plaintext, leakage_model):
     """
     Sensitive variable is always byte-sized.
-    n_round - round number of the sensitive variable. Rounds are ennumerated 0 to 9
-
-    n_byte - byte number of the sensitive variable, ennumerated from 0 to 15
 
     Two leakage models are available:
     HAMMING_WEIGHT - based on the hamming weight of the state register byte.
     HAMMING_DISTANCE - based on the hamming distance between the curent and previous state
-                       for a specified byte. If this model is used n_round has to be at least 1.
+                       for a specified byte.
     """
     n_traces = len(keylist)
-    leakage = np.zeros(n_traces, dtype=np.uint8)
+    leakage = np.zeros((11, 16, n_traces), dtype=np.uint8)
 
     # Checks if all keys in the list are the same.
     key_fixed = np.all(keylist == keylist[0])
-    subkey = np.zeros((10, 16))
+    subkey = np.zeros((11, 16))
 
     if key_fixed:
-        for j in range(10):
+        for j in range(11):
             subkey[j] = np.asarray(
                 aes_funcs.key_schedule_rounds(keylist[0], 0, j))
         subkey = subkey.astype(int)
@@ -129,25 +126,39 @@ def compute_leakage_aes(keylist, plaintext, n_round, n_byte, leakage_model):
     for i in range(n_traces):
 
         if not key_fixed:
-            for j in range(10):
+            for j in range(11):
                 subkey[j] = np.asarray(
                     aes_funcs.key_schedule_rounds(keylist[i], 0, j))
             subkey = subkey.astype(int)
 
-        state = np.bitwise_xor(plaintext[i], subkey[0])
-        for j in range(1, n_round + 1):
+        # Init
+        state = plaintext[i]
+
+        # Round 0
+        old_state = state
+        state = np.bitwise_xor(state, subkey[0])
+        for k in range(16):
+            if leakage_model == 'HAMMING_DISTANCE':
+                leakage[0][k][i] = bit_count(
+                    np.bitwise_xor(state[k], old_state[k]))
+            else:
+                leakage[0][k][i] = bit_count(state[k])
+
+        # Round 1 - 10
+        for j in range(1, 11):
             old_state = state
             state = aes_funcs.subbytes(state)
             state = aes_funcs.shiftrows(state)
             if (j < 10):
                 state = aes_funcs.mixcolumns(state)
             state = np.bitwise_xor(state, subkey[j])
+            for k in range(16):
+                if leakage_model == 'HAMMING_DISTANCE':
+                    leakage[j][k][i] = bit_count(
+                        np.bitwise_xor(state[k], old_state[k]))
+                else:
+                    leakage[j][k][i] = bit_count(state[k])
 
-        if leakage_model == 'HAMMING_DISTANCE':
-            leakage[i] = bit_count(
-                np.bitwise_xor(state[n_byte], old_state[n_byte]))
-        else:
-            leakage[i] = bit_count(state[n_byte])
     return leakage
 
 
@@ -159,6 +170,13 @@ def parse_args():
         by O. Reparaz, B. Gierlichs and I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
     )
 
+    parser.add_argument(
+        "-l",
+        "--leakage-file",
+        help="""Name of the leakage file containing the numpy array with the leakage model for all
+        rounds, all bytes, and all traces. Not required. If not provided, the leakage is computed
+        from the data in the ChipWhisperer project file.""",
+    )
     parser.add_argument(
         "-i",
         "--input-file",
@@ -207,13 +225,19 @@ def main():
         # The round and byte number of the sensitive variable.
         # If differential model is used, the sensitive variable is the xor of n_round state and the
         # previous round state.
-        n_round = 4
-        n_byte = 5
+        n_round = 10
+        n_byte = 1
 
-        # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
-        leakage = compute_leakage_aes(project.keys[trace_start:trace_end],
-                                      project.textins[trace_start:trace_end],
-                                      n_round, n_byte, 'HAMMING_WEIGHT')
+        if args.leakage_file is None:
+            # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
+            print("Computing Leakage")
+            leakage = compute_leakage_aes(project.keys[trace_start:trace_end],
+                                          project.textins[trace_start:trace_end],
+                                          'HAMMING_WEIGHT')
+            np.save('leakage.npy', leakage)
+        else:
+            leakage = np.load(args.leakage_file)
+            assert num_traces == leakage.shape[2]
 
         # Building histograms. For each time sample we make nine histograms, one for each possible
         # Hamming weight of the sensitive variable.
@@ -222,7 +246,7 @@ def main():
         print("Building Histograms")
         histograms = np.zeros((9, num_samples, trace_resolution))
         for trace_index in range(num_traces):
-            x = leakage[trace_index]
+            x = leakage[n_round][n_byte][trace_index]
             for time_index in range(num_samples):
                 y = time_index
                 z = traces[trace_index][time_index]

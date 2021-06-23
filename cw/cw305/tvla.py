@@ -173,6 +173,13 @@ def parse_args():
     )
 
     parser.add_argument(
+        "-p",
+        "--project-file",
+        default="projects/opentitan_simple_aes.cwp",
+        help="""Name of the ChipWhisperer project file to use. Not required. If not provided,
+        projects/opentitan_simple_aes.cwp is used.""",
+    )
+    parser.add_argument(
         "-t",
         "--trace-file",
         help="""Name of the trace file containing the numpy array with all traces in 16-bit integer
@@ -206,9 +213,9 @@ def main():
     args = parse_args()
 
     if args.input_file is None:
-        # relative path to project, modify accordingly
-        project_file = "projects/opentitan_simple_aes.cwp"
-        project = cw.open_project(project_file)
+
+        project = cw.open_project(args.project_file)
+
         """The default num_traces is set as the total number of traces in a project.
          For quick checks and debugs set it to something smaller (e.g. 50000)
          To use only some traces from the project set trace_start to the number of the

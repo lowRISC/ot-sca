@@ -173,6 +173,13 @@ def parse_args():
     )
 
     parser.add_argument(
+        "-t",
+        "--trace-file",
+        help="""Name of the trace file containing the numpy array with all traces in 16-bit integer
+        format. Not required. If not provided, the data from the ChipWhisperer project file
+        is used.""",
+    )
+    parser.add_argument(
         "-l",
         "--leakage-file",
         help="""Name of the leakage file containing the numpy array with the leakage model for all
@@ -216,15 +223,23 @@ def main():
         trace_step = 10000
         num_samples = len(project.waves[0])
 
-        # Converting traces from floating point to integer.
         adc_bits = 10
         trace_resolution = 2**adc_bits
-        traces = np.empty((num_traces, num_samples), np.double)
-        for i_trace in range(num_traces):
-            traces[i_trace] = project.waves[i_trace +
-                                            trace_start] * trace_resolution
-        offset = traces.min().astype('uint16')
-        traces = traces.astype('uint16') - offset
+
+        if args.trace_file is None:
+            # Converting traces from floating point to integer.
+            print("Converting Traces")
+            traces = np.empty((num_traces, num_samples), dtype=np.double)
+            for i_trace in range(num_traces):
+                traces[i_trace] = project.waves[i_trace +
+                                                trace_start] * trace_resolution
+            offset = traces.min().astype('uint16')
+            traces = traces.astype('uint16') - offset
+            np.save('traces.npy', traces)
+        else:
+            traces = np.load(args.trace_file)
+            assert num_traces == traces.shape[0]
+            assert num_samples == traces.shape[1]
 
         # The round and byte number of the sensitive variable.
         # If differential model is used, the sensitive variable is the xor of n_round state and the

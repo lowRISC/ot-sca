@@ -187,6 +187,18 @@ def parse_args():
         is used.""",
     )
     parser.add_argument(
+        "-s",
+        "--trace-start",
+        help="""Index of the first trace to use. Not required. If not provided, starts at the first
+        trace.""",
+    )
+    parser.add_argument(
+        "-e",
+        "--trace-end",
+        help="""Index of the last trace to use. Not required. If not provided, ends at the last
+        trace.""",
+    )
+    parser.add_argument(
         "-l",
         "--leakage-file",
         help="""Name of the leakage file containing the numpy array with the leakage model for all
@@ -216,25 +228,28 @@ def main():
 
         project = cw.open_project(args.project_file)
 
-        """The default num_traces is set as the total number of traces in a project.
-         For quick checks and debugs set it to something smaller (e.g. 50000)
-         To use only some traces from the project set trace_start to the number of the
-         first trace you want to extract.
-        """
+        num_samples = len(project.waves[0])
+
         num_traces = len(project.waves)
-        # num_traces = 50000
-        trace_start = 0
-        trace_end = trace_start + num_traces
+        if args.trace_start is None:
+            trace_start = 0
+        else:
+            trace_start = int(args.trace_start)
+        if args.trace_end is None:
+            trace_end = num_traces - 1
+        else:
+            trace_end = int(args.trace_end)
+        assert trace_end - trace_start < num_traces
+        num_traces = trace_end - trace_start + 1
 
         # The number of traces processed by each parallel job at a time.
         trace_step = 10000
-        num_samples = len(project.waves[0])
 
         adc_bits = 10
         trace_resolution = 2**adc_bits
 
         if args.trace_file is None:
-            # Converting traces from floating point to integer.
+            # Converting traces from floating point to integer and creating a dense copy.
             print("Converting Traces")
             traces = np.empty((num_traces, num_samples), dtype=np.double)
             for i_trace in range(num_traces):
@@ -242,11 +257,21 @@ def main():
                                                 trace_start] * trace_resolution
             offset = traces.min().astype('uint16')
             traces = traces.astype('uint16') - offset
-            np.save('traces.npy', traces)
+            np.savez('traces.npy', traces=traces,
+                     trace_start=trace_start, trace_end=trace_end)
         else:
-            traces = np.load(args.trace_file)
-            assert num_traces == traces.shape[0]
+            trace_file = np.load(args.trace_file)
+            traces = trace_file['traces']
             assert num_samples == traces.shape[1]
+            # If a trace range is specified, it must match the range in the trace file. Otherwise,
+            # we might end up using a leakage model that doesn't match the actual traces.
+            if args.trace_start is None:
+                trace_start = trace_file['trace_start']
+            assert trace_start == trace_file['trace_start']
+            if args.trace_end is None:
+                trace_end = trace_file['trace_end']
+            assert trace_end == trace_file['trace_end']
+            num_traces = trace_end - trace_start + 1
 
         # The round and byte number of the sensitive variable.
         # If differential model is used, the sensitive variable is the xor of n_round state and the
@@ -258,9 +283,8 @@ def main():
             # computation to be parallelized.
             keys = np.empty((num_traces, 16), dtype=np.uint8)
             plaintexts = np.empty((num_traces, 16), dtype=np.uint8)
-            for i_trace in range(trace_start,trace_end):
-                keys[i_trace] = project.keys[i_trace]
-                plaintexts[i_trace] = project.textins[i_trace]
+            keys[:] = project.keys[trace_start:trace_end + 1]
+            plaintexts[:] = project.textins[trace_start:trace_end + 1]
 
         # We don't need the project file anymore after this point. Close it together with all
         # trace files opened in the background.

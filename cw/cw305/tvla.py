@@ -25,6 +25,8 @@ from chipwhisperer.analyzer import aes_funcs
 from math import sqrt
 import matplotlib.pyplot as plt
 import numpy as np
+import multiprocessing
+from joblib import Parallel, delayed
 
 
 def bit_count(int_no):
@@ -210,6 +212,8 @@ def main():
         trace_start = 0
         trace_end = trace_start + num_traces
 
+        # The number of traces processed by each parallel job at a time.
+        trace_step = 10000
         num_samples = len(project.waves[0])
 
         # Converting traces from floating point to integer.
@@ -227,13 +231,28 @@ def main():
         # previous round state.
         n_round = 10
         n_byte = 1
+        if args.leakage_file is None:
+            # Create local, dense copies of keys and plaintexts. This allows the leakage
+            # computation to be parallelized.
+            keys = np.empty((num_traces, 16), dtype=np.uint8)
+            plaintexts = np.empty((num_traces, 16), dtype=np.uint8)
+            for i_trace in range(trace_start,trace_end):
+                keys[i_trace] = project.keys[i_trace]
+                plaintexts[i_trace] = project.textins[i_trace]
+
+        # We don't need the project file anymore after this point. Close it together with all
+        # trace files opened in the background.
+        project.close(save=False)
 
         if args.leakage_file is None:
             # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
             print("Computing Leakage")
-            leakage = compute_leakage_aes(project.keys[trace_start:trace_end],
-                                          project.textins[trace_start:trace_end],
-                                          'HAMMING_WEIGHT')
+            leakage = Parallel(n_jobs=multiprocessing.cpu_count())(
+                delayed(compute_leakage_aes)(keys[i:i + trace_step],
+                                             plaintexts[i:i + trace_step],
+                                             'HAMMING_WEIGHT')
+                for i in range(0, num_traces, trace_step))
+            leakage = np.concatenate((leakage[:]), axis=2)
             np.save('leakage.npy', leakage)
         else:
             leakage = np.load(args.leakage_file)

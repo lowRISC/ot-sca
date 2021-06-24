@@ -103,6 +103,28 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
 
 
+def compute_histograms_aes(trace_resolution, i_round, i_byte, traces, leakage):
+    """ Building histograms.
+
+    For each time sample we make nine histograms, one for each possible Hamming weight of the
+    sensitive variable.
+    The value stored in histograms[x][y][z] shows how many traces have value z at time y, given
+    that HW(sensitive_variable) = x.
+    """
+    num_leakages = 9
+    num_traces = traces.shape[0]
+    num_samples = traces.shape[1]
+    histograms = np.zeros((num_leakages, num_samples, trace_resolution), dtype=np.uint32)
+    for i_trace in range(num_traces):
+        x = leakage[i_round][i_byte][i_trace]
+        for i_sample in range(num_samples):
+            y = i_sample
+            z = traces[i_trace][i_sample]
+            histograms[x][y][z] += 1
+
+    return histograms
+
+
 def compute_leakage_aes(keys, plaintexts, leakage_model):
     """
     Sensitive variable is always byte-sized.
@@ -273,11 +295,6 @@ def main():
             assert trace_end == trace_file['trace_end']
             num_traces = trace_end - trace_start + 1
 
-        # The round and byte number of the sensitive variable.
-        # If differential model is used, the sensitive variable is the xor of n_round state and the
-        # previous round state.
-        n_round = 10
-        n_byte = 1
         if args.leakage_file is None:
             # Create local, dense copies of keys and plaintexts. This allows the leakage
             # computation to be parallelized.
@@ -304,18 +321,14 @@ def main():
             leakage = np.load(args.leakage_file)
             assert num_traces == leakage.shape[2]
 
-        # Building histograms. For each time sample we make nine histograms, one for each possible
-        # Hamming weight of the sensitive variable.
-        # Value stored in histograms[x][y][z] shows how many traces have value z at time y, given
-        # that HW(sensitive_variable) = x.
+        # The round and byte number of the sensitive variable.
+        # If differential model is used, the sensitive variable is the xor of n_round state and the
+        # previous round state.
+        i_round = 10
+        i_byte = 1
+
         print("Building Histograms")
-        histograms = np.zeros((9, num_samples, trace_resolution))
-        for trace_index in range(num_traces):
-            x = leakage[n_round][n_byte][trace_index]
-            for time_index in range(num_samples):
-                y = time_index
-                z = traces[trace_index][time_index]
-                histograms[x][y][z] += 1
+        histograms = compute_histograms_aes(trace_resolution, i_round, i_byte, traces, leakage)
 
         # Histograms can be saved for later use if output file name is passed.
         if args.output_file is not None:

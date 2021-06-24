@@ -103,7 +103,7 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
 
 
-def compute_leakage_aes(keylist, plaintext, leakage_model):
+def compute_leakage_aes(keys, plaintexts, leakage_model):
     """
     Sensitive variable is always byte-sized.
 
@@ -112,29 +112,29 @@ def compute_leakage_aes(keylist, plaintext, leakage_model):
     HAMMING_DISTANCE - based on the hamming distance between the curent and previous state
                        for a specified byte.
     """
-    n_traces = len(keylist)
-    leakage = np.zeros((11, 16, n_traces), dtype=np.uint8)
+    num_traces = len(keys)
+    leakage = np.zeros((11, 16, num_traces), dtype=np.uint8)
 
     # Checks if all keys in the list are the same.
-    key_fixed = np.all(keylist == keylist[0])
+    key_fixed = np.all(keys == keys[0])
     subkey = np.zeros((11, 16))
 
     if key_fixed:
         for j in range(11):
             subkey[j] = np.asarray(
-                aes_funcs.key_schedule_rounds(keylist[0], 0, j))
+                aes_funcs.key_schedule_rounds(keys[0], 0, j))
         subkey = subkey.astype(int)
 
-    for i in range(n_traces):
+    for i in range(num_traces):
 
         if not key_fixed:
             for j in range(11):
                 subkey[j] = np.asarray(
-                    aes_funcs.key_schedule_rounds(keylist[i], 0, j))
+                    aes_funcs.key_schedule_rounds(keys[i], 0, j))
             subkey = subkey.astype(int)
 
         # Init
-        state = plaintext[i]
+        state = plaintexts[i]
 
         # Round 0
         old_state = state

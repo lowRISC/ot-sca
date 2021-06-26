@@ -212,9 +212,8 @@ def compute_leakage_aes(keys, plaintexts, leakage_model):
 def parse_args():
     """Parses command-line arguments."""
     parser = argparse.ArgumentParser(
-        description=
-        """A histogram-based TVLA described in "Fast Leakage Assessment"
-        by O. Reparaz, B. Gierlichs and I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
+        description="""A histogram-based TVLA described in "Fast Leakage Assessment" by O. Reparaz,
+        B. Gierlichs and I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
     )
 
     parser.add_argument(
@@ -265,14 +264,12 @@ def parse_args():
     parser.add_argument(
         "-i",
         "--input-file",
-        help=
-        """Name of the input file containing the histograms. Not Required.""",
+        help="""Name of the input file containing the histograms. Not required.""",
     )
     parser.add_argument(
         "-o",
         "--output-file",
-        help=
-        """Name of the output file to store generated histograms. Not Required.""",
+        help="""Name of the output file to store generated histograms. Not required.""",
     )
     return parser.parse_args()
 

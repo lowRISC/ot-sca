@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import multiprocessing
 from joblib import Parallel, delayed
+from pathlib import Path
 
 
 def bit_count(int_no):
@@ -292,6 +293,8 @@ def main():
         byte_list = [int(args.byte_select)]
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
+    Path("tmp").mkdir(exist_ok=True)
+
     if args.input_file is None:
 
         project = cw.open_project(args.project_file)
@@ -329,7 +332,7 @@ def main():
                                                 trace_start] * trace_resolution
             offset = traces.min().astype('uint16')
             traces = traces.astype('uint16') - offset
-            np.savez('traces.npy', traces=traces,
+            np.savez('tmp/traces.npy', traces=traces,
                      trace_start=trace_start, trace_end=trace_end)
         else:
             trace_file = np.load(args.trace_file)
@@ -366,7 +369,7 @@ def main():
                                              'HAMMING_WEIGHT')
                 for i in range(0, num_traces, trace_step))
             leakage = np.concatenate((leakage[:]), axis=2)
-            np.save('leakage.npy', leakage)
+            np.save('tmp/leakage.npy', leakage)
         else:
             leakage = np.load(args.leakage_file)
             assert num_traces == leakage.shape[2]
@@ -440,7 +443,8 @@ def main():
         print("No leakage above threshold identified.")
 
     # Plotting figures for t_test statistics vs time.
-    # By default the figures are saved under t_test_round_x_byte_y.png.
+    # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
+    Path("tmp/figures").mkdir(exist_ok=True)
     for i_rnd in range(num_rnds):
         for i_byte in range(num_bytes):
 
@@ -456,7 +460,7 @@ def main():
 
             filename = "t_test_round_" + str(rnd_list[i_rnd])
             filename += "_byte_" + str(byte_list[i_byte]) + ".png"
-            plt.savefig(filename)
+            plt.savefig("tmp/figures/" + filename)
             if num_rnds == 1 and num_bytes == 1:
                 plt.show()
             else:

@@ -80,10 +80,6 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     """
     mu_a = mean_hist_xy(x_a, y_a)
     mu_b = mean_hist_xy(x_b, y_b)
-    var_a = var_hist_xy(x_a, y_a)
-    var_b = var_hist_xy(x_b, y_b)
-    sigma_a = sqrt(var_a)
-    sigma_b = sqrt(var_b)
 
     if order == 1:
         new_x_a = x_a
@@ -92,6 +88,11 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
         new_x_a = (x_a - mu_a)**2
         new_x_b = (x_b - mu_b)**2
     else:
+        var_a = var_hist_xy(x_a, y_a)
+        var_b = var_hist_xy(x_b, y_b)
+        sigma_a = sqrt(var_a)
+        sigma_b = sqrt(var_b)
+
         if sigma_a == 0:
             new_x_a = 0
         else:

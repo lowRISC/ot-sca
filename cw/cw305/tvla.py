@@ -119,13 +119,10 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
 
     for i_rnd in range(num_rnds):
         for i_byte in range(num_bytes):
-            tmp_leakage = leakage[rnd_list[i_rnd], byte_list[i_byte], :]
             for i_sample in range(num_samples):
-                tmp_traces = traces[:, i_sample]
-                tmp_hist = np.histogram2d(tmp_leakage, tmp_traces,
-                                          bins=[range(num_leakages + 1),
-                                                range(trace_resolution + 1)])
-                histograms[i_rnd, i_byte, :, i_sample, :] = tmp_hist[0]
+                histograms[i_rnd, i_byte, :, i_sample, :] = np.histogram2d(
+                    leakage[rnd_list[i_rnd], byte_list[i_byte], :], traces[:, i_sample],
+                    bins=[range(num_leakages + 1), range(trace_resolution + 1)])[0]
 
     return histograms
 
@@ -293,8 +290,12 @@ def main():
         assert trace_end - trace_start < num_traces
         num_traces = trace_end - trace_start + 1
 
-        # The number of traces processed by each parallel job at a time.
+        # The number of traces/samples processed by each parallel job at a time.
         trace_step = 10000
+        sample_step = 1
+        # Increase work per thread to amortize parallelization overhead.
+        if len(rnd_list) == 1 and len(byte_list) == 1:
+            sample_step = 5
 
         adc_bits = 10
         trace_resolution = 2**adc_bits
@@ -351,7 +352,17 @@ def main():
             assert num_traces == leakage.shape[2]
 
         print("Building Histograms")
-        histograms = compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakage)
+        # For every time sample we make nine histograms, one for each possible Hamming weight of the
+        # sensitive variable.
+        # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution].
+        # The value stored in histograms[v][w][x][y][z] shows how many traces have value z at
+        # sample y, given that HW(state byte w in AES round v) = x.
+        # The computation is parallelized over the samples.
+        histograms = Parallel(n_jobs=multiprocessing.cpu_count())(
+                delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
+                                                traces[:, i:i + sample_step], leakage)
+                for i in range(0, num_samples, sample_step))
+        histograms = np.concatenate((histograms[:]), axis=3)
 
         # Histograms can be saved for later use if output file name is passed.
         if args.output_file is not None:

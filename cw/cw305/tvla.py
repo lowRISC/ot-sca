@@ -103,6 +103,26 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
 
 
+def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
+    """ Computing t-test statistics for one time sample.
+    """
+    num_rnds = len(rnd_list)
+    num_bytes = len(byte_list)
+    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes))
+
+    # Compute statistics.
+    for i_rnd in range(num_rnds):
+        for i_byte in range(num_bytes):
+            # We do fixed vs. random.
+            fixed_set = histograms[i_rnd, i_byte, 0, :]
+            random_set = np.sum(histograms[i_rnd, i_byte, :, :], 0)
+            for i_order in range(num_orders):
+                tmp = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set, i_order + 1)
+                ttest_trace[i_order, i_rnd, i_byte] = tmp
+
+    return ttest_trace
+
+
 def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakage):
     """ Building histograms.
 
@@ -387,23 +407,15 @@ def main():
 
     num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
-    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes, num_samples))
-    x_axis = range(trace_resolution)
+    x_axis = np.arange(trace_resolution)
 
     # Compute statistics.
-    for i_rnd in range(num_rnds):
-        for i_byte in range(num_bytes):
-            for i_sample in range(num_samples):
-                # We do fixed vs. random.
-                fixed_set = histograms[i_rnd, i_byte, 0, i_sample, :]
-                random_set = np.sum(histograms[i_rnd, i_byte, :, i_sample, :], 0)
-
-                for i_order in range(num_orders):
-                    ttest_trace[i_order, i_rnd, i_byte, i_sample] = ttest_hist_xy(x_axis,
-                                                                                  fixed_set,
-                                                                                  x_axis,
-                                                                                  random_set,
-                                                                                  i_order + 1)
+    # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
+    ttest_trace = Parallel(n_jobs=multiprocessing.cpu_count())(
+            delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+                                        histograms[:, :, :, i_sample, :], x_axis)
+            for i_sample in range(num_samples))
+    ttest_trace = np.moveaxis(ttest_trace, 0, 3)
 
     # Check ttest results.
     threshold = 4.5

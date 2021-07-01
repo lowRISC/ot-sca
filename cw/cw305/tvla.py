@@ -103,24 +103,29 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
     return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
 
 
-def compute_histograms_aes(trace_resolution, i_round, i_byte, traces, leakage):
+def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakage):
     """ Building histograms.
 
     For each time sample we make nine histograms, one for each possible Hamming weight of the
-    sensitive variable.
-    The value stored in histograms[x][y][z] shows how many traces have value z at time y, given
-    that HW(sensitive_variable) = x.
+    sensitive variable. The value stored in histograms[v][w][x][y][z] shows how many traces have
+    value z at time y, given that HW(state byte w in AES round v) = x.
     """
     num_leakages = 9
+    num_rnds = len(rnd_list)
+    num_bytes = len(byte_list)
     num_samples = traces.shape[1]
-    histograms = np.zeros((num_leakages, num_samples, trace_resolution), dtype=np.uint32)
-    tmp_leakage = leakage[i_round, i_byte, :]
+    histograms = np.zeros((num_rnds, num_bytes, num_leakages, num_samples, trace_resolution),
+                          dtype=np.uint32)
 
-    for i_sample in range(num_samples):
-        tmp_traces = traces[:, i_sample]
-        tmp_hist = np.histogram2d(tmp_leakage, tmp_traces,
-                                  bins=[range(num_leakages + 1), range(trace_resolution + 1)])
-        histograms[:, i_sample, :] = tmp_hist[0]
+    for i_rnd in range(num_rnds):
+        for i_byte in range(num_bytes):
+            tmp_leakage = leakage[rnd_list[i_rnd], byte_list[i_byte], :]
+            for i_sample in range(num_samples):
+                tmp_traces = traces[:, i_sample]
+                tmp_hist = np.histogram2d(tmp_leakage, tmp_traces,
+                                          bins=[range(num_leakages + 1),
+                                                range(trace_resolution + 1)])
+                histograms[i_rnd, i_byte, :, i_sample, :] = tmp_hist[0]
 
     return histograms
 
@@ -228,6 +233,18 @@ def parse_args():
         from the data in the ChipWhisperer project file.""",
     )
     parser.add_argument(
+        "-r",
+        "--round-select",
+        help="""Index of the AES round for which the histograms are to be computed: 0-10. Not
+        required. If not provided, the histograms for all AES rounds are computed.""",
+    )
+    parser.add_argument(
+        "-b",
+        "--byte-select",
+        help="""Index of the AES state byte for which the histograms are to be computed: 0-15. Not
+        required. If not provided, the histograms for all AES state bytes are computed.""",
+    )
+    parser.add_argument(
         "-i",
         "--input-file",
         help=
@@ -245,6 +262,18 @@ def parse_args():
 def main():
 
     args = parse_args()
+
+    if args.round_select is None:
+        rnd_list = list(range(11))
+    else:
+        rnd_list = [int(args.round_select)]
+    assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
+
+    if args.byte_select is None:
+        byte_list = list(range(16))
+    else:
+        byte_list = [int(args.byte_select)]
+    assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
     if args.input_file is None:
 
@@ -321,80 +350,94 @@ def main():
             leakage = np.load(args.leakage_file)
             assert num_traces == leakage.shape[2]
 
-        # The round and byte number of the sensitive variable.
-        # If differential model is used, the sensitive variable is the xor of n_round state and the
-        # previous round state.
-        i_round = 10
-        i_byte = 1
-
         print("Building Histograms")
-        histograms = compute_histograms_aes(trace_resolution, i_round, i_byte, traces, leakage)
+        histograms = compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakage)
 
         # Histograms can be saved for later use if output file name is passed.
         if args.output_file is not None:
             print("Saving Histograms")
-            with open(args.output_file, 'wb') as f:
-                np.save(f, histograms)
+            np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
+                     byte_list=byte_list)
     else:
-        histograms = np.load(args.input_file)
-        num_samples = histograms.shape[1]
-        trace_resolution = histograms.shape[2]
+        histograms_file = np.load(args.input_file)
+        histograms = histograms_file['histograms']
+        num_samples = histograms.shape[3]
+        trace_resolution = histograms.shape[4]
+        for i_rnd in rnd_list:
+            assert i_rnd in histograms_file['rnd_list']
+        for i_byte in byte_list:
+            assert i_byte in histograms_file['byte_list']
 
-    # Computing the ttest statistics vs time.
+    # Computing the t-test statistics vs. time.
+    print("Computing T-test Statistics")
+
     # By default, the first four moments are computed. This can be modified to any order.
-    print("Computing t_test statistics")
-    ttest1_trace = np.zeros(num_samples)
-    ttest2_trace = np.zeros(num_samples)
-    ttest3_trace = np.zeros(num_samples)
-    ttest4_trace = np.zeros(num_samples)
+    num_orders = 4
 
-    for i in range(num_samples):
-        fixed_set = histograms[0][i][:]
-        S = sum(histograms)
-        random_set = S[i][:]
+    num_rnds = len(rnd_list)
+    num_bytes = len(byte_list)
+    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes, num_samples))
+    x_axis = range(trace_resolution)
 
-        x_axis = range(trace_resolution)
-        ttest1_trace[i] = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set,
-                                        1)
-        ttest2_trace[i] = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set,
-                                        2)
-        ttest3_trace[i] = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set,
-                                        3)
-        ttest4_trace[i] = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set,
-                                        4)
+    # Compute statistics.
+    for i_rnd in range(num_rnds):
+        for i_byte in range(num_bytes):
+            for i_sample in range(num_samples):
+                # We do fixed vs. random.
+                fixed_set = histograms[i_rnd, i_byte, 0, i_sample, :]
+                random_set = np.sum(histograms[i_rnd, i_byte, :, i_sample, :], 0)
+
+                for i_order in range(num_orders):
+                    ttest_trace[i_order, i_rnd, i_byte, i_sample] = ttest_hist_xy(x_axis,
+                                                                                  fixed_set,
+                                                                                  x_axis,
+                                                                                  random_set,
+                                                                                  i_order + 1)
+
+    # Check ttest results.
+    threshold = 4.5
+    failure = np.any(np.abs(ttest_trace) >= threshold, axis=3)
+
+    if np.any(failure):
+        print("Leakage above threshold identified in the following order(s), round(s) and byte(s):")
+        for i_order in range(num_orders):
+            print("Order " + str(i_order + 1) + ":")
+            print("Byte    | ", end='')
+            for i_byte in range(num_bytes):
+                print("\t" + str(byte_list[i_byte]), end='')
+            print("")
+            print("---------")
+            for i_rnd in range(num_rnds):
+                print("Round " + str(rnd_list[i_rnd]) + " | ", end='')
+                for i_byte in range(num_bytes):
+                    print("\t" + str(int(failure[i_order, i_rnd, i_byte])), end='')
+                print("")
+            print("\n")
+    else:
+        print("No leakage above threshold identified.")
 
     # Plotting figures for t_test statistics vs time.
-    # By default the figure is saved as MyFigure.png.
-    c = np.ones(num_samples)
-    fig, axs = plt.subplots(1, 4, figsize=(16, 5), sharey=True)
-    threshold = 4.5
+    # By default the figures are saved under t_test_round_x_byte_y.png.
+    for i_rnd in range(num_rnds):
+        for i_byte in range(num_bytes):
 
-    axs[0].plot(ttest1_trace, 'k')
-    axs[0].plot(c * threshold, 'r')
-    axs[0].plot(-threshold * c, 'r')
-    axs[0].set_xlabel('time')
-    axs[0].set_ylabel('t-test 1')
+            c = np.ones(num_samples)
+            fig, axs = plt.subplots(1, num_orders, figsize=(16, 5), sharey=True)
 
-    axs[1].plot(ttest2_trace, 'k')
-    axs[1].plot(c * threshold, 'r')
-    axs[1].plot(-threshold * c, 'r')
-    axs[1].set_xlabel('time')
-    axs[1].set_ylabel('t-test 2')
+            for i_order in range(num_orders):
+                axs[i_order].plot(ttest_trace[i_order, i_rnd, i_byte], 'k')
+                axs[i_order].plot(c * threshold, 'r')
+                axs[i_order].plot(-threshold * c, 'r')
+                axs[i_order].set_xlabel('time')
+                axs[i_order].set_ylabel('t-test ' + str(i_order+1))
 
-    axs[2].plot(ttest3_trace, 'k')
-    axs[2].plot(c * threshold, 'r')
-    axs[2].plot(-threshold * c, 'r')
-    axs[2].set_xlabel('time')
-    axs[2].set_ylabel('t-test 3')
-
-    axs[3].plot(ttest4_trace, 'k')
-    axs[3].plot(c * threshold, 'r')
-    axs[3].plot(-threshold * c, 'r')
-    axs[3].set_xlabel('time')
-    axs[3].set_ylabel('t-test 4')
-
-    plt.savefig('MyFigure.png')
-    plt.show()
+            filename = "t_test_round_" + str(rnd_list[i_rnd])
+            filename += "_byte_" + str(byte_list[i_byte]) + ".png"
+            plt.savefig(filename)
+            if num_rnds == 1 and num_bytes == 1:
+                plt.show()
+            else:
+                plt.close()
 
 
 if __name__ == "__main__":

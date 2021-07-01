@@ -112,15 +112,15 @@ def compute_histograms_aes(trace_resolution, i_round, i_byte, traces, leakage):
     that HW(sensitive_variable) = x.
     """
     num_leakages = 9
-    num_traces = traces.shape[0]
     num_samples = traces.shape[1]
     histograms = np.zeros((num_leakages, num_samples, trace_resolution), dtype=np.uint32)
-    for i_trace in range(num_traces):
-        x = leakage[i_round][i_byte][i_trace]
-        for i_sample in range(num_samples):
-            y = i_sample
-            z = traces[i_trace][i_sample]
-            histograms[x][y][z] += 1
+    tmp_leakage = leakage[i_round, i_byte, :]
+
+    for i_sample in range(num_samples):
+        tmp_traces = traces[:, i_sample]
+        tmp_hist = np.histogram2d(tmp_leakage, tmp_traces,
+                                  bins=[range(num_leakages + 1), range(trace_resolution + 1)])
+        histograms[:, i_sample, :] = tmp_hist[0]
 
     return histograms
 

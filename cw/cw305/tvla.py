@@ -321,6 +321,9 @@ def main():
         adc_bits = 10
         trace_resolution = 2**adc_bits
 
+        # Amount of tolerable deviation from average during filtering.
+        num_sigmas = 3.5
+
         if args.trace_file is None:
             # Converting traces from floating point to integer and creating a dense copy.
             print("Converting Traces")
@@ -330,11 +333,30 @@ def main():
                                                 trace_start] * trace_resolution
             offset = traces.min().astype('uint16')
             traces = traces.astype('uint16') - offset
-            np.savez('tmp/traces.npy', traces=traces,
+
+            # Filter out noisy traces.
+            print("Filtering Traces")
+
+            # Get the mean and standard deviation.
+            mean = traces.mean(axis=0)
+            std = traces.std(axis=0)
+
+            # Define upper and lower limits.
+            max_trace = mean + num_sigmas * std
+            min_trace = mean - num_sigmas * std
+
+            # Filtering of converted traces (len = num_samples). traces_to_use itself can be
+            # used to index the entire project file (len >= num_samples).
+            traces_to_use = np.zeros(len(project.waves), dtype=bool)
+            traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
+                                                              (traces <= max_trace), axis=1)
+            traces = traces[traces_to_use[trace_start:trace_end + 1]]
+            np.savez('tmp/traces.npy', traces=traces, traces_to_use=traces_to_use,
                      trace_start=trace_start, trace_end=trace_end)
         else:
             trace_file = np.load(args.trace_file)
             traces = trace_file['traces']
+            traces_to_use = trace_file['traces_to_use']
             assert num_samples == traces.shape[1]
             # If a trace range is specified, it must match the range in the trace file. Otherwise,
             # we might end up using a leakage model that doesn't match the actual traces.
@@ -345,14 +367,25 @@ def main():
                 trace_end = trace_file['trace_end']
             assert trace_end == trace_file['trace_end']
             num_traces = trace_end - trace_start + 1
+            # The project file must match the trace file.
+            assert len(project.waves) == len(traces_to_use)
+
+        # Correct num_traces based on filtering.
+        num_traces_orig = num_traces
+        num_traces = np.sum(traces_to_use)
+        print('Will work with ' + str(num_traces) + '/' +
+              str(num_traces_orig) + ' traces.')
 
         if args.leakage_file is None:
             # Create local, dense copies of keys and plaintexts. This allows the leakage
             # computation to be parallelized.
-            keys = np.empty((num_traces, 16), dtype=np.uint8)
-            plaintexts = np.empty((num_traces, 16), dtype=np.uint8)
+            keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
+            plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
             keys[:] = project.keys[trace_start:trace_end + 1]
             plaintexts[:] = project.textins[trace_start:trace_end + 1]
+            # Only select traces to use.
+            keys = keys[traces_to_use[trace_start:trace_end + 1]]
+            plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
         # We don't need the project file anymore after this point. Close it together with all
         # trace files opened in the background.

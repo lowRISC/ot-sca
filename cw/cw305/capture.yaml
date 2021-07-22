@@ -17,7 +17,7 @@ capture:
   batch_prng_seed: 0
 plot_capture:
   show: false
-  num_traces: 100
+  num_traces: 50
   trace_image_filename: projects/sample_traces.html
   # The ADC output is in the interval [-0.5, 0.5). Define safety margin.
   amplitude_max: 0.48

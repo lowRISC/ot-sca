@@ -38,20 +38,29 @@ class RuntimePatchFPGAProgram:
 
 
 class OpenTitan(object):
-    def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate, scope_gain, num_samples):
-        self.fpga = self.initialize_fpga(bitstream, pll_frequency)
+    def __init__(self,
+                 fw_programmer, bitstream, pll_frequency, baudrate,
+                 scope_gain, num_samples,
+                 board):
+        self.fpga = self.initialize_fpga(board, bitstream, pll_frequency)
         self.scope = self.initialize_scope(scope_gain, num_samples)
         self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
 
-    def initialize_fpga(self, bitstream, pll_frequency):
+    def initialize_fpga(self, board, bitstream, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
         # bitstream.
+        # Unfortunately, this doesn't seem to work for the CW310 yet,
+        # see https://github.com/lowRISC/ot-sca/issues/48.
         # TODO: We should have this in the CLI.
         force_programming = False
         print('Connecting and loading FPGA... ', end='')
-        fpga = cw.capture.targets.CW305()
+        if board == 'CW310':
+            fpga = cw.capture.targets.CW310()
+        else:
+            fpga = cw.capture.targets.CW305()
+
         # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
         # Note: This is fragile and may break but it is easy to miss that the FPGA
         # was not programmed.
@@ -63,13 +72,14 @@ class OpenTitan(object):
 
         with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
             # Connect to the FPGA and program it.
-            fpga.con(bsfile=bitstream, force=force_programming)
+            fpga.con(bsfile=bitstream, force=force_programming, slurp=False)
             if not programmed:
                 # TODO: Update this message when we have this in the CLI.
                 stack_top = inspect.stack()[0]
                 print(f"SKIPPED! (see: {stack_top[1]}:{stack_top[3]})")
             else:
                 print("Done!")
+
         fpga.vccint_set(1.0)
 
         print('Initializing PLL1')
@@ -79,9 +89,12 @@ class OpenTitan(object):
         fpga.pll.pll_outenable_set(False, 2)
         fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
-        # 1ms is plenty of idling time
+        # Disable USB clock to reduce noise in power traces.
         fpga.clkusbautooff = True
+
+        # 1ms is plenty of idling time
         fpga.clksleeptime = 1
+
         return fpga
 
     def initialize_scope(self, scope_gain, num_samples):

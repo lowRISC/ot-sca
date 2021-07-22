@@ -17,14 +17,16 @@ from util import plot
 from util import spiflash
 
 
-def initialize_capture(device_cfg):
+def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
     fw_programmer = spiflash.SAM3UProgrammer(device_cfg['fw_bin'])
 
     ot = device.OpenTitan(fw_programmer,
                           device_cfg['fpga_bitstream'],
                           device_cfg['pll_frequency'],
-                          device_cfg['baudrate'])
+                          device_cfg['baudrate'],
+                          capture_cfg['scope_gain'],
+                          capture_cfg['num_samples'],
     print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
     # Ping target
     print('Reading from FPGA using simpleserial protocol.')
@@ -127,7 +129,7 @@ if __name__ == "__main__":
         cfg_file['plot_capture']['show'] = True
         cfg_file['plot_capture']['num_traces'] = args.plot_traces
 
-    ot = initialize_capture(cfg_file['device'])
+    ot = initialize_capture(cfg_file['device'], cfg_file['capture'])
 
     # Key and plaintext generator
     ktp = cw.ktp.Basic()

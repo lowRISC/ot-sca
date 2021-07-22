@@ -33,9 +33,8 @@ def create_waverunner(ot, capture_cfg):
 def create_cw_lite_segmented(ot, capture_cfg):
     # TODO: Remove this disconnect after removing cw-lite init from device.py.
     ot.scope.dis()
-    # Default samples per trace - We oversample by 10x and AES with DOM is doing
-    # ~56/72 cycles per encryption (AES-128/256).
-    return CwLiteSegmented(num_samples=740)
+    return CwLiteSegmented(num_samples=capture_cfg["num_samples"],
+                           scope_gain=capture_cfg["scope_gain"])
 
 
 SCOPE_FACTORY = {
@@ -151,7 +150,7 @@ def main():
     args = parse_args()
     with open("capture.yaml") as f:
         cfg = yaml.safe_load(f)
-    ot = simple_capture.initialize_capture(cfg["device"])
+    ot = simple_capture.initialize_capture(cfg["device"], cfg["capture"])
     # Seed the PRNG.
     # TODO: Replace this with a dedicated PRNG to avoid other packages breaking
     # our code.

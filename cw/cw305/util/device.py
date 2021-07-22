@@ -38,9 +38,9 @@ class RuntimePatchFPGAProgram:
 
 
 class OpenTitan(object):
-    def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
+    def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate, scope_gain, num_samples):
         self.fpga = self.initialize_fpga(bitstream, pll_frequency)
-        self.scope = self.initialize_scope()
+        self.scope = self.initialize_scope(scope_gain, num_samples)
         self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
 
     def initialize_fpga(self, bitstream, pll_frequency):
@@ -84,13 +84,11 @@ class OpenTitan(object):
         fpga.clksleeptime = 1
         return fpga
 
-    def initialize_scope(self):
+    def initialize_scope(self, scope_gain, num_samples):
         """Initializes chipwhisperer scope."""
         scope = cw.scope()
-        scope.gain.db = 23
-        # Samples per trace - We oversample by 10x and AES with DOM is doing
-        # ~56/72 cycles per encryption (AES-128/256).
-        scope.adc.samples = 740
+        scope.gain.db = scope_gain
+        scope.adc.samples = num_samples
         scope.adc.offset = 0
         scope.adc.basic_mode = "rising_edge"
         scope.clock.clkgen_freq = 100000000

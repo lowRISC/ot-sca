@@ -64,7 +64,7 @@ class CwLiteSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=740):
+    def __init__(self, num_samples=740, scope_gain=23):
         """Inits a CwLiteSegmented.
 
         Args:
@@ -72,7 +72,7 @@ class CwLiteSegmented:
                 ``num_samples_max``].
         """
         self._scope = cw.scope()
-        self._configure_scope()
+        self._configure_scope(scope_gain)
         self.num_segments = 1
         self.num_samples = num_samples
         self._print_device_info()
@@ -134,8 +134,8 @@ class CwLiteSegmented:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
             self.num_segments = self.num_segments_max
 
-    def _configure_scope(self):
-        self._scope.gain.db = 23
+    def _configure_scope(self, scope_gain):
+        self._scope.gain.db = scope_gain
         self._scope.adc.offset = 0
         self._scope.adc.basic_mode = "rising_edge"
         self._scope.adc.fifo_fill_mode = "segment"

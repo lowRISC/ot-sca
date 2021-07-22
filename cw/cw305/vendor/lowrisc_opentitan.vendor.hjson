@@ -1,0 +1,16 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{
+    name: "lowrisc_opentitan",
+    target_dir: "lowrisc_opentitan",
+
+    upstream: {
+        url: "https://github.com/lowRISC/opentitan"
+        rev: "master"
+    }
+
+    mapping: [
+        {from: "util/fpga/cw_spiflash.py",  to: "cw_spiflash.py"},
+    ]
+}

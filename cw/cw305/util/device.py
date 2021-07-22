@@ -5,10 +5,10 @@
 r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
 
 import inspect
-import subprocess
 import time
 
 import chipwhisperer as cw
+
 
 class RuntimePatchFPGAProgram:
     """Replaces the FPGAProgram method of an FPGA object with a function
@@ -36,80 +36,83 @@ class RuntimePatchFPGAProgram:
     def __exit__(self, exc_type, exc_value, traceback):
         self._fpga.FPGAProgram = self._orig_fn
 
+
 class OpenTitan(object):
-  def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
-      self.fpga = self.initialize_fpga(bitstream, pll_frequency)
-      self.scope = self.initialize_scope()
-      self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
+    def __init__(self, fw_programmer, bitstream, pll_frequency, baudrate):
+        self.fpga = self.initialize_fpga(bitstream, pll_frequency)
+        self.scope = self.initialize_scope()
+        self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
 
-  def initialize_fpga(self, bitstream, pll_frequency):
-    """Initializes FPGA bitstream and sets PLL frequency."""
-    # Do not program the FPGA if it is already programmed.
-    # Note: Set this to True to force programming the FPGA when using a new
-    # bitstream.
-    # TODO: We should have this in the CLI.
-    force_programming = False
-    print('Connecting and loading FPGA... ', end = '')
-    fpga = cw.capture.targets.CW305()
-    # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
-    # Note: This is fragile and may break but it is easy to miss that the FPGA
-    # was not programmed.
-    programmed = False
-    def program_callback():
-        nonlocal programmed
-        programmed = True
-    with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
-        # Connect to the FPGA and program it.
-        fpga.con(bsfile=bitstream, force=force_programming)
-        if not programmed:
-            # TODO: Update this message when we have this in the CLI.
-            stack_top = inspect.stack()[0]
-            print(f"SKIPPED! (see: {stack_top[1]}:{stack_top[3]})")
-        else:
-            print("Done!")
-    fpga.vccint_set(1.0)
+    def initialize_fpga(self, bitstream, pll_frequency):
+        """Initializes FPGA bitstream and sets PLL frequency."""
+        # Do not program the FPGA if it is already programmed.
+        # Note: Set this to True to force programming the FPGA when using a new
+        # bitstream.
+        # TODO: We should have this in the CLI.
+        force_programming = False
+        print('Connecting and loading FPGA... ', end='')
+        fpga = cw.capture.targets.CW305()
+        # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
+        # Note: This is fragile and may break but it is easy to miss that the FPGA
+        # was not programmed.
+        programmed = False
 
-    print('Initializing PLL1')
-    fpga.pll.pll_enable_set(True)
-    fpga.pll.pll_outenable_set(False, 0)
-    fpga.pll.pll_outenable_set(True, 1)
-    fpga.pll.pll_outenable_set(False, 2)
-    fpga.pll.pll_outfreq_set(pll_frequency, 1)
+        def program_callback():
+            nonlocal programmed
+            programmed = True
 
-    # 1ms is plenty of idling time
-    fpga.clkusbautooff = True
-    fpga.clksleeptime = 1
-    return fpga
+        with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
+            # Connect to the FPGA and program it.
+            fpga.con(bsfile=bitstream, force=force_programming)
+            if not programmed:
+                # TODO: Update this message when we have this in the CLI.
+                stack_top = inspect.stack()[0]
+                print(f"SKIPPED! (see: {stack_top[1]}:{stack_top[3]})")
+            else:
+                print("Done!")
+        fpga.vccint_set(1.0)
 
-  def initialize_scope(self):
-    """Initializes chipwhisperer scope."""
-    scope = cw.scope()
-    scope.gain.db = 23
-    # Samples per trace - We oversample by 10x and AES with DOM is doing
-    # ~56/72 cycles per encryption (AES-128/256).
-    scope.adc.samples = 740
-    scope.adc.offset = 0
-    scope.adc.basic_mode = "rising_edge"
-    scope.clock.clkgen_freq = 100000000
-    # We sample using the target clock (100 MHz).
-    scope.clock.adc_src = "extclk_dir"
-    scope.trigger.triggers = "tio4"
-    scope.io.tio1 = "serial_tx"
-    scope.io.tio2 = "serial_rx"
-    scope.io.hs2 = "disabled"
+        print('Initializing PLL1')
+        fpga.pll.pll_enable_set(True)
+        fpga.pll.pll_outenable_set(False, 0)
+        fpga.pll.pll_outenable_set(True, 1)
+        fpga.pll.pll_outenable_set(False, 2)
+        fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
-    # TODO: Need to update error handling.
-    scope.clock.reset_adc()
-    time.sleep(0.5)
-    assert (scope.clock.adc_locked), "ADC failed to lock"
-    return scope
+        # 1ms is plenty of idling time
+        fpga.clkusbautooff = True
+        fpga.clksleeptime = 1
+        return fpga
 
-  def initialize_target(self, scope, fw_programmer, baudrate):
-    """Loads firmware image and initializes test target."""
-    fw_programmer.run(self.fpga)
-    time.sleep(0.5)
-    target = cw.target(scope)
-    target.output_len = 16
-    target.baud = baudrate
-    target.flush()
-    return target
+    def initialize_scope(self):
+        """Initializes chipwhisperer scope."""
+        scope = cw.scope()
+        scope.gain.db = 23
+        # Samples per trace - We oversample by 10x and AES with DOM is doing
+        # ~56/72 cycles per encryption (AES-128/256).
+        scope.adc.samples = 740
+        scope.adc.offset = 0
+        scope.adc.basic_mode = "rising_edge"
+        scope.clock.clkgen_freq = 100000000
+        # We sample using the target clock (100 MHz).
+        scope.clock.adc_src = "extclk_dir"
+        scope.trigger.triggers = "tio4"
+        scope.io.tio1 = "serial_tx"
+        scope.io.tio2 = "serial_rx"
+        scope.io.hs2 = "disabled"
+
+        # TODO: Need to update error handling.
+        scope.clock.reset_adc()
+        time.sleep(0.5)
+        assert (scope.clock.adc_locked), "ADC failed to lock"
+        return scope
+
+    def initialize_target(self, scope, fw_programmer, baudrate):
+        """Loads firmware image and initializes test target."""
+        fw_programmer.run(self.fpga)
+        time.sleep(0.5)
+        target = cw.target(scope)
+        target.output_len = 16
+        target.baud = baudrate
+        target.flush()
+        return target

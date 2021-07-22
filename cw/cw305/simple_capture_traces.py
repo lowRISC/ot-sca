@@ -14,12 +14,12 @@ import chipwhisperer as cw
 
 from util import device
 from util import plot
-from util import spiflash
+from vendor.lowrisc_opentitan import cw_spiflash
 
 
 def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
-    fw_programmer = spiflash.SAM3UProgrammer(device_cfg['fw_bin'])
+    fw_programmer = cw_spiflash.SPIProgrammer(device_cfg['fw_bin'])
 
     ot = device.OpenTitan(fw_programmer,
                           device_cfg['fpga_bitstream'],

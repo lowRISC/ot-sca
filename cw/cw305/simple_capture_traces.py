@@ -9,36 +9,21 @@ import numpy as np
 import time
 from tqdm import tqdm
 import yaml
-import re
 
 import chipwhisperer as cw
 
 from util import device
 from util import plot
-from vendor.lowrisc_opentitan import cw_spiflash
 
 
 def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
-    # Extract target board type from bitstream name.
-    m = re.search('cw305|cw310', device_cfg['fpga_bitstream'])
-    if m:
-        if m.group() == 'cw305':
-            board = 'CW305'
-        else:
-            assert m.group() == 'cw310'
-            board = 'CW310'
-    else:
-        raise ValueError('Could not infer target board type from bistream name')
-    fw_programmer = cw_spiflash.SPIProgrammer(device_cfg['fw_bin'], board)
-
-    ot = device.OpenTitan(fw_programmer,
-                          device_cfg['fpga_bitstream'],
+    ot = device.OpenTitan(device_cfg['fpga_bitstream'],
+                          device_cfg['fw_bin'],
                           device_cfg['pll_frequency'],
                           device_cfg['baudrate'],
                           capture_cfg['scope_gain'],
-                          capture_cfg['num_samples'],
-                          board)
+                          capture_cfg['num_samples'])
     print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
     # Ping target
     print('Reading from FPGA using simpleserial protocol.')

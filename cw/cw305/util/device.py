@@ -6,8 +6,10 @@ r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
 
 import inspect
 import time
+import re
 
 import chipwhisperer as cw
+from vendor.lowrisc_opentitan import cw_spiflash
 
 
 class RuntimePatchFPGAProgram:
@@ -38,15 +40,27 @@ class RuntimePatchFPGAProgram:
 
 
 class OpenTitan(object):
-    def __init__(self,
-                 fw_programmer, bitstream, pll_frequency, baudrate,
-                 scope_gain, num_samples,
-                 board):
-        self.fpga = self.initialize_fpga(board, bitstream, pll_frequency)
+    def __init__(self, bitstream, firmware, pll_frequency, baudrate, scope_gain,
+                 num_samples):
+
+        # Extract target board type from bitstream name.
+        m = re.search('cw305|cw310', bitstream)
+        if m:
+            if m.group() == 'cw305':
+                fpga = cw.capture.targets.CW305()
+                fw_programmer = cw_spiflash.SPIProgrammer(firmware, 'CW305')
+            else:
+                assert m.group() == 'cw310'
+                fpga = cw.capture.targets.CW310()
+                fw_programmer = cw_spiflash.SPIProgrammer(firmware, 'CW310')
+        else:
+            raise ValueError('Could not infer target board type from bistream name')
+
+        self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
         self.scope = self.initialize_scope(scope_gain, num_samples)
         self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
 
-    def initialize_fpga(self, board, bitstream, pll_frequency):
+    def initialize_fpga(self, fpga, bitstream, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
@@ -56,10 +70,6 @@ class OpenTitan(object):
         # TODO: We should have this in the CLI.
         force_programming = False
         print('Connecting and loading FPGA... ', end='')
-        if board == 'CW310':
-            fpga = cw.capture.targets.CW310()
-        else:
-            fpga = cw.capture.targets.CW305()
 
         # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
         # Note: This is fragile and may break but it is easy to miss that the FPGA

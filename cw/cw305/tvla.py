@@ -19,6 +19,7 @@ To load histograms from the INPUT_FILE
 
 """
 
+import logging as log
 import argparse
 import chipwhisperer as cw
 from chipwhisperer.analyzer import aes_funcs
@@ -28,6 +29,20 @@ import numpy as np
 import multiprocessing
 from joblib import Parallel, delayed
 from pathlib import Path
+
+
+class UnformattedLog(object):
+    def __init__(self):
+        self.logger = log.getLogger()
+        self.formatters = [handler.formatter for handler in self.logger.handlers]
+
+    def __enter__(self):
+        for i in range(len(self.formatters)):
+            self.logger.handlers[i].setFormatter(log.Formatter())
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        for i in range(len(self.formatters)):
+            self.logger.handlers[i].setFormatter(self.formatters[i])
 
 
 def bit_count(int_no):
@@ -277,6 +292,17 @@ def parse_args():
 
 def main():
 
+    Path("tmp").mkdir(exist_ok=True)
+    log_format = "%(asctime)s %(levelname)s: %(message)s"
+    log.basicConfig(format=log_format,
+                    datefmt="%Y-%m-%d %I:%M:%S",
+                    handlers=[
+                        log.FileHandler("tmp/log.txt"),
+                        log.StreamHandler()
+                    ],
+                    level=log.INFO,
+                    force=True,)
+
     args = parse_args()
 
     if args.round_select is None:
@@ -290,8 +316,6 @@ def main():
     else:
         byte_list = [int(args.byte_select)]
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
-
-    Path("tmp").mkdir(exist_ok=True)
 
     if args.input_file is None:
 
@@ -326,7 +350,7 @@ def main():
 
         if args.trace_file is None:
             # Converting traces from floating point to integer and creating a dense copy.
-            print("Converting Traces")
+            log.info("Converting Traces")
             traces = np.empty((num_traces, num_samples), dtype=np.double)
             for i_trace in range(num_traces):
                 traces[i_trace] = project.waves[i_trace +
@@ -335,7 +359,7 @@ def main():
             traces = traces.astype('uint16') - offset
 
             # Filter out noisy traces.
-            print("Filtering Traces")
+            log.info("Filtering Traces")
 
             # Get the mean and standard deviation.
             mean = traces.mean(axis=0)
@@ -373,8 +397,10 @@ def main():
         # Correct num_traces based on filtering.
         num_traces_orig = num_traces
         num_traces = np.sum(traces_to_use)
-        print('Will work with ' + str(num_traces) + '/' +
-              str(num_traces_orig) + ' traces.')
+        log.info(
+            f"Will use {num_traces} traces "
+            f"({100*num_traces/num_traces_orig:.1f}% of all traces)"
+        )
 
         if args.leakage_file is None:
             # Create local, dense copies of keys and plaintexts. This allows the leakage
@@ -393,7 +419,7 @@ def main():
 
         if args.leakage_file is None:
             # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
-            print("Computing Leakage")
+            log.info("Computing Leakage")
             leakage = Parallel(n_jobs=multiprocessing.cpu_count())(
                 delayed(compute_leakage_aes)(keys[i:i + trace_step],
                                              plaintexts[i:i + trace_step],
@@ -405,7 +431,7 @@ def main():
             leakage = np.load(args.leakage_file)
             assert num_traces == leakage.shape[2]
 
-        print("Building Histograms")
+        log.info("Building Histograms")
         # For every time sample we make nine histograms, one for each possible Hamming weight of the
         # sensitive variable.
         # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution].
@@ -420,7 +446,7 @@ def main():
 
         # Histograms can be saved for later use if output file name is passed.
         if args.output_file is not None:
-            print("Saving Histograms")
+            log.info("Saving Histograms")
             np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
                      byte_list=byte_list)
     else:
@@ -434,7 +460,7 @@ def main():
             assert i_byte in histograms_file['byte_list']
 
     # Computing the t-test statistics vs. time.
-    print("Computing T-test Statistics")
+    log.info("Computing T-test Statistics")
 
     # By default, the first four moments are computed. This can be modified to any order.
     num_orders = 4
@@ -456,22 +482,28 @@ def main():
     failure = np.any(np.abs(ttest_trace) >= threshold, axis=3)
 
     if np.any(failure):
-        print("Leakage above threshold identified in the following order(s), round(s) and byte(s):")
-        for i_order in range(num_orders):
-            print("Order " + str(i_order + 1) + ":")
-            print("Byte    | ", end='')
+        log.info("Leakage above threshold identified in the following order(s), round(s) and "
+                 "byte(s):")
+        with UnformattedLog():
+            byte_str = "Byte     |"
+            dash_str = "----------"
             for i_byte in range(num_bytes):
-                print("\t" + str(byte_list[i_byte]), end='')
-            print("")
-            print("---------")
-            for i_rnd in range(num_rnds):
-                print("Round " + str(rnd_list[i_rnd]) + " | ", end='')
-                for i_byte in range(num_bytes):
-                    print("\t" + str(int(failure[i_order, i_rnd, i_byte])), end='')
-                print("")
-            print("\n")
+                byte_str += str(byte_list[i_byte]).rjust(5)
+                dash_str += "-----"
+
+            for i_order in range(num_orders):
+                log.info(f"Order {i_order + 1}:")
+                log.info(f"{byte_str}")
+                log.info(f"{dash_str}")
+                for i_rnd in range(num_rnds):
+                    result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
+                    for i_byte in range(num_bytes):
+                        result_str += str("X").rjust(5) if failure[i_order, i_rnd,
+                                                                   i_byte] else "     "
+                    log.info(f"{result_str}")
+                log.info("")
     else:
-        print("No leakage above threshold identified.")
+        log.info("No leakage above threshold identified.")
 
     # Plotting figures for t_test statistics vs time.
     # By default the figures are saved under tmp/t_test_round_x_byte_y.png.

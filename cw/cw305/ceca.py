@@ -407,6 +407,34 @@ def recover_key(diffs, attack_direction, plaintext, ciphertext):
     return None
 
 
+def compare_diffs(pairwise_diffs_scores, attack_direction, correct_key):
+    """Compares pairwise_diffs_scores with diffs between bytes in correct_key.
+
+    This function takes the differences between key bytes computed in
+    pairwise_diffs_scores and compares them with the actual differences in the
+    correct key.
+
+    Args:
+        pairwise_diffs_scores: A 16x16x2 matrix of pairwise differences between
+            key bytes and their confidence scores.
+        attack_direction: Attack direction.
+        correct_key: The correct key.
+
+    Returns:
+        A 16x16 matrix indicating which pairswise differences between key bytes
+            have been recovered correctly.
+    """
+    if attack_direction == AttackDirection.OUTPUT:
+        end_key = cwa.aes_funcs.key_schedule_rounds(correct_key, 0, 10)
+        correct_key = np.asarray(end_key, np.uint8)
+    correct_diffs = np.zeros((16, 16), np.uint8)
+    for i in range(16):
+        for j in range(i, 16):
+            correct_diffs[i, j] = correct_key[i] ^ correct_key[j]
+            correct_diffs[j, i] = correct_diffs[i, j]
+    return pairwise_diffs_scores[:, :, 0] == correct_diffs
+
+
 @timer()
 def perform_attack(
     project_file, num_traces, attack_window, attack_direction, max_std, num_workers
@@ -504,6 +532,11 @@ def perform_attack(
         logging.info(f"Recovered AES key: {bytes(key).hex()}")
     else:
         logging.error("Failed to recover the AES key")
+    # Compare differences - both matrices are symmetric and have an all-zero main diagonal.
+    correct_diffs = compare_diffs(pairwise_diffs_scores, attack_direction, project.keys[0])
+    logging.info(
+        f"Recovered {((np.sum(correct_diffs)-16)/2).astype(int)}/120 "
+        "differences between key bytes")
     return key
 
 

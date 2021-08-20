@@ -82,7 +82,6 @@ class TraceWorker:
         """
         self.project = cw.open_project(project_file)
         # TODO: Consider more efficient formats.
-        trace_cnt = trace_slice.stop - trace_slice.start
         self.num_samples = attack_window.stop - attack_window.start
         if attack_direction == AttackDirection.INPUT:
             self.texts = np.vstack(self.project.textins[trace_slice])
@@ -504,7 +503,7 @@ def perform_attack(
     if key is not None:
         logging.info(f"Recovered AES key: {bytes(key).hex()}")
     else:
-        logging.error(f"Failed to recover the AES key")
+        logging.error("Failed to recover the AES key")
     return key
 
 

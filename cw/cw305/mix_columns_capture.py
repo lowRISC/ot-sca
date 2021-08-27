@@ -16,7 +16,7 @@ import yaml
 import simple_capture_traces as cp
 
 if __name__ == "__main__":
-  with open('capture.yaml') as f:
+  with open('capture_aes.yaml') as f:
     cfg_file = yaml.load(f, Loader=yaml.FullLoader)
   ot = cp.initialize_capture(cfg_file['device'])
   ot.target.output_len = cfg_file['capture']['plain_text_len_bytes']

@@ -148,7 +148,7 @@ def parse_args():
 def main():
     """Loads the configuration file, parses command-line arguments, captures and plots traces."""
     args = parse_args()
-    with open("capture.yaml") as f:
+    with open("capture_aes.yaml") as f:
         cfg = yaml.safe_load(f)
     ot = simple_capture.initialize_capture(cfg["device"], cfg["capture"])
     # Seed the PRNG.

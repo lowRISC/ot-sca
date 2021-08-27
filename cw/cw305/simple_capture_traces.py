@@ -116,7 +116,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
 
-    with open('capture.yaml') as f:
+    with open('capture_aes.yaml') as f:
         cfg_file = yaml.load(f, Loader=yaml.FullLoader)
 
     if args.num_traces:

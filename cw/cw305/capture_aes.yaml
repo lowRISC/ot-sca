@@ -16,7 +16,7 @@ capture:
   waverunner_ip: 192.168.1.228
   batch_prng_seed: 0
 plot_capture:
-  show: false
+  show: true
   num_traces: 50
   trace_image_filename: projects/sample_traces.html
   # The ADC output is in the interval [-0.5, 0.5). Define safety margin.

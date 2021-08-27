@@ -15,6 +15,7 @@ ray
 scared
 tqdm
 trsfile
+typer
 # can be removed after switching to ray
 joblib
 

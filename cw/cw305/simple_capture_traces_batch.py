@@ -159,7 +159,6 @@ def main():
     ktp = cw.ktp.Basic()
     ktp.key_len = cfg["capture"]["key_len_bytes"]
     ktp.text_len = cfg["capture"]["plain_text_len_bytes"]
-    ot.target.output_len = cfg["capture"]["plain_text_len_bytes"]
     # Init scope
     # TODO: Define a proper interface and cleanup this part.
     scope = SCOPE_FACTORY[args.scope](ot, cfg["capture"])

@@ -41,7 +41,7 @@ class RuntimePatchFPGAProgram:
 
 class OpenTitan(object):
     def __init__(self, bitstream, firmware, pll_frequency, baudrate, scope_gain,
-                 num_samples):
+                 num_samples, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -58,7 +58,7 @@ class OpenTitan(object):
 
         self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
         self.scope = self.initialize_scope(scope_gain, num_samples)
-        self.target = self.initialize_target(self.scope, fw_programmer, baudrate)
+        self.target = self.initialize_target(fw_programmer, baudrate, output_len)
 
     def initialize_fpga(self, fpga, bitstream, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
@@ -128,12 +128,12 @@ class OpenTitan(object):
         assert (scope.clock.adc_locked), "ADC failed to lock"
         return scope
 
-    def initialize_target(self, scope, fw_programmer, baudrate):
+    def initialize_target(self, fw_programmer, baudrate, output_len):
         """Loads firmware image and initializes test target."""
         fw_programmer.run(self.fpga)
         time.sleep(0.5)
-        target = cw.target(scope)
-        target.output_len = 16
+        target = cw.target(self.scope)
+        target.output_len = output_len
         target.baud = baudrate
         target.flush()
         return target

@@ -23,7 +23,8 @@ def initialize_capture(device_cfg, capture_cfg):
                           device_cfg['pll_frequency'],
                           device_cfg['baudrate'],
                           capture_cfg['scope_gain'],
-                          capture_cfg['num_samples'])
+                          capture_cfg['num_samples'],
+                          capture_cfg['plain_text_len_bytes'])
     print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
     # Ping target
     print('Reading from FPGA using simpleserial protocol.')
@@ -132,7 +133,6 @@ if __name__ == "__main__":
     ktp = cw.ktp.Basic()
     ktp.key_len = cfg_file['capture']['key_len_bytes']
     ktp.text_len = cfg_file['capture']['plain_text_len_bytes']
-    ot.target.output_len = cfg_file['capture']['plain_text_len_bytes']
 
     run_capture(cfg_file['capture'], ot, ktp)
 

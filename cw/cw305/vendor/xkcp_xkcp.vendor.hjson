@@ -1,0 +1,27 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{
+    name: "xkcp_xkcp",
+    target_dir: "xkcp_xkcp",
+
+    upstream: {
+        url: "https://github.com/xkcp/xkcp"
+        rev: "master"
+    }
+
+    mapping: [
+        {from: "lib/common/align.h", to: "align.h"},
+        {from: "lib/common/brg_endian.h", to: "brg_endian.h"},
+        {from: "lib/low/KeccakP-1600/compact/KeccakP-1600-compact64.c", to: "KeccakP-1600-compact64.c"},
+        {from: "lib/low/KeccakP-1600/compact/KeccakP-1600-SnP.h", to: "KeccakP-1600-SnP.h"},
+        {from: "lib/low/common/SnP-Relaned.h", to: "SnP-Relaned.h"},
+        {from: "lib/high/common/Phases.h", to: "Phases.h"},
+        {from: "lib/high/Keccak/KeccakSponge.c", to: "KeccakSponge.c"},
+        {from: "lib/high/Keccak/KeccakSponge.inc", to: "KeccakSponge.inc"},
+        {from: "lib/high/Keccak/KeccakSponge.h", to: "KeccakSponge.h"},
+        {from: "lib/high/Keccak/SP800-185/SP800-185.c", to: "SP800-185.c"},
+        {from: "lib/high/Keccak/SP800-185/SP800-185.inc", to: "SP800-185.inc"},
+        {from: "lib/high/Keccak/SP800-185/SP800-185.h", to: "SP800-185.h"},
+    ]
+}

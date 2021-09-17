@@ -17,6 +17,7 @@ import chipwhisperer as cw
 
 from util import device
 from util import plot
+from pyXKCP import pyxkcp
 
 app = typer.Typer(add_completion=False)
 # To be able to define subcommands for the "capture" command.
@@ -165,15 +166,17 @@ def capture_kmac(ot, ktp):
     ot.target.simpleserial_write('k', key)
     while True:
         _, text = ktp.next()
-        # We don't use `cw.capture_trace()` because we don't expect a response.
-        with cw.common.utils.util.DelayedKeyboardInterrupt():
-            ot.scope.arm()
-            ot.target.simpleserial_write('p', text)
-            timedout = ot.scope.capture()
-            wave = ot.scope.get_last_trace()
-        if timedout or len(wave) == 0:
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
+        if not ret:
             raise RuntimeError('Capture failed.')
-        yield cw.common.traces.Trace(wave, text, None, key)
+        expected = binascii.b2a_hex(pyxkcp.kmac128(key, ktp.key_len,
+                                                   text, ktp.text_len,
+                                                   ot.target.output_len,
+                                                   b'\x00', 0))
+        got = binascii.b2a_hex(ret.textout)
+        if got != expected:
+            raise RuntimeError(f'Bad digest: {got} != {expected}.')
+        yield ret
 
 
 @app_capture.command()

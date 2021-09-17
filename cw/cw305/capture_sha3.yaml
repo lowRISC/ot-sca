@@ -6,6 +6,7 @@ device:
 capture:
   key_len_bytes: 16
   plain_text_len_bytes: 16
+  output_len_bytes: 32
   num_samples: 8000
   scope_gain: 30
   num_traces: 100

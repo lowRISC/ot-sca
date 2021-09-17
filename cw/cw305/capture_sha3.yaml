@@ -7,7 +7,7 @@ capture:
   key_len_bytes: 16
   plain_text_len_bytes: 16
   num_samples: 8000
-  scope_gain: 23
+  scope_gain: 30
   num_traces: 100
   project_name: projects/opentitan_simple_sha3
   waverunner_ip: 192.168.1.228

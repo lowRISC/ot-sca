@@ -7,6 +7,7 @@ capture:
   # Only AES-128 ECB is supported at this moment.
   key_len_bytes: 16
   plain_text_len_bytes: 16
+  output_len_bytes: 16
   # Samples per trace - We oversample by 10x and AES with DOM is doing
   # ~56/72 cycles per encryption (AES-128/256).
   num_samples: 740

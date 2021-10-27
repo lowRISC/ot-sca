@@ -21,4 +21,4 @@ joblib
 
 # The development version of the ChipWhisperer toolchain with latest features
 # and bug fixes needs to be installed in editable mode.
--e git+https://github.com/newaetech/chipwhisperer.git@099807207f3351d16e7988d8f0cccf6d570f306a#egg=chipwhisperer
+-e git+https://github.com/newaetech/chipwhisperer.git#egg=chipwhisperer

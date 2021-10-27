@@ -38,7 +38,7 @@ def initialize_capture(device_cfg, capture_cfg):
                           capture_cfg["scope_gain"],
                           capture_cfg["num_samples"],
                           capture_cfg["output_len_bytes"])
-    print(f'Scope setup with sampling rate {ot.scope.clock.adc_rate} S/s')
+    print(f'Scope setup with sampling rate {ot.scope.clock.adc_freq} S/s')
     # Ping target
     print('Reading from FPGA using simpleserial protocol.')
     version = None

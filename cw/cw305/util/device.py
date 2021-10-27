@@ -116,15 +116,22 @@ class OpenTitan(object):
         scope.adc.basic_mode = "rising_edge"
         scope.clock.clkgen_freq = 100000000
         # We sample using the target clock (100 MHz).
-        scope.clock.adc_src = "extclk_dir"
+        if hasattr(scope, '_is_husky') and scope._is_husky:
+            scope.clock.clkgen_src = 'extclk'
+            scope.clock.adc_mul = 1
+            husky = True
+        else:
+            scope.clock.adc_src = 'extclk_dir'
+            husky = False
         scope.trigger.triggers = "tio4"
         scope.io.tio1 = "serial_tx"
         scope.io.tio2 = "serial_rx"
         scope.io.hs2 = "disabled"
 
         # TODO: Need to update error handling.
-        scope.clock.reset_adc()
-        time.sleep(0.5)
+        if not husky:
+            scope.clock.reset_adc()
+            time.sleep(0.5)
         assert (scope.clock.adc_locked), "ADC failed to lock"
         return scope
 

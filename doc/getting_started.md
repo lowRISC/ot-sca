@@ -39,6 +39,15 @@ to install those dependencies.
 Please see [this page](https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html#packages)
 to install the packages required by ChipWhisperer.
 
+Note using ChipWhisperer-Lite requires the following specific commit of ChipWhisperer due to broken segmenting support in later versions:
+```
+pip3 install -e git+https://github.com/newaetech/chipwhisperer.git@099807207f3351d16e7988d8f0cccf6d570f306a#egg=chipwhisperer
+```
+
+The ChipWhisperer-Husky requires 5.6.1 or later (current installed from git). The default `python_requirements.txt` will install the version
+that Husky requires.
+
+
 ##### Git Large File Storage (LFS)
 
 This project uses Git LFS for storing binaries like a debian-compatible

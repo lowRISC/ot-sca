@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Support for capturing traces using ChipWhisperer-Lite in segmented mode."""
+"""Support for capturing traces using ChipWhisperer-Lite/Husky in segmented mode."""
 
 import logging
 import re
@@ -11,14 +11,15 @@ import time
 import chipwhisperer as cw
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
+from packaging import version
 
 
-class CwLiteSegmented:
-    """Class for capturing traces using a ChipWhisperer-Lite.
+class CwSegmented:
+    """Class for capturing traces using a ChipWhisperer-Lite/ChipWhisperer-Husky.
 
     This class uses segmented traces mode to improve capture performance.
 
-    When in segmented mode, ChipWhisperer-Lite captures multiple segments each starting
+    When in segmented mode, ChipWhisperer-Lite/Husky captures multiple segments each starting
     at a trigger event. This is much more efficient than sending a separate command for
     each segment.
 
@@ -34,7 +35,7 @@ class CwLiteSegmented:
     ``num_segments_actual`` attribute so that the target can be configured accordingly.
 
     Typical usage:
-    >>> cw_lite = CwLiteSegmented()
+    >>> cw_lite = CwSegmented()
     >>> while foo:
     >>>     ...
     >>>     cw_lite.num_segments = desired_num_segments
@@ -64,14 +65,30 @@ class CwLiteSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=740, scope_gain=23):
-        """Inits a CwLiteSegmented.
+    def __init__(self, num_samples=740, scope_gain=23, scope=None):
+        """Inits a CwSegmented.
 
         Args:
             num_samples: Number of samples per segment, must be in [``num_samples_min``,
                 ``num_samples_max``].
         """
-        self._scope = cw.scope()
+        if scope:
+            self._scope = scope
+        else:
+            self._scope = cw.scope()
+
+        if hasattr(self._scope, '_is_husky'):
+            self._is_husky = self._scope._is_husky
+        else:
+            self._is_husky = False
+
+        if self._is_husky:
+            if version.parse(cw.__version__) < version.parse("5.6.1"):
+                raise IOError("ChipWhisperer Version must be 5.6.1 or later for Husky Support")
+        else:
+            if version.parse(cw.__version__) != version.parse("5.5.0"):
+                raise IOError("ChipWhisperer Version must be 5.5.0 (from commit 099807207f3351d16e7988d8f0cccf6d570f306a) for CW-Lite with Segmenting")
+
         self._configure_scope(scope_gain)
         self.num_segments = 1
         self.num_samples = num_samples
@@ -83,12 +100,18 @@ class CwLiteSegmented:
 
     @property
     def num_segments_max(self):
-        return (self._scope.adc.oa.hwMaxSamples // self._scope.adc.samples) - 1
+        if self._is_husky:
+            return self._scope.adc.oa.hwMaxSegmentSamples // self._scope.adc.samples
+        else:
+            return (self._scope.adc.oa.hwMaxSamples // self._scope.adc.samples) - 1
 
     @property
     def num_segments_actual(self):
-        # Must round-up to fill the entire buffer.
-        return round(self._scope.adc.oa.hwMaxSamples / self._scope.adc.samples) + 1
+        if self._is_husky:
+            return self._scope.adc.segments
+        else:
+            # Must round-up to fill the entire buffer.        
+            return round(self._scope.adc.oa.hwMaxSamples / self._scope.adc.samples) + 1
 
     @property
     def num_segments(self):
@@ -96,10 +119,13 @@ class CwLiteSegmented:
 
     @num_segments.setter
     def num_segments(self, num_segments):
-        if not self.num_segments_min <= num_segments <= self.num_segments_max:
-            raise RuntimeError(
-                f"num_segments must be in [{self.num_segments_min}, {self.num_segments_max}]."
-            )
+        if self._is_husky:
+            self._scope.adc.segments = num_segments
+        else:
+            if not self.num_segments_min <= num_segments <= self.num_segments_max:
+                raise RuntimeError(
+                    f"num_segments must be in [{self.num_segments_min}, {self.num_segments_max}]."
+                )
         self._num_segments = num_segments
 
     @property
@@ -122,14 +148,20 @@ class CwLiteSegmented:
                 f"num_samples must be in [{self.num_samples_min}, {self.num_samples_max}]."
             )
         self._num_samples = num_samples
-        # This should ideally be handled by the chipwhisperer library but setting the
-        # number of samples smaller than 241 results in "received fewer points than
-        # expected" error. This number is further rounded up by chipwhisperer so that
-        # (num_samples-1) is divisible by 3. We get the actual number of samples from
-        # adc.
-        self._scope.adc.samples = max(241, num_samples)
-        # Note: CW-Lite actually returns one less than adc.samples.
-        self._num_samples_actual = self._scope.adc.samples - 1
+        if self._is_husky:
+            #Husky has simplified interface
+            self._scope.adc.samples = num_samples
+            self._num_samples_actual = num_samples
+        else:
+            # This should ideally be handled by the chipwhisperer library but setting the
+            # number of samples smaller than 241 results in "received fewer points than
+            # expected" error. This number is further rounded up by chipwhisperer so that
+            # (num_samples-1) is divisible by 3. We get the actual number of samples from
+            # adc.
+            self._scope.adc.samples = max(241, num_samples)
+            # Note: CW-Lite actually returns one less than adc.samples.
+            self._num_samples_actual = self._scope.adc.samples - 1
+
         if self.num_segments > self.num_segments_max:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
             self.num_segments = self.num_segments_max
@@ -138,10 +170,15 @@ class CwLiteSegmented:
         self._scope.gain.db = scope_gain
         self._scope.adc.offset = 0
         self._scope.adc.basic_mode = "rising_edge"
-        self._scope.adc.fifo_fill_mode = "segment"
-        self._scope.clock.clkgen_freq = 100000000
-        # We sample using the target clock (100 MHz).
-        self._scope.clock.adc_src = "extclk_dir"
+        if self._is_husky:
+            self._scope.clock.clkgen_src = 'extclk'
+            self._scope.clock.adc_mul = 1
+        else:
+            self._scope.adc.fifo_fill_mode = "segment"
+            self._scope.clock.clkgen_freq = 100000000
+            # We sample using the target clock (100 MHz).
+            self._scope.clock.adc_src = "extclk_dir"
+
         self._scope.trigger.triggers = "tio4"
         self._scope.io.tio1 = "serial_tx"
         self._scope.io.tio2 = "serial_rx"
@@ -153,7 +190,7 @@ class CwLiteSegmented:
     def _print_device_info(self):
         print(
             (
-                "Connected to ChipWhisperer-Lite ("
+                "Connected to ChipWhisperer ("
                 f"num_samples: {self.num_samples}, "
                 f"num_samples_actual: {self._num_samples_actual}, "
                 f"num_segments_actual: {self.num_segments_actual})"
@@ -161,7 +198,7 @@ class CwLiteSegmented:
         )
 
     def arm(self):
-        """Arms ChipWhisperer-Lite."""
+        """Arms ChipWhisperer."""
         self._scope.arm()
 
     def _parse_waveform(self, data):
@@ -175,7 +212,10 @@ class CwLiteSegmented:
         Returns:
             Waves.
         """
-        self._scope.capture_segmented()
+        if self._is_husky:
+            self._scope.capture()
+        else:
+            self._scope.capture_segmented()
         data = self._scope.get_last_trace()
         waves = self._parse_waveform(data)
         return waves

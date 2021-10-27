@@ -4,12 +4,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Captures traces using the 'b' (batch encryption) command. Supports both
-ChipWhisperer-Lite and WaveRunner 9104.
+ChipWhisperer-Lite/Husky and WaveRunner 9104.
 
 Typical usage:
 >>> ./simple_capture_traces_batch.py -s SCOPE
 
-SCOPE must be either "cw_lite" or "waverunner".
+SCOPE must be either "cw" or "waverunner".
 """
 
 import argparse
@@ -23,22 +23,20 @@ import yaml
 
 import simple_capture_traces as simple_capture
 from waverunner import WaveRunner
-from cw_lite_segmented import CwLiteSegmented
+from cw_segmented import CwSegmented
 
 
 def create_waverunner(ot, capture_cfg):
     return WaveRunner(capture_cfg["waverunner_ip"])
 
 
-def create_cw_lite_segmented(ot, capture_cfg):
-    # TODO: Remove this disconnect after removing cw-lite init from device.py.
-    ot.scope.dis()
-    return CwLiteSegmented(num_samples=capture_cfg["num_samples"],
-                           scope_gain=capture_cfg["scope_gain"])
+def create_cw_segmented(ot, capture_cfg):
+    return CwSegmented(num_samples=capture_cfg["num_samples"],
+                           scope_gain=capture_cfg["scope_gain"], scope=ot.scope)
 
 
 SCOPE_FACTORY = {
-    "cw_lite": create_cw_lite_segmented,
+    "cw": create_cw_segmented,
     "waverunner": create_waverunner,
 }
 
@@ -133,12 +131,12 @@ def parse_args():
     """Parses command-line arguments."""
     parser = argparse.ArgumentParser(
         description="""Captures traces using the 'b' (batch encryption) command.
-        Supports both ChipWhisperer-Lite and WaveRunner 9104."""
+        Supports both ChipWhisperer-Lite/Husky and WaveRunner 9104."""
     )
     parser.add_argument(
         "-s",
         "--scope",
-        choices=["cw_lite", "waverunner"],
+        choices=["cw", "waverunner"],
         required=True,
         help="scope to use",
     )

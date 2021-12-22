@@ -133,6 +133,17 @@ def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
             # We do fixed vs. random.
             fixed_set = histograms[i_rnd, i_byte, 0, :]
             random_set = np.sum(histograms[i_rnd, i_byte, :, :], 0)
+            if not np.any(fixed_set != 0.0) or not np.any(random_set != 0.0):
+                # In case any of the sets is empty, the statistics can't be computed. This can
+                # happen if for example:
+                # - Few traces are used only.
+                # - The hamming distance is used as sensitive variable and the initial round is
+                #   analyzed. Then the hamming distance can only be zero (fixed_set) or non-zero
+                #   (random_set) if the corresponding key byte is zero or non-zero, respectively.
+                #   Thus, either of the sets must be empty.
+                # We return NaN and handle it when checking all results.
+                ttest_trace[:, i_rnd, i_byte] = np.nan
+                continue
             for i_order in range(num_orders):
                 tmp = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set, i_order + 1)
                 ttest_trace[i_order, i_rnd, i_byte] = tmp
@@ -432,8 +443,8 @@ def main():
             assert num_traces == leakage.shape[2]
 
         log.info("Building Histograms")
-        # For every time sample we make nine histograms, one for each possible Hamming weight of the
-        # sensitive variable.
+        # For every time sample we make nine histograms, one for each possible Hamming weight of
+        # the sensitive variable.
         # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution].
         # The value stored in histograms[v][w][x][y][z] shows how many traces have value z at
         # sample y, given that HW(state byte w in AES round v) = x.
@@ -480,10 +491,17 @@ def main():
     # Check ttest results.
     threshold = 4.5
     failure = np.any(np.abs(ttest_trace) >= threshold, axis=3)
+    nan = np.isnan(np.sum(ttest_trace, axis=3))
 
-    if np.any(failure):
-        log.info("Leakage above threshold identified in the following order(s), round(s) and "
-                 "byte(s):")
+    if not np.any(failure):
+        log.info("No leakage above threshold identified.")
+    if np.any(failure) or np.any(nan):
+        if np.any(failure):
+            log.info("Leakage above threshold identified in the following order(s), round(s) and "
+                     "byte(s) marked with X:")
+        if np.any(nan):
+            log.info("Couldn't compute statistics for order(s), round(s) and byte(s) marked "
+                     "with O:")
         with UnformattedLog():
             byte_str = "Byte     |"
             dash_str = "----------"
@@ -498,12 +516,14 @@ def main():
                 for i_rnd in range(num_rnds):
                     result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
                     for i_byte in range(num_bytes):
-                        result_str += str("X").rjust(5) if failure[i_order, i_rnd,
-                                                                   i_byte] else "     "
+                        if failure[i_order, i_rnd, i_byte]:
+                            result_str += str("X").rjust(5)
+                        elif nan[i_order, i_rnd, i_byte]:
+                            result_str += str("O").rjust(5)
+                        else:
+                            result_str += "     "
                     log.info(f"{result_str}")
                 log.info("")
-    else:
-        log.info("No leakage above threshold identified.")
 
     # Plotting figures for t_test statistics vs time.
     # By default the figures are saved under tmp/t_test_round_x_byte_y.png.

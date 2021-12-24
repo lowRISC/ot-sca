@@ -4,7 +4,9 @@
 
 # Keep sorted.
 bokeh
+cffi
 codetiming
+libusb1
 more-itertools
 networkx
 pycryptodome

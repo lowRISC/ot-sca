@@ -4,25 +4,58 @@
 
 ### Hardware Requirements
 
-To perform side-channel analysis (SCA) for [OpenTitan](https://github.com/lowRISC/OpenTitan).
+To perform side-channel analysis (SCA) for [OpenTitan](https://github.com/lowRISC/OpenTitan)
 using the infrastructure provided in this repository, the following hardware
 equipment is required:
-* [ChipWhisperer CW305-A100 FPGA Board](https://rtfm.newae.com/Targets/CW305%20Artix%20FPGA/)
-  This is the target board. The Xilinx Artix-7 FPGA is used to implement
-  OpenTitan. Note that there are different versions of the board
-  available of which the board with the bigger FPGA device (XC7A100T-2FTG256)
-  is required.
-* [ChipWhisperer-Lite CW1173 Capture Board](https://rtfm.newae.com/Capture/ChipWhisperer-Lite/)
+
+* [ChipWhisperer CW310 FPGA Board with K410T](https://rtfm.newae.com/Targets/CW310%20Bergen%20Board//)
+
+  This is the target board. The Xilinx Kintex-7 FPGA is used to implement
+  the full Earl Grey top level of OpenTitan. Note that there are different
+  versions of the board available of which the board with the bigger FPGA
+  device (K410T) is required.
+
+* [ChipWhisperer-Husky CW1190 Capture Board](https://github.com/newaetech/ChipWhisperer-Husky)
+
   This is the capture or scope board. It is used to capture power traces of
-  OpenTitan implemented on the target board. There are several different
-  versions of the board available of which the single board without target
-  processor but with SMA and 20-pin cables is required.
+  OpenTitan implemented on the target board. The capture board comes with
+  SMA and 20-pin ChipWhisperer cable required to connect to the target board.
+
+The following, alternative hardware equipment is partially supported:
+
+* [ChipWhisperer CW305-A100 FPGA Board](https://rtfm.newae.com/Targets/CW305%20Artix%20FPGA/)
+
+  This is a smaller target board than the CW310.
+
+  **Note:** The Xilinx Artix-7 A100T FPGA on the CW305-A100 is considerably
+  smaller than the Kintex-7 K410T FPGA on the CW310 and does not offer
+  sufficient resources for implementing the full Earl Grey top level of
+  OpenTitan. However, it is suitable for implementing the English Breakfast
+  top level, a substantially reduced version of OpenTitan. As a result, the
+  CW305-A100 is suitable for performing SCA of AES but not KMAC or OTBN. Note
+  that also for this board there exist different versions of which of which
+  only the board with the bigger FPGA device (XC7A100T-2FTG256) is supported.
+
+* [ChipWhisperer-Lite CW1173 Capture Board](https://rtfm.newae.com/Capture/ChipWhisperer-Lite/)
+
+  This is an alternative capture or scope board. Compared to CW-Husky, CW-Lite
+  has a lower maximum ADC sampling rate (105 MS/s vs. 200 MS/s) and resolution
+  (10 bits vs. 12 bits) and smaller sample buffer (24k samples vs. 80k
+  samples).
+
+  **Note:** The CW-Lite currently doesn't support segmented/batch capture.
+  For this feature to work, commit 0998072 of ChipWhisperer is required and
+  CW-Lite needs to run firmware v.0.23. The last known commit of ot-sca to
+  support segmented/batch capture is e64e76d.
 
 
 ### Software Requirements
 
 Software required by this repository can either be directly installed on a
 machine or obtained using the provided [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile).
+
+**Note**: The Dockerfile may need updating. For details, see https://github.com/lowRISC/ot-sca/issues/58.
+
 
 #### Installing on a Machine
 
@@ -34,34 +67,50 @@ $ pip install --user -r python_requirements.txt
 ```
 to install those dependencies.
 
+
 ##### ChipWhisperer Dependencies
 
-Please see [this page](https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html#packages)
-to install the packages required by ChipWhisperer.
+ChipWhisperer itself is installed as a Python dependency through
+`python_requirements.txt`.
 
-Note using ChipWhisperer-Lite requires the following specific commit of ChipWhisperer due to broken segmenting support in later versions:
-```
-pip3 install -e git+https://github.com/newaetech/chipwhisperer.git@099807207f3351d16e7988d8f0cccf6d570f306a#egg=chipwhisperer
-```
+However, it has some non-Python dependencies related to USB. Please see
+[this page](https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html#packages)
+to install the specific `apt` packages required by ChipWhisperer.
 
-The ChipWhisperer-Husky requires 5.6.1 or later (current installed from git). The default `python_requirements.txt` will install the version
-that Husky requires.
+**Notes:**
+- Python 3.6.9 is **okay** for ChipWhisperer - it may force you to use
+  Python 3.7 due to requirements enforced by the latest version of NumPy. This
+  is however not a hard requirement.
+- CW-Husky requires ChipWhisperer 5.6.1 or later. The default
+  `python_requirements.txt` will install a version supporting CW-Husky.
+- CW-Lite requires the following specifc commit of ChipWhisperer and firmware
+  v.0.23 due to broken support for segmented/batch captures in later versions:
+```console
+$ pip3 install -e git+https://github.com/newaetech/chipwhisperer.git@099807207f3351d16e7988d8f0cccf6d570f306a#egg=chipwhisperer
+```
+  However, this version does not support CW-Husky. We recommend using CW-Husky
+  instead.
 
 
 ##### Git Large File Storage (LFS)
 
-This project uses Git LFS for storing binaries like a debian-compatible
-pre-built binary of the tool for loading the OpenTitan application binary over
-SPI and an example target FPGA bitstream on a remote server. The repository
-itself just contains diff-able text pointers to the binaries. It is recommended
-to install the `git-lfs` tool for transparently accessing the binaries.
-Alternatively, they can be downloaded manually from GitHub.
+This project uses Git LFS for storing binaries like example target FPGA
+bitstreams on a remote server. The repository itself just contains diff-able
+text pointers to the binaries. It is recommended to install the `git-lfs`
+tool for transparently accessing the binaries. Alternatively, they can be
+downloaded manually from GitHub.
 
 You can run
 ```console
 $ sudo apt install git-lfs
 ```
 to install the `git-lfs` tool on your Ubuntu machine.
+
+If you've cloned the `ot-sca` repo before installing Git LFS, run
+```console
+$ git-lfs pull
+```
+to get the binaries.
 
 Alternatively, you can rebuild those binaries yourself from the
 [OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
@@ -118,11 +167,17 @@ connected, you can add the following rules in
 `/etc/udev/rules.d/90-opentitan.rules` to create stable symbolic links using
 the `SYMLINK` attribute:
 ```
+# CW310 (Kintex Target)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666" SYMLINK+="opentitan/cw_310"
+
+# CW-Husky
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666" SYMLINK+="opentitan/cw_husky"
+
+# CW305 (Artix Target)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
+
 # CW-Lite
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
-
-# CW-305 (Artix Target)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
 ```
 
 Load the new rules:
@@ -173,42 +228,86 @@ Instead of using the example binaries provided by this repository via Git LFS,
 you can regenerate them from the
 [OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
 
-To this end, follow these steps:
+Below, we quickly outline the necessary steps for building the binaries for the
+CW310 and CW305 boards from the sources. For more information on the build
+steps, refer to the [OpenTitan FPGA documentation](https://docs.opentitan.org/doc/ug/getting_started_fpga/).
+
+Note that below we use `$REPO_TOP` to refer to the main OpenTitan repository
+top, not this `ot-sca` repo.
+
+#### Earl Grey for CW310
+
+To build the binaries for performing SCA on the full Earl Grey top level of
+OpenTitan using the CW310, follow these steps:
+
+1. Go to the root directory of the OpenTitan repository.
+1. Build the regular binaries with
+```console
+$ cd $REPO_TOP
+$ ./meson_init.sh
+$ ninja -C build-out all
+```
+1. Then, the bitstream generation can be started by running
+```console
+$ . /tools/xilinx/Vivado/2020.2/settings64.sh
+$ cd $REPO_TOP
+$ fusesoc --cores-root . run --flag=fileset_top --target=synth lowrisc:systems:chip_earlgrey_cw310
+```
+   The generated bitstream can be found in
+```
+build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
+```
+   and will be loaded to the FPGA using the ChipWhisperer Python API.
+
+1. To generate the OpenTitan application binary, e.g., for recording AES power
+   traces on the CW310, run
+```console
+$ cd $REPO_TOP
+$ ninja -C build-out sw/device/sca/aes_serial_export_fpga_cw310
+```
+   The generated binary can be found under
+```
+build-bin/sw/device/sca/aes_serial_fpga_cw310.bin
+```
+
+#### English Breakfast for CW305
+
+To build the binaries for performing SCA of e.g. AES on the reduced English
+Breakfast top level of OpenTitan using the CW305, follow these steps:
 
 1. Go to the root directory of the OpenTitan repository.
 1. Before generating the OpenTitan FPGA bitstream for the CW305 target board,
    you first have to run
 ```console
-$ ./hw/top_englishbreakfast/util/prepare_sw.py
+$ cd $REPO_TOP
+$ ./util/topgen-fusesoc.py --files-root=. --topname=top_englishbreakfast
 ```
-   in order to prepare the OpenTitan software build flow for the CW305 target
-   board. More precisely, this script runs some code generators, patches some
-   auto-generated source files and finally generates the boot ROM needed for
-   bitstream generation.
-
-   After this command has been run, the boot ROM can manually be regenerated
-   by executing
+   to generate top-level specific versions of some IP cores such as RV_PLIC,
+   TL-UL crossbars etc.
+1. Then run
 ```console
-$ ./meson_init.sh
-$ ninja -C build-out sw/device/boot_rom/boot_rom_export_fpga_nexysvideo
+$ cd $REPO_TOP
+$ ./hw/top_englishbreakfast/util/prepare_sw.py --build
 ```
-   Finally, the bitstream generation can be started by running
+   in order to prepare the OpenTitan software build flow for English
+   Breakfast and build the required binaries. More precisely, this script
+   runs some code generators, patches some auto-generated source files and
+   finally generates the boot ROM needed for bitstream generation.
+1. Finally, the bitstream generation can be started by running
 ```console
-$ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:top_englishbreakfast_cw305
+$ cd $REPO_TOP
+$ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:chip_englishbreakfast_cw305
 ```
-   For more information on the build steps, refer to the
-   [OpenTitan FPGA documentation](https://docs.opentitan.org/doc/ug/getting_started_fpga/).
-
    The generated bitstream can be found in
 ```
-build/lowrisc_systems_top_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_top_englishbreakfast_cw305_0.1.bit
+build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
 ```
    and will be loaded to the FPGA using the ChipWhisperer Python API.
 
-1. To generate the OpenTitan application binary, make sure the
-   `prepare_sw.py` script has been run before executing
+1. To generate the OpenTitan application binary for recording AES power traces,
+   make sure the `prepare_sw.py` script has been run before executing
 ```console
-$ ./meson_init.sh
+$ cd $REPO_TOP
 $ ninja -C build-out sw/device/sca/aes_serial_export_fpga_nexysvideo
 ```
    The generated binary can be found in
@@ -219,24 +318,78 @@ build-bin/sw/device/sca/aes_serial_fpga_nexysvideo.bin
 
 ## Setup
 
-### Setting up Hardware
+### Board
 
-To setup the hardware, connect the two boards to your PC via USB. Make sure the
-S1 jumper on the back of the target board is set to `111` such that the FPGA
-bitstream can be reconfigured via USB. The target and the capture board have
-further to be connected using the ChipWhisperer 20-pin connector and an SMA
-cable (X4 output on target board to MEASURE input on capture board).
+To setup the hardware, first connect the target and capture board together. You
+don't want to accidentally short something out with the conductive SMA
+connector.
 
-In addition you might need to setup the following `udev` rules to gain access
-to the two USB devices. To do so, open the file
-`/etc/udev/rules.d/90-lowrisc.rules` or create it if does not yet exist and add
-the following content to it:
+#### CW310
+
+As shown in the photo below,
+1. Connect the `SHUNTLOW AMPLIFIED` output of the CW310 (topmost SMA) to the
+   CW-Husky `Pos` input. When using the CW-Lite instead of CW-Husky, use the
+   `MEASURE` input.
+1. Connect the `ChipWhisperer Connector` (`J14`) on the CW310 to the
+   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
+   is the connector on the *SIDE* not the connector on the *FRONT*.
+
+![](img/cw310_cwhusky.jpg)
+
+The CW310 will need a power supply, the default power supply uses a DC barrel
+connector to supply 12V. If you use this power supply all switches should be
+in the default position. To this end, make sure to:
+1. Set the `SW2` switch (to the right of the barrel connector) up to the
+   `5V Regulator` option.
+1. Set the switch below the barrel connector to the right towards the `Barrel`
+   option.
+1. Set the `Control Power` switch (bottom left corner, `SW7`) to the right.
+1. Ensure the `Tgt Power` switch (above the fan, `S1`) is set to the right
+   towards the `Auto` option.
+
+Then,
+1. Plug the DC power adapter into the barrel jack (`J11`) in the top left
+   corner of the board.
+1. Use a USB-C cable to connect your PC with the `USB-C Data` connector (`J8`)
+   in the lower left corner on the board.
+1. Connect the CW-Husky to your PC via USB-C cable.
+
+You should see the blue "Status" LED on the CW310 blinking, along with several
+green power LEDs. The "USB-C Power" led may be red as there is no USB-C PD
+source. The CW-Husky should also have a green blinking status LED at this
+point. If LEDs are solid it may mean the device has not enumerated, which might
+require additional setup (see UDEV Rules below).
+
+#### CW305
+
+1. Connect the `X4` output of the CW305 (rightmost SMA) to the CW-Husky `Pos`
+   input. When using the CW-Lite instead of CW-Husky, use the `MEASURE` input.
+2. Connect the `ChipWhisperer 20-Pin Connector` on the CW305 to the
+   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
+   is the connector on the *SIDE* not the connector on the *FRONT*.
+
+Make sure the `S1` jumper on the back of the CW305 is set to `111` such that
+the FPGA bitstream can be reconfigured via USB. Connect the two boards to your
+PC via USB.
+
+
+### UDEV Rules
+
+You might need to setup the following `udev` rules to gain access to the two
+USB devices. To do so, open the file `/etc/udev/rules.d/90-lowrisc.rules` or
+create it if does not yet exist and add the following content to it:
 
 ```
+# NewAE Technology Inc. ChipWhisperer CW310
+ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666"
+
+# NewAE Technology Inc. ChipWhisperer-Husky
+ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666"
+
 # NewAE Technology Inc. ChipWhisperer CW305
 ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666"
 
-# NewAE Technology Inc. ChipWhisperer-Lite CW1173
+# NewAE Technology Inc. ChipWhisperer-Lite
 ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666"
 ```
 
@@ -250,36 +403,54 @@ For more details on how to set up `udev` rules, see the corresponding section
 in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instructions/#xilinx-vivado).
 
 
-### Configuring the Setup
+### Configuration
 
-The main configuration of the OpenTitan SCA analysis setup is stored in the file
+The main configuration of the OpenTitan SCA setup is stored in the files
 ```
-cw/cw305/capture.yaml
+cw/cw305/capture_aes.yaml
+cw/cw305/capture_sha3.yaml
 ```
-For example, this file allows to specify the FPGA bitstream to be loaded and
-the OpenTitan application binary to execute. By default, the prebuilt binaries
-delivered with this repository are used. If you want to use custom binaries,
-open the file and edit the specified file paths.
+for AES and KMAC, respectively.
 
-## Performing Example SCA Attack on AES
+For example, these files allow to specify the FPGA bitstream to be loaded, the
+OpenTitan application binary to execute, the default number of traces to
+capture and the ADC gain. By default, the prebuilt binaries delivered with this
+repository are used. If you want to use custom binaries, open the file and edit
+the specified file paths.
 
-SCA attacks are performed in two steps. First, the target device is operated
-and power traces are capture. Second, the power traces are analyzed. This is
-commonly referred to as the actual SCA attack as performing a different attack
-on the same peripheral does not necessarily require the collection of new power
-traces.
+**Notes**:
+* When working with custom binaries, it is recommended to always re-generate
+  both bitstream and application binaries from the OpenTitan repository.
+  Otherwise you might risk to end up with an incompatible combination of
+  bitstream and application binary.
+* The default configurations target the CW310 board. When using
+  the CW305 FPGA board, the paths specifying the bitstream and application
+  binary in `cw/cw305/capture_aes.yaml` need to be adjusted accordingly. Also
+  the ADC gain should be adjusted.
 
-### Capture Power Traces
 
-Make sure all boards and adapters are powered up and connected to your PC and
-that you have adjusted the configuration in `cw/cw305/capture.yaml`
-according to your system.
+## Capturing Power Traces
 
-Then run the following commands:
+There are currently two different scripts available for capturing OpenTitan
+power traces:
 
+* `simple_capture_traces.py`: Supports capturing AES and KMAC power traces
+  using either a CW-Husky or CW-Lite capture board.
+
+* `simple_capture_traces_batch.py`: Supports capturing AES power traces
+  traces in batches to achieve substantially higher capture rates (ca.
+  1300 traces/s). Requires the CW-Husky capture board.
+
+Before starting a long running capture, it is recommended to always perform
+a capture with fewer traces to make sure the setup is configured as expected
+(e.g. ADC gain).
+
+### AES Capture
+
+To perform a non-batched AES capture, you can use the following command:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --num-traces 5000 --plot-traces 5000
+$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes --num-traces 100 --plot-traces 10
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
@@ -289,27 +460,20 @@ should produce console output similar to the following output:
 ```console
 Connecting and loading FPGA... Done!
 Initializing PLL1
-Programming OpenTitan with "objs/aes_serial_fpga_nexysvideo.bin"...
-frame: 0x00000000 to offset: 0x00000000
-frame: 0x00000001 to offset: 0x000003d8
-frame: 0x00000002 to offset: 0x000007b0
-frame: 0x00000003 to offset: 0x00000b88
-frame: 0x00000004 to offset: 0x00000f60
-frame: 0x00000005 to offset: 0x00001338
-frame: 0x00000006 to offset: 0x00001710
-frame: 0x00000007 to offset: 0x00001ae8
-frame: 0x00000008 to offset: 0x00001ec0
-frame: 0x00000009 to offset: 0x00002298
-frame: 0x0000000A to offset: 0x00002670
-frame: 0x8000000B to offset: 0x00002a48
-Serial baud rate = 38400
-Serial baud rate = 115200
-Scope setup with sampling rate 100003589.0 S/s
-Target simpleserial version: z01 (attempts: 2).
-Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
+Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
+Transferring frame 0x00000000 @             0x00000000.
+Transferring frame 0x00000001 @             0x000007D8.
+Transferring frame 0x00000002 @             0x00000FB0.
+Transferring frame 0x00000003 @             0x00001788.
+Transferring frame 0x00000004 @             0x00001F60.
+Transferring frame 0x00000005 @             0x00002738.
+Transferring frame 0x80000006 @             0x00002F10.
+Scope setup with sampling rate 100004608.0 S/s
 Reading from FPGA using simpleserial protocol.
-Checking version: 
-Capturing: 100%|████████████████████████████| 5000/5000 [00:57<00:00, 86.78it/s]
+Target simpleserial version: z01 (attempts: 2).
+Using key: b'2b7e151628aed2a6abf7158809cf4f3c'                                  
+Capturing: 100%|██████████████████████████████| 100/100 [00:01<00:00, 50.04it/s]
+Created plot with 10 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
 ```
 
 In case you see console output like
@@ -324,50 +488,132 @@ the link printed on the console.
 Once the power traces have been collected, a picture similar to the following
 should be shown in your browser.
 
-![](sample_traces.png)
+![](img/sample_traces_aes.png)
 
-Sample analysis run (Failed):
+Note the input data can range from `-0.5` to `+0.5` (this is just an arbitrary
+mapping in the current software). If our output value is exceeding those limits
+you are clipping and losing data. But if the range is too small you are not
+using the full dynamic range of the ADC. You can tune the `scope_gain` setting
+in the `.yaml` configuration file. Note that boards have some natural
+variation, and changes such as the clock frequency, core voltage, and device
+utilization (FPGA build) will all affect the safe maximum gain setting.
 
-### Perform the Attack
+### KMAC Capture
 
-To perform the attack, run the following command:
-
+To perform a KMAC capture, use this command:
 ```console
-$ ./simple_cpa_attack.py
+$ cd cw/cw305
+$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3 --num-traces 100 --plot-traces 10
 ```
 
-This should produce console output similar to the output below in case
-the attack fails:
+You should see similar output as in the AES example. Once the power traces have
+been collected, a picture similar to the following should be shown in your
+browser.
+
+![](img/sample_traces_sha3.png)
+
+### AES Batch Capture
+
+To capture AES power traces in batch mode,
 
 ```console
-Performing Attack: 100%|████████████████████| 5000/5000 [03:41<00:00, 22.77it/s]
-known_key: b'2b7e151628aed2a6abf7158809cf4f3c'
-key guess: b'97f0e4c3bc14ff64effa5fce0697d9e0'
-Subkey KGuess Correlation
- 00    0x84    0.05677
- 01    0xC1    0.05662
- 02    0xF1    0.06032
- 03    0x5F    0.05537
- 04    0x7E    0.06062
- 05    0xBF    0.05854
- 06    0x6B    0.06673
- 07    0x84    0.06018
- 08    0x01    0.05967
- 09    0x73    0.06864
- 10    0xD7    0.05885
- 11    0x92    0.05246
- 12    0x18    0.06996
- 13    0xA1    0.05271
- 14    0x62    0.05984
- 15    0xB2    0.05733
-
-FAILED: key_guess != known_key
-        0/16 bytes guessed correctly.
-Saving results
-
+$ cd cw/cw305
+$ ./simple_capture_traces_batch.py --scope cw
 ```
 
-Note that this particular attack is supposed to fail on the OpenTitan AES
-implementation as the attack tries to exploit the Hamming distance leakage
-of the state register in the last round, whereas the hardware does not write
-the output of the last round back into the state register.
+This should produce console output like
+```console
+Connecting and loading FPGA... Done!
+Initializing PLL1
+Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
+Transferring frame 0x00000000 @             0x00000000.
+Transferring frame 0x00000001 @             0x000007D8.
+Transferring frame 0x00000002 @             0x00000FB0.
+Transferring frame 0x00000003 @             0x00001788.
+Transferring frame 0x00000004 @             0x00001F60.
+Transferring frame 0x00000005 @             0x00002738.
+Transferring frame 0x80000006 @             0x00002F10.
+Scope setup with sampling rate 100004653.0 S/s
+Reading from FPGA using simpleserial protocol.
+Target simpleserial version: z01 (attempts: 2).
+Connected to ChipWhisperer (num_samples: 740, num_samples_actual: 740, num_segments_actual: 1)
+Using key: '2b7e151628aed2a6abf7158809cf4f3c'.
+Capturing: 100%|█████████████████████| 5000/5000 [00:03<00:00, 1301.86 traces/s]
+```
+
+By default, this will capture 5000 traces which should be sufficient to make
+sure the setup is configured and working as expected before starting a long
+running capture. The plot should look very similar to the one of the
+non-batched AES capture above.
+
+To capture e.g. 2 Mio traces, open the config file `capture_aes.yaml` and change
+`capture.num_traces` to `2000000`. Also, it is recommended to set
+`plot_capture.show` to `false` as the routine checking the ADC gain setting
+(as part of the plot generation) can take a long time for high number of traces.
+
+
+## Performing Example SCA Attack on AES with Masking Disabled
+
+The OpenTitan AES module uses boolean masking to aggravate SCA attacks. For
+evaluating the SCA setup as well as specific attacks, the OpenTitan AES
+module supports an FPGA-only compile-time Verilog parameter allowing software
+to disable the masking. In the following example, we are going to disable the
+masking in order to demonstrate an example attack. Note that On the ASIC, the
+masking cannot be disabled.
+
+### Disabling Masking
+
+1. In the OpenTitan repository, edit the file `sw/device/sca/aes_serial.c` to
+   and change `.masking = kDifAesMaskingInternalPrng` to
+   `.masking = kDifAesMaskingForceZero`.
+1. From the root directory of the OpenTitan repository, run
+```console
+$ ninja -C build-out all
+```
+   To re-generate the application binary.
+
+### Configuration
+
+Open the config file `cw/cw305/capture_aes.yaml` and make sure to:
+1. Change the path to application binary to use the one from the previous step.
+1. If necessary, change the path to the bitstream to use a bitstream matching
+   The application binary.
+1. Set `capture.num_traces` to `2000000`.
+1. Set `plot_capture.show` to `false`.
+
+### Capturing Power Traces
+
+Run the following commands
+
+```console
+$ cd cw/cw305
+$ ./simple_capture_traces_batch.py --scope cw
+```
+to start the capture.
+
+### Performing the Attack
+
+Run the following commands:
+
+```console
+$ cd cw/cw305
+$ ./ceca.py -f projects/opentitan_simple_aes.cwp -a 505 520 -d output -s 3 -w 16 -n 2000000
+```
+
+This should give you an output like this:
+
+```console
+2021-10-23 13:19:19,846 INFO ceca.py:520 -- Will use 1962961 traces (98.1% of all traces)
+2021-10-23 13:19:21,115 INFO _timer.py:61 -- compute_pairwise_diffs_and_scores took 0.4s
+2021-10-23 13:19:21,116 INFO ceca.py:528 -- Difference values (delta_0_i): [  0 196  41 120  25  62 245  89  49 239 220  24 102 179 220 118]
+2021-10-23 13:19:21,158 INFO ceca.py:532 -- Recovered AES key: 2b7e151628aed2a6abf7158809cf4f3c
+2021-10-23 13:19:21,159 INFO ceca.py:538 -- Recovered 82/120 differences between key bytes
+2021-10-23 13:19:21,159 INFO _timer.py:61 -- perform_attack took 13.6s
+2021-10-23 13:19:21,159 INFO _timer.py:61 -- main took 14.7s
+```
+
+The setting of `-n 2000000` is how many traces to use, if you receive a memory error reduce
+the number of traces.
+
+The setting of `-a 505 520` specifies a location in the power traces, you may need to change
+these settings with new FPGA builds as the leakage location will shift.

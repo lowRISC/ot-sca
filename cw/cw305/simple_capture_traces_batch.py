@@ -163,8 +163,9 @@ def main():
     # Capture traces.
     run_batch_capture(cfg["capture"], ot, ktp, scope)
     # Plot a few traces.
-    project_name = cfg["capture"]["project_name"]
-    simple_capture.plot_results(cfg["plot_capture"], project_name)
+    if cfg["plot_capture"]["show"]:
+        project_name = cfg["capture"]["project_name"]
+        simple_capture.plot_results(cfg["plot_capture"], project_name)
 
 
 if __name__ == "__main__":

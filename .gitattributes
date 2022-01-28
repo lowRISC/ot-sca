@@ -1,5 +1,5 @@
+cw/cw305/objs/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit filter=lfs diff=lfs merge=lfs -text
 cw/cw305/objs/aes_serial_fpga_nexysvideo.bin filter=lfs diff=lfs merge=lfs -text
-cw/cw305/objs/lowrisc_systems_top_englishbreakfast_cw305_0.1.bit filter=lfs diff=lfs merge=lfs -text
 cw/cw305/objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit filter=lfs diff=lfs merge=lfs -text
 cw/cw305/objs/sha3_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text
 cw/cw305/objs/aes_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text

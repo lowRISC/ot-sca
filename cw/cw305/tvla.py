@@ -23,12 +23,12 @@ import logging as log
 import argparse
 import chipwhisperer as cw
 from chipwhisperer.analyzer import aes_funcs
-from math import sqrt
 import matplotlib.pyplot as plt
 import numpy as np
 import multiprocessing
 from joblib import Parallel, delayed
 from pathlib import Path
+from scipy.stats import ttest_ind_from_stats
 
 
 class UnformattedLog(object):
@@ -55,84 +55,149 @@ def bit_count(int_no):
 
 
 # A set of functions for working with histograms.
-# Each distribution should be stored as two vectors x and y.
-# x - A vector of  values.
-# y - A vector of probabilities.
+# The distributions are stored in two matrices x and y with dimensions (M, N) where:
+# - M equals the number of time samples times the number of orders, and
+# - N equals the number of values (i.e. the resolution).
+# The matrices hold the following data:
+# - x holds the values (all rows are the same for 1st order), and
+# - y holds the probabilities (one probability distribution per row/time sample).
 
 
 def mean_hist_xy(x, y):
-    """Computes mean value of a distribution."""
-    return np.dot(x, y) / sum(y)
+    """
+    Computes mean values for a set of distributions.
+
+    Both x and y are (M, N) matrices, the return value is a (M, ) vector.
+    """
+    return np.divide(np.sum(x * y, axis=1), np.sum(y, axis=1))
 
 
-def var_hist_xy(x, y):
-    """Computes variance of a distribution."""
-    mu = mean_hist_xy(x, y)
-    new_x = (x - mu)**2
-    return mean_hist_xy(new_x, y)
+def var_hist_xy(x, y, mu):
+    """
+    Computes variances for a set of distributions.
+
+    This amounts to E[(X - E[X])**2].
+
+    Both x and y are (M, N) matrices, mu is a (M, ) vector, the return value is a (M, ) vector.
+    """
+
+    # Replicate mu.
+    num_values = x.shape[1]
+    mu = np.transpose(np.tile(mu, (num_values, 1)))
+
+    # Compute the variances.
+    x_mu_2 = np.power(x - mu, 2)
+    return mean_hist_xy(x_mu_2, y)
 
 
 def ttest1_hist_xy(x_a, y_a, x_b, y_b):
     """
     Basic first-order t-test.
+
+    Everything needs to be a matrix.
     """
     mu1 = mean_hist_xy(x_a, y_a)
     mu2 = mean_hist_xy(x_b, y_b)
-    var1 = var_hist_xy(x_a, y_a)
-    var2 = var_hist_xy(x_b, y_b)
-    N1 = sum(y_a)
-    N2 = sum(y_b)
-    num = sqrt(var1 / N1 + var2 / N2)
-    diff_flag = 0 if (mu1 == mu2) else 100
-    return (mu1 - mu2) / num if num > 0 else diff_flag
+    std1 = np.sqrt(var_hist_xy(x_a, y_a, mu1))
+    std2 = np.sqrt(var_hist_xy(x_b, y_b, mu2))
+    N1 = np.sum(y_a, axis=1)
+    N2 = np.sum(y_b, axis=1)
+    return ttest_ind_from_stats(mu1,
+                                std1,
+                                N1,
+                                mu2,
+                                std2,
+                                N2,
+                                equal_var=False,
+                                alternative='two-sided')[0]
 
 
-def ttest_hist_xy(x_a, y_a, x_b, y_b, order):
-    """ General t-test of any order.
+def ttest_hist_xy(x_a, y_a, x_b, y_b, num_orders):
+    """
+    Welch's t-test for orders 1,..., num_orders.
 
     For more details see: Reparaz et. al. "Fast Leakage Assessment", CHES 2017.
     available at: https://eprint.iacr.org/2017/624.pdf
+
+    x_a and x_b are (M/num_orders, N) matrices holding the values, one value vector per row.
+    y_a and y_b are (M/num_orders, N) matrices holding the distributions, one distribution per row.
+
+    The return value is (num_orders, M/num_orders)
     """
-    mu_a = mean_hist_xy(x_a, y_a)
-    mu_b = mean_hist_xy(x_b, y_b)
 
-    if order == 1:
-        new_x_a = x_a
-        new_x_b = x_b
-    elif order == 2:
-        new_x_a = (x_a - mu_a)**2
-        new_x_b = (x_b - mu_b)**2
-    else:
-        var_a = var_hist_xy(x_a, y_a)
-        var_b = var_hist_xy(x_b, y_b)
-        sigma_a = sqrt(var_a)
-        sigma_b = sqrt(var_b)
+    num_values = x_a.shape[1]
+    num_samples = y_a.shape[0]
 
-        if sigma_a == 0:
-            new_x_a = 0
+    #############
+    # y_a / y_b #
+    #############
+
+    # y_a and y_b are the same for all orders and can simply be replicated along the first axis.
+    y_a_ord = np.tile(y_a, (num_orders, 1))
+    y_b_ord = np.tile(y_b, (num_orders, 1))
+
+    #############
+    # x_a / x_b #
+    #############
+
+    # x_a and x_b are different on a per-order basis. Start with an empty array.
+    x_a_ord = np.zeros((num_samples * num_orders, num_values))
+    x_b_ord = np.zeros((num_samples * num_orders, num_values))
+
+    # Compute shareable intermediate results.
+    if num_orders > 1:
+        mu_a = mean_hist_xy(x_a, y_a)
+        mu_b = mean_hist_xy(x_b, y_b)
+    if num_orders > 2:
+        var_a = var_hist_xy(x_a, y_a, mu_a)
+        var_b = var_hist_xy(x_b, y_b, mu_b)
+        sigma_a = np.transpose(np.tile(np.sqrt(var_a), (num_values, 1)))
+        sigma_b = np.transpose(np.tile(np.sqrt(var_b), (num_values, 1)))
+
+    # Fill in the values.
+    for i_order in range(num_orders):
+        if i_order == 0:
+            # First order takes the values as is.
+            x_a_ord[0:num_samples, :] = x_a
+            x_b_ord[0:num_samples, :] = x_b
         else:
-            new_x_a = (((x_a - mu_a) / sigma_a)**order)
-        if sigma_b == 0:
-            new_x_b = 0
-        else:
-            new_x_b = (((x_b - mu_b) / sigma_b)**order)
+            # Second order takes the variance.
+            tmp_a = x_a - np.transpose(np.tile(mu_a, (num_values, 1)))
+            tmp_b = x_b - np.transpose(np.tile(mu_b, (num_values, 1)))
+            if i_order > 1:
+                # Higher orders take the higher order moments, and also divide by sigma.
+                tmp_a = np.divide(tmp_a, sigma_a)
+                tmp_b = np.divide(tmp_b, sigma_b)
 
-    return ttest1_hist_xy(new_x_a, y_a, new_x_b, y_b)
+            # Take the power and fill in the values.
+            tmp_a = np.power(tmp_a, i_order + 1)
+            tmp_b = np.power(tmp_b, i_order + 1)
+            x_a_ord[i_order * num_samples:(i_order + 1) * num_samples, :] = tmp_a
+            x_b_ord[i_order * num_samples:(i_order + 1) * num_samples, :] = tmp_b
+
+    # Compute Welch's t-test for all requested orders.
+    ttest = ttest1_hist_xy(x_a_ord, y_a_ord, x_b_ord, y_b_ord)
+
+    return np.reshape(ttest, (num_orders, num_samples))
 
 
 def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
-    """ Computing t-test statistics for one time sample.
+    """ Computing t-test statistics for a set of time samples.
     """
     num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
-    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes))
+    num_samples = histograms.shape[3]
+    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes, num_samples))
+
+    # Replicate the x_axis such that x has the same dimensions as fixed_set/random_set below.
+    x = np.tile(x_axis, (num_samples, 1))
 
     # Compute statistics.
     for i_rnd in range(num_rnds):
         for i_byte in range(num_bytes):
             # We do fixed vs. random.
-            fixed_set = histograms[i_rnd, i_byte, 0, :]
-            random_set = np.sum(histograms[i_rnd, i_byte, :, :], 0)
+            fixed_set = histograms[i_rnd, i_byte, 0, :, :]
+            random_set = np.sum(histograms[i_rnd, i_byte, :, :, :], 0)
             if not np.any(fixed_set != 0.0) or not np.any(random_set != 0.0):
                 # In case any of the sets is empty, the statistics can't be computed. This can
                 # happen if for example:
@@ -142,11 +207,10 @@ def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
                 #   (random_set) if the corresponding key byte is zero or non-zero, respectively.
                 #   Thus, either of the sets must be empty.
                 # We return NaN and handle it when checking all results.
-                ttest_trace[:, i_rnd, i_byte] = np.nan
+                ttest_trace[:, i_rnd, i_byte, :] = np.nan
                 continue
-            for i_order in range(num_orders):
-                tmp = ttest_hist_xy(x_axis, fixed_set, x_axis, random_set, i_order + 1)
-                ttest_trace[i_order, i_rnd, i_byte] = tmp
+            tmp = ttest_hist_xy(x, fixed_set, x, random_set, num_orders)
+            ttest_trace[:, i_rnd, i_byte, :] = tmp
 
     return ttest_trace
 
@@ -348,10 +412,10 @@ def main():
 
         # The number of traces/samples processed by each parallel job at a time.
         trace_step = 10000
-        sample_step = 1
+        sample_step_hist = 1
         # Increase work per thread to amortize parallelization overhead.
         if len(rnd_list) == 1 and len(byte_list) == 1:
-            sample_step = 5
+            sample_step_hist = 5
 
         adc_bits = 10
         trace_resolution = 2**adc_bits
@@ -451,8 +515,8 @@ def main():
         # The computation is parallelized over the samples.
         histograms = Parallel(n_jobs=multiprocessing.cpu_count())(
                 delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
-                                                traces[:, i:i + sample_step], leakage)
-                for i in range(0, num_samples, sample_step))
+                                                traces[:, i:i + sample_step_hist], leakage)
+                for i in range(0, num_samples, sample_step_hist))
         histograms = np.concatenate((histograms[:]), axis=3)
 
         # Histograms can be saved for later use if output file name is passed.
@@ -473,6 +537,9 @@ def main():
     # Computing the t-test statistics vs. time.
     log.info("Computing T-test Statistics")
 
+    # The number of samples processed by each parallel job at a time.
+    sample_step_ttest = num_samples // multiprocessing.cpu_count()
+
     # By default, the first four moments are computed. This can be modified to any order.
     num_orders = 4
 
@@ -484,9 +551,9 @@ def main():
     # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
     ttest_trace = Parallel(n_jobs=multiprocessing.cpu_count())(
             delayed(compute_statistics)(num_orders, rnd_list, byte_list,
-                                        histograms[:, :, :, i_sample, :], x_axis)
-            for i_sample in range(num_samples))
-    ttest_trace = np.moveaxis(ttest_trace, 0, 3)
+                                        histograms[:, :, :, i:i + sample_step_ttest, :], x_axis)
+            for i in range(0, num_samples, sample_step_ttest))
+    ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
     # Check ttest results.
     threshold = 4.5

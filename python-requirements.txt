@@ -16,6 +16,7 @@ python-vxi11
 pyyaml
 ray
 scared
+scipy
 tqdm
 trsfile
 typer

@@ -319,7 +319,7 @@ def parse_args():
         "--trace-file",
         help="""Name of the trace file containing the numpy array with all traces in 16-bit integer
         format. Not required. If not provided, the data from the ChipWhisperer project file
-        is used.""",
+        is used. Ignored for number-of-steps > 1.""",
     )
     parser.add_argument(
         "-s",
@@ -338,7 +338,15 @@ def parse_args():
         "--leakage-file",
         help="""Name of the leakage file containing the numpy array with the leakage model for all
         rounds, all bytes, and all traces. Not required. If not provided, the leakage is computed
-        from the data in the ChipWhisperer project file.""",
+        from the data in the ChipWhisperer project file. Ignored for number-of-steps > 1.""",
+    )
+    parser.add_argument(
+        "-d",
+        "--save-to-disk",
+        action="store_true",
+        default=False,
+        help="""Save trace, leakage and t-test files to disk. Ignored for trace and leakage files
+        when number-of-steps > 1.""",
     )
     parser.add_argument(
         "-r",
@@ -364,6 +372,30 @@ def parse_args():
         help="""Name of the output file to store generated histograms. Not required. If both -i and
         -o are provided, the input file is appended with more data to produce the output file.""",
     )
+    parser.add_argument(
+        "-n",
+        "--number-of-steps",
+        type=int,
+        default="1",
+        help="""Number of steps to breakdown the analysis into. For every step, traces are
+        separately filtered and the leakage is computed. The histograms are appended to the
+        ones of the previous step. This is useful when operating on very large trace sets and/or
+        when analyzing how results change with the number of traces used.""",
+    )
+    parser.add_argument(
+        "-a",
+        "--ttest-step-file",
+        help="""Name of the t-test step file containing one t-test analysis per step. Not
+        required. If not provided, the data is recomputed.""",
+    )
+    parser.add_argument(
+        "-f",
+        "--plot-figures",
+        action="store_true",
+        default=False,
+        help="""Plot figures and save them to disk. Not required.""",
+    )
+
     return parser.parse_args()
 
 
@@ -388,11 +420,29 @@ def main():
         rnd_list = [int(args.round_select)]
     assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
 
+    num_rnds = len(rnd_list)
+
     if args.byte_select is None:
         byte_list = list(range(16))
     else:
         byte_list = [int(args.byte_select)]
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
+
+    num_bytes = len(byte_list)
+
+    num_steps = int(args.number_of_steps)
+    assert num_steps >= 1
+
+    save_to_disk_trace = args.save_to_disk
+    save_to_disk_leakage = args.save_to_disk
+    save_to_disk_ttest = args.save_to_disk
+
+    # Step-wise processing isn't compatible with a couple of other arguments.
+    if num_steps > 1:
+        args.trace_file = None
+        args.leakage_file = None
+        save_to_disk_trace = False
+        save_to_disk_leakage = False
 
     if args.input_file is not None:
         # Load previously generated histograms.
@@ -400,12 +450,12 @@ def main():
         histograms_in = histograms_file['histograms']
         num_samples = histograms_in.shape[3]
         trace_resolution = histograms_in.shape[4]
-        for i_rnd in rnd_list:
-            assert i_rnd in histograms_file['rnd_list']
-        for i_byte in byte_list:
-            assert i_byte in histograms_file['byte_list']
+        # If previously generated histograms are loaded, the rounds and bytes of interest must
+        # match. Otherwise, indices would get mixed up.
+        assert rnd_list == histograms_file['rnd_list']
+        assert byte_list == histograms_file['byte_list']
 
-    if args.input_file is None or args.output_file is not None:
+    if (args.input_file is None or args.output_file is not None) and args.ttest_step_file is None:
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
 
@@ -420,154 +470,238 @@ def main():
             adc_bits = 10
             trace_resolution = 2**adc_bits
 
-        num_traces = len(project.waves)
+        # Amount of tolerable deviation from average during filtering.
+        num_sigmas = 3.5
+
+        # Overall number of traces, trace start and end indices.
+        num_traces_tot = len(project.waves)
         if args.trace_start is None:
-            trace_start = 0
+            trace_start_tot = 0
         else:
-            trace_start = int(args.trace_start)
+            trace_start_tot = int(args.trace_start)
         if args.trace_end is None:
-            trace_end = num_traces - 1
+            trace_end_tot = num_traces_tot - 1
         else:
-            trace_end = int(args.trace_end)
-        assert trace_end - trace_start < num_traces
-        num_traces = trace_end - trace_start + 1
+            trace_end_tot = int(args.trace_end)
+        assert trace_end_tot - trace_start_tot < num_traces_tot
+        num_traces_tot = trace_end_tot - trace_start_tot + 1
+
+        # Generate indices for step-wise processing.
+        num_traces_vec = []
+        trace_start_vec = []
+        trace_end_vec = []
+        num_traces_step = num_traces_tot // num_steps
+        num_traces_rem = num_traces_tot % num_steps
+        for i_step in range(num_steps):
+            trace_start_vec.append(trace_start_tot + i_step * num_traces_step)
+            if i_step < num_steps - 1 or num_traces_rem == 0:
+                num_traces_vec.append(num_traces_step)
+                trace_end_vec.append((i_step + 1) * num_traces_step - 1)
+            else:
+                num_traces_vec.append(num_traces_step + num_traces_rem)
+                trace_end_vec.append(trace_end_tot)
+
+        # The number of parallel jobs to use for the processing-heavy tasks.
+        num_jobs = multiprocessing.cpu_count()
 
         # The number of traces/samples processed by each parallel job at a time.
-        trace_step = 10000
+        trace_step_leakage = min(10000, num_traces_step // num_jobs)
         sample_step_hist = 1
         # Increase work per thread to amortize parallelization overhead.
         if len(rnd_list) == 1 and len(byte_list) == 1:
             sample_step_hist = 5
 
-        # Amount of tolerable deviation from average during filtering.
-        num_sigmas = 3.5
+        for i_step in range(num_steps):
+            num_traces = num_traces_vec[i_step]
+            trace_start = trace_start_vec[i_step]
+            trace_end = trace_end_vec[i_step]
 
-        if args.trace_file is None:
-            # Converting traces from floating point to integer and creating a dense copy.
-            log.info("Converting Traces")
-            traces = np.empty((num_traces, num_samples), dtype=np.double)
-            for i_trace in range(num_traces):
-                traces[i_trace] = project.waves[i_trace +
-                                                trace_start] * trace_resolution
-            offset = traces.min().astype('uint16')
-            traces = traces.astype('uint16') - offset
+            log.info("Processing Step %i/%i: Trace %i - %i",
+                     i_step+1, num_steps, trace_start, trace_end)
 
-            # Filter out noisy traces.
-            log.info("Filtering Traces")
+            if args.trace_file is None:
 
-            # Get the mean and standard deviation.
-            mean = traces.mean(axis=0)
-            std = traces.std(axis=0)
+                # Make sure to re-open the project file as we close it during the operation to free
+                # up some memory.
+                if i_step > 0:
+                    project = cw.open_project(args.project_file)
 
-            # Define upper and lower limits.
-            max_trace = mean + num_sigmas * std
-            min_trace = mean - num_sigmas * std
+                # Converting traces from floating point to integer and creating a dense copy.
+                log.info("Converting Traces")
+                traces = np.empty((num_traces, num_samples), dtype=np.double)
+                for i_trace in range(num_traces):
+                    traces[i_trace] = project.waves[i_trace +
+                                                    trace_start] * trace_resolution
+                offset = traces.min().astype('uint16')
+                traces = traces.astype('uint16') - offset
 
-            # Filtering of converted traces (len = num_samples). traces_to_use itself can be
-            # used to index the entire project file (len >= num_samples).
-            traces_to_use = np.zeros(len(project.waves), dtype=bool)
-            traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
-                                                              (traces <= max_trace), axis=1)
-            traces = traces[traces_to_use[trace_start:trace_end + 1]]
-            np.savez('tmp/traces.npy', traces=traces, traces_to_use=traces_to_use,
-                     trace_start=trace_start, trace_end=trace_end)
-        else:
-            trace_file = np.load(args.trace_file)
-            traces = trace_file['traces']
-            traces_to_use = trace_file['traces_to_use']
-            assert num_samples == traces.shape[1]
-            # If a trace range is specified, it must match the range in the trace file. Otherwise,
-            # we might end up using a leakage model that doesn't match the actual traces.
-            if args.trace_start is None:
-                trace_start = trace_file['trace_start']
-            assert trace_start == trace_file['trace_start']
-            if args.trace_end is None:
-                trace_end = trace_file['trace_end']
-            assert trace_end == trace_file['trace_end']
-            num_traces = trace_end - trace_start + 1
-            # The project file must match the trace file.
-            assert len(project.waves) == len(traces_to_use)
+                # Filter out noisy traces.
+                log.info("Filtering Traces")
 
-        # Correct num_traces based on filtering.
-        num_traces_orig = num_traces
-        num_traces = np.sum(traces_to_use)
-        log.info(
-            f"Will use {num_traces} traces "
-            f"({100*num_traces/num_traces_orig:.1f}% of all traces)"
-        )
+                # Get the mean and standard deviation.
+                mean = traces.mean(axis=0)
+                std = traces.std(axis=0)
 
-        if args.leakage_file is None:
-            # Create local, dense copies of keys and plaintexts. This allows the leakage
-            # computation to be parallelized.
-            keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
-            plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
-            keys[:] = project.keys[trace_start:trace_end + 1]
-            plaintexts[:] = project.textins[trace_start:trace_end + 1]
-            # Only select traces to use.
-            keys = keys[traces_to_use[trace_start:trace_end + 1]]
-            plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
+                # Define upper and lower limits.
+                max_trace = mean + num_sigmas * std
+                min_trace = mean - num_sigmas * std
 
-        # We don't need the project file anymore after this point. Close it together with all
-        # trace files opened in the background.
-        project.close(save=False)
+                # Filtering of converted traces (len = num_samples). traces_to_use itself can be
+                # used to index the entire project file (len >= num_samples).
+                traces_to_use = np.zeros(len(project.waves), dtype=bool)
+                traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
+                                                                  (traces <= max_trace), axis=1)
+                traces = traces[traces_to_use[trace_start:trace_end + 1]]
+                if save_to_disk_trace:
+                    log.info("Saving Traces")
+                    np.savez('tmp/traces.npy', traces=traces, traces_to_use=traces_to_use,
+                             trace_start=trace_start, trace_end=trace_end)
+            else:
+                trace_file = np.load(args.trace_file)
+                traces = trace_file['traces']
+                traces_to_use = trace_file['traces_to_use']
+                assert num_samples == traces.shape[1]
+                # If a trace range is specified, it must match the range in the trace file.
+                # Otherwise, we might end up using a leakage model that doesn't match the actual
+                # traces.
+                if args.trace_start is None:
+                    trace_start = trace_file['trace_start']
+                assert trace_start == trace_file['trace_start']
+                if args.trace_end is None:
+                    trace_end = trace_file['trace_end']
+                assert trace_end == trace_file['trace_end']
+                num_traces = trace_end - trace_start + 1
+                # The project file must match the trace file.
+                assert len(project.waves) == len(traces_to_use)
 
-        if args.leakage_file is None:
-            # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
-            log.info("Computing Leakage")
-            leakage = Parallel(n_jobs=multiprocessing.cpu_count())(
-                delayed(compute_leakage_aes)(keys[i:i + trace_step],
-                                             plaintexts[i:i + trace_step],
-                                             'HAMMING_WEIGHT')
-                for i in range(0, num_traces, trace_step))
-            leakage = np.concatenate((leakage[:]), axis=2)
-            np.save('tmp/leakage.npy', leakage)
-        else:
-            leakage = np.load(args.leakage_file)
-            assert num_traces == leakage.shape[2]
+            # Correct num_traces based on filtering.
+            num_traces_orig = num_traces
+            num_traces = np.sum(traces_to_use)
+            log.info(
+                f"Will use {num_traces} traces "
+                f"({100*num_traces/num_traces_orig:.1f}%)"
+            )
 
-        log.info("Building Histograms")
-        # For every time sample we make nine histograms, one for each possible Hamming weight of
-        # the sensitive variable.
-        # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution].
-        # The value stored in histograms[v][w][x][y][z] shows how many traces have value z at
-        # sample y, given that HW(state byte w in AES round v) = x.
-        # The computation is parallelized over the samples.
-        histograms = Parallel(n_jobs=multiprocessing.cpu_count())(
-                delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
-                                                traces[:, i:i + sample_step_hist], leakage)
-                for i in range(0, num_samples, sample_step_hist))
-        histograms = np.concatenate((histograms[:]), axis=3)
+            if args.leakage_file is None:
+                # Create local, dense copies of keys and plaintexts. This allows the leakage
+                # computation to be parallelized.
+                keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                keys[:] = project.keys[trace_start:trace_end + 1]
+                plaintexts[:] = project.textins[trace_start:trace_end + 1]
+                # Only select traces to use.
+                keys = keys[traces_to_use[trace_start:trace_end + 1]]
+                plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
-        # Add up new data to potential, previously generated histograms.
-        if args.input_file is not None:
-            histograms = histograms + histograms_in
+            # We don't need the project file anymore after this point. Close it together with all
+            # trace files opened in the background.
+            project.close(save=False)
 
-        # Histograms can be saved for later use if output file name is passed.
-        if args.output_file is not None:
-            log.info("Saving Histograms")
-            np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
+            if args.leakage_file is None:
+                # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
+                log.info("Computing Leakage")
+                leakage = Parallel(n_jobs=num_jobs)(
+                    delayed(compute_leakage_aes)(keys[i:i + trace_step_leakage],
+                                                 plaintexts[i:i + trace_step_leakage],
+                                                 'HAMMING_WEIGHT')
+                    for i in range(0, num_traces, trace_step_leakage))
+                leakage = np.concatenate((leakage[:]), axis=2)
+                if save_to_disk_leakage:
+                    log.info("Saving Leakage")
+                    np.save('tmp/leakage.npy', leakage)
+            else:
+                leakage = np.load(args.leakage_file)
+                assert num_traces == leakage.shape[2]
+
+            log.info("Building Histograms")
+            # For every time sample we make nine histograms, one for each possible Hamming weight of
+            # the sensitive variable.
+            # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution].
+            # The value stored in histograms[v][w][x][y][z] shows how many traces have value z at
+            # sample y, given that HW(state byte w in AES round v) = x.
+            # The computation is parallelized over the samples.
+            histograms = Parallel(n_jobs=num_jobs)(
+                    delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
+                                                    traces[:, i:i + sample_step_hist], leakage)
+                    for i in range(0, num_samples, sample_step_hist))
+            histograms = np.concatenate((histograms[:]), axis=3)
+
+            # Add up new data to potential, previously generated histograms.
+            if args.input_file is not None or i_step > 0:
+                histograms = histograms + histograms_in
+
+            # Move current histograms to temp variable for next step.
+            if num_steps > 1 and i_step < num_steps - 1:
+                histograms_in = histograms
+
+            # Histograms can be saved for later use if output file name is passed.
+            if args.output_file is not None:
+                log.info("Saving Histograms")
+                np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
+                         byte_list=byte_list)
+
+            # Computing the t-test statistics vs. time.
+            log.info("Computing T-test Statistics")
+
+            # The number of samples processed by each parallel job at a time.
+            sample_step_ttest = num_samples // num_jobs
+
+            # By default, the first two moments are computed. This can be modified to any order.
+            num_orders = 2
+
+            x_axis = np.arange(trace_resolution)
+
+            # Compute statistics.
+            # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
+            ttest_trace = Parallel(n_jobs=num_jobs)(
+                    delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+                                                histograms[:, :, :, i:i + sample_step_ttest, :],
+                                                x_axis)
+                    for i in range(0, num_samples, sample_step_ttest))
+            ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
+
+            # Building the t-test statistics vs. number of traces used. ttest_step has dimensions
+            # [num_orders, num_rnds, num_bytes, num_samples, num_steps], i.e., for every order,
+            # every round, every byte, every sample and every step, we track the t-test value.
+            log.info("Updating T-test Statistics vs. Number of Traces")
+            if i_step == 0:
+                ttest_step = np.empty((num_orders, num_rnds, num_bytes, num_samples,
+                                       num_steps))
+            ttest_step[:, :, :, :, i_step] = ttest_trace
+
+        if save_to_disk_ttest:
+            log.info("Saving T-test Step")
+            np.savez('tmp/ttest-step.npy',
+                     ttest_step=ttest_step,
+                     trace_end_vec=trace_end_vec,
+                     rnd_list=rnd_list,
                      byte_list=byte_list)
 
-    # Computing the t-test statistics vs. time.
-    log.info("Computing T-test Statistics")
+        rnd_ext = rnd_list
+        byte_ext = byte_list
 
-    # The number of samples processed by each parallel job at a time.
-    sample_step_ttest = num_samples // multiprocessing.cpu_count()
+    elif args.ttest_step_file is not None:
+        # Load previously generated t-test results.
+        ttest_step_file = np.load(args.ttest_step_file)
+        ttest_step = ttest_step_file['ttest_step']
+        num_orders = ttest_step.shape[0]
+        num_samples = ttest_step.shape[3]
+        num_steps = ttest_step.shape[4]
+        trace_end_vec = ttest_step_file['trace_end_vec']
+        # The rounds and bytes of interests must be available in the previously generated t-test
+        # results. In addition, we may need to translate indices to extract the right portion of
+        # of the loaded results.
+        rnd_ext = np.zeros((num_rnds), dtype=np.uint8)
+        byte_ext = np.zeros((num_bytes), dtype=np.uint8)
+        for i_rnd in range(num_rnds):
+            assert rnd_list[i_rnd] in ttest_step_file['rnd_list']
+            rnd_ext[i_rnd] = np.where(ttest_step_file['rnd_list'] == rnd_list[i_rnd])[0][0]
+        for i_byte in range(num_bytes):
+            assert byte_list[i_byte] in ttest_step_file['byte_list']
+            byte_ext[i_byte] = np.where(ttest_step_file['byte_list'] == byte_list[i_byte])[0][0]
 
-    # By default, the first four moments are computed. This can be modified to any order.
-    num_orders = 4
-
-    num_rnds = len(rnd_list)
-    num_bytes = len(byte_list)
-    x_axis = np.arange(trace_resolution)
-
-    # Compute statistics.
-    # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
-    ttest_trace = Parallel(n_jobs=multiprocessing.cpu_count())(
-            delayed(compute_statistics)(num_orders, rnd_list, byte_list,
-                                        histograms[:, :, :, i:i + sample_step_ttest, :], x_axis)
-            for i in range(0, num_samples, sample_step_ttest))
-    ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
+        # Plot the t-test vs. time figures for the maximum number of traces.
+        ttest_trace = ttest_step[:, :, :, :, num_steps-1]
 
     # Check ttest results.
     threshold = 4.5
@@ -597,38 +731,96 @@ def main():
                 for i_rnd in range(num_rnds):
                     result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
                     for i_byte in range(num_bytes):
-                        if failure[i_order, i_rnd, i_byte]:
+                        if failure[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
                             result_str += str("X").rjust(5)
-                        elif nan[i_order, i_rnd, i_byte]:
+                        elif nan[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
                             result_str += str("O").rjust(5)
                         else:
                             result_str += "     "
                     log.info(f"{result_str}")
                 log.info("")
 
-    # Plotting figures for t_test statistics vs time.
-    # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
-    Path("tmp/figures").mkdir(exist_ok=True)
-    for i_rnd in range(num_rnds):
-        for i_byte in range(num_bytes):
+    if args.plot_figures:
+        log.info("Plotting Figures to tmp/figures")
+        Path("tmp/figures").mkdir(exist_ok=True)
 
-            c = np.ones(num_samples)
-            fig, axs = plt.subplots(1, num_orders, figsize=(16, 5), sharey=True)
+        # Plotting figures for t-test statistics vs. time.
+        # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
+        for i_rnd in range(num_rnds):
+            for i_byte in range(num_bytes):
 
-            for i_order in range(num_orders):
-                axs[i_order].plot(ttest_trace[i_order, i_rnd, i_byte], 'k')
-                axs[i_order].plot(c * threshold, 'r')
-                axs[i_order].plot(-threshold * c, 'r')
-                axs[i_order].set_xlabel('time')
-                axs[i_order].set_ylabel('t-test ' + str(i_order+1))
+                c = np.ones(num_samples)
+                fig, axs = plt.subplots(1, num_orders, figsize=(16, 5), sharey=True)
 
-            filename = "t_test_round_" + str(rnd_list[i_rnd])
-            filename += "_byte_" + str(byte_list[i_byte]) + ".png"
-            plt.savefig("tmp/figures/" + filename)
-            if num_rnds == 1 and num_bytes == 1:
-                plt.show()
-            else:
-                plt.close()
+                for i_order in range(num_orders):
+                    axs[i_order].plot(ttest_trace[i_order, rnd_ext[i_rnd], byte_ext[i_byte]], 'k')
+                    axs[i_order].plot(c * threshold, 'r')
+                    axs[i_order].plot(-threshold * c, 'r')
+                    axs[i_order].set_xlabel('time')
+                    axs[i_order].set_ylabel('t-test ' + str(i_order+1))
+
+                filename = "t_test_round_" + str(rnd_list[i_rnd])
+                filename += "_byte_" + str(byte_list[i_byte]) + ".png"
+                plt.savefig("tmp/figures/" + filename)
+                if num_rnds == 1 and num_bytes == 1:
+                    plt.show()
+                else:
+                    plt.close()
+
+        # Plotting figures for t-test statistics vs. number of traces used.
+        # For now, do a single figure per round and per order. Every line corresponds to the t-test
+        # result of one time sample for one byte and one round.
+        if num_steps > 1:
+
+            xticks = [np.around(trace_end / 100000) for trace_end in trace_end_vec]
+            xticklabels = [str(int(tick)) for tick in xticks]
+
+            # Empty every second label if we got more than 10 steps.
+            if num_steps > 10:
+                for i_step in range(num_steps):
+                    xticklabels[i_step] = "" if (i_step % 2 == 0) else xticklabels[i_step]
+
+            for i_rnd in range(num_rnds):
+
+                c = np.ones(num_steps)
+                fig, axs = plt.subplots(1, num_orders, figsize=(16, 5), sharey=True)
+
+                # Each regular round lasts for 50 samples.
+                samples_per_rnd = 50
+                # The initial key and data loading lasts for 10 samples, the initial round lasts
+                # for 50 samples. Then center the window around the middle of the round.
+                rnd_offset = 60 + samples_per_rnd // 2
+                # The widnow width is 50 samples + 20 samples extended on each side.
+                half_window = samples_per_rnd // 2 + 20
+
+                # To reduce the number of lines, we only plot those samples where leakage can be
+                # expected in the first place.
+                samples = range(max(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) - half_window,
+                                    0),
+                                min(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) + half_window,
+                                    num_samples))
+
+                for i_order in range(num_orders):
+                    for i_byte in range(num_bytes):
+                        for i_sample in samples:
+                            axs[i_order].plot(ttest_step[i_order,
+                                                         rnd_ext[i_rnd],
+                                                         byte_ext[i_byte],
+                                                         i_sample],
+                                              'k')
+                            axs[i_order].plot(c * threshold, 'r')
+                            axs[i_order].plot(-threshold * c, 'r')
+                            axs[i_order].set_xlabel('number of traces [100k]')
+                            axs[i_order].set_xticks(range(num_steps))
+                            axs[i_order].set_xticklabels(xticklabels)
+                            axs[i_order].set_ylabel('t-test ' + str(i_order+1))
+
+                filename = "t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
+                plt.savefig("tmp/figures/" + filename)
+                if num_rnds == 1:
+                    plt.show()
+                else:
+                    plt.close()
 
 
 if __name__ == "__main__":

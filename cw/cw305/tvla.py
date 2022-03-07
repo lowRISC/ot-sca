@@ -355,12 +355,14 @@ def parse_args():
     parser.add_argument(
         "-i",
         "--input-file",
-        help="""Name of the input file containing the histograms. Not required.""",
+        help="""Name of the input file containing the histograms. Not required. If both -i and -o
+        are provided, the input file is appended with more data to produce the output file.""",
     )
     parser.add_argument(
         "-o",
         "--output-file",
-        help="""Name of the output file to store generated histograms. Not required.""",
+        help="""Name of the output file to store generated histograms. Not required. If both -i and
+        -o are provided, the input file is appended with more data to produce the output file.""",
     )
     return parser.parse_args()
 
@@ -392,11 +394,31 @@ def main():
         byte_list = [int(args.byte_select)]
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
-    if args.input_file is None:
+    if args.input_file is not None:
+        # Load previously generated histograms.
+        histograms_file = np.load(args.input_file)
+        histograms_in = histograms_file['histograms']
+        num_samples = histograms_in.shape[3]
+        trace_resolution = histograms_in.shape[4]
+        for i_rnd in rnd_list:
+            assert i_rnd in histograms_file['rnd_list']
+        for i_byte in byte_list:
+            assert i_byte in histograms_file['byte_list']
 
+    if args.input_file is None or args.output_file is not None:
+        # Either don't have previously generated histograms or we need to append previously
+        # generated histograms.
+
+        # Make sure the project file is compatible with the previously generated histograms.
         project = cw.open_project(args.project_file)
+        if args.input_file is None:
+            num_samples = len(project.waves[0])
+        else:
+            assert num_samples == len(project.waves[0])
 
-        num_samples = len(project.waves[0])
+        if args.input_file is None:
+            adc_bits = 10
+            trace_resolution = 2**adc_bits
 
         num_traces = len(project.waves)
         if args.trace_start is None:
@@ -416,9 +438,6 @@ def main():
         # Increase work per thread to amortize parallelization overhead.
         if len(rnd_list) == 1 and len(byte_list) == 1:
             sample_step_hist = 5
-
-        adc_bits = 10
-        trace_resolution = 2**adc_bits
 
         # Amount of tolerable deviation from average during filtering.
         num_sigmas = 3.5
@@ -519,20 +538,15 @@ def main():
                 for i in range(0, num_samples, sample_step_hist))
         histograms = np.concatenate((histograms[:]), axis=3)
 
+        # Add up new data to potential, previously generated histograms.
+        if args.input_file is not None:
+            histograms = histograms + histograms_in
+
         # Histograms can be saved for later use if output file name is passed.
         if args.output_file is not None:
             log.info("Saving Histograms")
             np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
                      byte_list=byte_list)
-    else:
-        histograms_file = np.load(args.input_file)
-        histograms = histograms_file['histograms']
-        num_samples = histograms.shape[3]
-        trace_resolution = histograms.shape[4]
-        for i_rnd in rnd_list:
-            assert i_rnd in histograms_file['rnd_list']
-        for i_byte in byte_list:
-            assert i_byte in histograms_file['byte_list']
 
     # Computing the t-test statistics vs. time.
     log.info("Computing T-test Statistics")

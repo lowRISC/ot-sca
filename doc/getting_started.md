@@ -63,7 +63,7 @@ machine or obtained using the provided [Dockerfile](https://github.com/lowRISC/o
 
 This repository has a couple of Python dependencies. You can run
 ```console
-$ pip install --user -r python_requirements.txt
+$ pip install --user -r python-requirements.txt
 ```
 to install those dependencies.
 

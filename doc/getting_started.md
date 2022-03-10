@@ -78,9 +78,10 @@ However, it has some non-Python dependencies related to USB. Please see
 to install the specific `apt` packages required by ChipWhisperer.
 
 **Notes:**
-- Python 3.6.9 is **okay** for ChipWhisperer - it may force you to use
-  Python 3.7 due to requirements enforced by the latest version of NumPy. This
-  is however not a hard requirement.
+- We recommend to use Python 3.7. Previously, Python 3.6.9 was okay, but newer
+  patches releases of Python 3.6 might fail dependency resolution. Python 3.8
+  might work as well, but in Python 3.9 and later, the `ray` dependency is
+  currently not available.
 - CW-Husky requires ChipWhisperer 5.6.1 or later. The default
   `python_requirements.txt` will install a version supporting CW-Husky.
 - CW-Lite requires the following specifc commit of ChipWhisperer and firmware

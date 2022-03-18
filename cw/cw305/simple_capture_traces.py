@@ -2,7 +2,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-import argparse
 import binascii
 from Crypto.Cipher import AES
 import numpy as np
@@ -14,6 +13,7 @@ import typer
 from pathlib import Path
 
 import chipwhisperer as cw
+import random
 
 from util import device
 from util import plot
@@ -76,7 +76,8 @@ def plot_results(plot_cfg, project_name):
     plot.save_plot_to_file(project.waves, plot_cfg["num_traces"],
                            plot_cfg["trace_image_filename"])
     print(
-        f'Created plot with {plot_cfg["num_traces"]} traces: {Path(plot_cfg["trace_image_filename"]).resolve()}'
+        f'Created plot with {plot_cfg["num_traces"]} traces: '
+        f'{Path(plot_cfg["trace_image_filename"]).resolve()}'
     )
 
 
@@ -179,13 +180,74 @@ def capture_kmac(ot, ktp):
         yield ret
 
 
+def capture_kmac_key(ot):
+    """A generator for capturing KMAC traces.
+    The date -collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected key.
+    In order to simplify the analysis, the first sample has to use fixed key.
+    The initial key and plaintext values as well as the derivation methods are as specified in the
+    DTR.
+
+    Args:
+      ot: Initialized OpenTitan target.
+    """
+
+    key_generation = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                                0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    cipher = AES.new(bytes(key_generation), AES.MODE_ECB)
+    text_fixed = bytearray([0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                            0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA])
+    text_random = bytearray([0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+                             0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC])
+    key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                           0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    key_random = bytearray([0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53,
+                            0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53])
+
+    key_len = len(key_fixed)
+    text_len = len(text_fixed)
+
+    tqdm.write(f'Using fixed key: {binascii.b2a_hex(bytes(key_fixed))}')
+
+    # Start sampling with the fixed key.
+    sample_fixed = 1
+    while True:
+        if sample_fixed:
+            text_fixed = bytearray(cipher.encrypt(text_fixed))
+            ret = cw.capture_trace(ot.scope, ot.target, text_fixed, key_fixed, ack=False)
+            if not ret:
+                raise RuntimeError('Capture failed.')
+            expected = binascii.b2a_hex(pyxkcp.kmac128(key_fixed, key_len,
+                                                       text_fixed, text_len,
+                                                       ot.target.output_len,
+                                                       b'\x00', 0))
+            got = binascii.b2a_hex(ret.textout)
+        else:
+            text_random = bytearray(cipher.encrypt(text_random))
+            key_random = bytearray(cipher.encrypt(key_random))
+            ret = cw.capture_trace(ot.scope, ot.target, text_random, key_random, ack=False)
+            if not ret:
+                raise RuntimeError('Capture failed.')
+            expected = binascii.b2a_hex(pyxkcp.kmac128(key_random, key_len,
+                                                       text_random, text_len,
+                                                       ot.target.output_len,
+                                                       b'\x00', 0))
+            got = binascii.b2a_hex(ret.textout)
+        sample_fixed = random.randint(0, 1)
+        if got != expected:
+            raise RuntimeError(f'Bad digest: {got} != {expected}.')
+        yield ret
+
+
 @app_capture.command()
 def sha3(ctx: typer.Context,
          num_traces: int = opt_num_traces,
          plot_traces: int = opt_plot_traces):
     """Capture KMAC traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_kmac(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    # capture_loop(capture_kmac_key(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    capture_loop(capture_kmac_key(ctx.obj.ot), ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

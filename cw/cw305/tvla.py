@@ -198,7 +198,7 @@ def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
         for i_byte in range(num_bytes):
             # We do fixed vs. random.
             fixed_set = histograms[i_rnd, i_byte, 0, :, :]
-            random_set = np.sum(histograms[i_rnd, i_byte, :, :, :], 0)
+            random_set = np.sum(histograms[i_rnd, i_byte, 1:, :, :], 0)
             if not np.any(fixed_set != 0.0) or not np.any(random_set != 0.0):
                 # In case any of the sets is empty, the statistics can't be computed. This can
                 # happen if for example:

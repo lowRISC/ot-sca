@@ -524,6 +524,10 @@ def main():
             adc_bits = 12
             trace_resolution = 2**adc_bits
 
+        # When doing general fixed-vs-random TVLA, the first trace is using the fixed key.
+        if general_test is True:
+            fixed_key = np.copy(project.keys[0])
+
         # Amount of tolerable deviation from average during filtering.
         num_sigmas = 3.5
 
@@ -610,13 +614,14 @@ def main():
                     traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
                                                                       (traces <= max_trace), axis=1)
                     traces = traces[traces_to_use[trace_start:trace_end + 1]]
-                elif i_step == 0:
+                else:
                     # For now, don't perform any filtering when doing general fixed-vs-random TVLA.
                     traces_to_use = np.zeros(len(project.waves), dtype=bool)
                     traces_to_use[trace_start:trace_end + 1] = True
 
-                    # Keep a single trace to create the figures.
-                    single_trace = traces[1]
+                    if i_step == 0:
+                        # Keep a single trace to create the figures.
+                        single_trace = traces[1]
 
                 if save_to_disk_trace:
                     log.info("Saving Traces")
@@ -653,16 +658,44 @@ def main():
                 f"({100*num_traces/num_traces_orig:.1f}%)"
             )
 
-            if args.leakage_file is None and general_test is False:
+            if args.leakage_file is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
                 keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
-                plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
-                keys[:] = project.keys[trace_start:trace_end + 1]
-                plaintexts[:] = project.textins[trace_start:trace_end + 1]
+
+                if general_test is False:
+                    keys[:] = project.keys[trace_start:trace_end + 1]
+                else:
+                    # Existing KMAC trace sets use a mix of bytes strings and ChipWhisperer byte
+                    # arrays. For compatiblity, we need to convert everything to numpy arrays.
+                    # Eventually, we can drop this.
+                    if i_step == 0:
+                        # Convert all keys from the project file to numpy arrays once.
+                        keys_nparrays = []
+                        for i in range(num_traces_tot):
+                            keys_nparrays.append(np.frombuffer(project.keys[i], dtype=np.uint8))
+
+                        # In addition, for some existing trace sets the fixed key is used for the
+                        # second instead of the first trace. For compatibility, compare a couple of
+                        # keys and then select the fixed one. Eventually, we can drop this.
+                        for i_key in range(10):
+                            fixed_key = keys_nparrays[i_key]
+                            num_hits = 0
+                            for i in range(10):
+                                num_hits += np.array_equal(fixed_key, keys_nparrays[i])
+                            if num_hits > 1:
+                                break
+
+                    # Select the correct slice of keys for each step.
+                    keys[:] = keys_nparrays[trace_start:trace_end + 1]
+
                 # Only select traces to use.
                 keys = keys[traces_to_use[trace_start:trace_end + 1]]
-                plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
+                if general_test is False:
+                    # The plaintexts are only required for non-general AES TVLA.
+                    plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                    plaintexts[:] = project.textins[trace_start:trace_end + 1]
+                    plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
             # We don't need the project file anymore after this point. Close it together with all
             # trace files opened in the background.
@@ -686,11 +719,12 @@ def main():
                     leakage = np.load(args.leakage_file)
                     assert num_traces == leakage.shape[2]
             else:
+                log.info("Computing Leakage")
                 # We do general fixed-vs-random TVLA. The "leakage" is indicating whether a trace
-                # belongs to the fixed or random group.
+                # belongs to the fixed (1) or random (0) group.
                 leakage = np.zeros((num_traces), dtype=np.uint8)
-                # Odd traces belong to the fixed group, even traces to the random group.
-                leakage[1::2] = 1
+                for i in range(num_traces):
+                    leakage[i] = np.array_equal(fixed_key, keys[i])
 
             log.info("Building Histograms")
             if general_test is False:

@@ -521,7 +521,7 @@ def main():
             assert num_samples == len(project.waves[0])
 
         if args.input_file is None:
-            adc_bits = 10
+            adc_bits = 12
             trace_resolution = 2**adc_bits
 
         # Amount of tolerable deviation from average during filtering.

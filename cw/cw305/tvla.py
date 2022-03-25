@@ -459,6 +459,8 @@ def main():
 
     if args.mode == "sha3" or args.general_test is True:
         general_test = True
+    else:
+        general_test = False
 
     if args.mode == "sha3" or general_test is True:
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.

@@ -222,7 +222,7 @@ def compute_histograms_general(trace_resolution, traces, leakage):
     For each time sample we make two histograms, one for the fixed and one for the random group.
     Whether a trace belongs to the fixed or random group is indicated in the leakage input
     variable. The value stored in histograms[v][w][x][y][z] shows how many traces have value z at
-    time y, given that trace is in the fixed (x = 0) or random (x = 1) group. The v and w indices
+    time y, given that trace is in the fixed (x = 1) or random (x = 0) group. The v and w indices
     are not used but we keep them for code compatiblitly with non-general AES TVLA.
     """
     num_leakages = 2

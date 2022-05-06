@@ -65,7 +65,7 @@ class CwSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=1200, scope_gain=23, scope=None):
+    def __init__(self, num_samples=1200, offset=0, scope_gain=23, scope=None):
         """Inits a CwSegmented.
 
         Args:
@@ -89,7 +89,10 @@ class CwSegmented:
             if version.parse(cw.__version__) != version.parse("5.5.0"):
                 raise IOError("ChipWhisperer Version must be 5.5.0 (from commit 099807207f3351d16e7988d8f0cccf6d570f306a) for CW-Lite with Segmenting")
 
-        self._configure_scope(scope_gain)
+        if not self._is_husky:
+            offset = offset // 2
+        self._configure_scope(scope_gain, offset)
+
         self.num_segments = 1
         if self._is_husky:
             self.num_samples = num_samples
@@ -169,9 +172,13 @@ class CwSegmented:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
             self.num_segments = self.num_segments_max
 
-    def _configure_scope(self, scope_gain):
+    def _configure_scope(self, scope_gain, offset):
         self._scope.gain.db = scope_gain
-        self._scope.adc.offset = 0
+        if offset >= 0:
+            self._scope.adc.offset = offset
+        else:
+            self._scope.adc.offset = 0
+            self._scope.adc.presamples = -offset
         self._scope.adc.basic_mode = "rising_edge"
         if self._is_husky:
             # We sample using the target clock * 2 (200 MHz).

@@ -25,4 +25,4 @@ joblib
 # Prefer the archive download over a git clone to decrease installation time
 # (The chipwhisperer repository is rather large and uses additionally uses
 # submodules, which need to be fetched as well.)
-https://github.com/newaetech/chipwhisperer/archive/5f44556d30d791f4847e8f37ae9c1dce764dbe73.tar.gz
+https://github.com/newaetech/chipwhisperer/archive/99abbcad2bfdadee47dded973684a696b64a1c09.tar.gz

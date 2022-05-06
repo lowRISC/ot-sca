@@ -65,7 +65,7 @@ class CwSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=740, scope_gain=23, scope=None):
+    def __init__(self, num_samples=1200, scope_gain=23, scope=None):
         """Inits a CwSegmented.
 
         Args:
@@ -91,7 +91,10 @@ class CwSegmented:
 
         self._configure_scope(scope_gain)
         self.num_segments = 1
-        self.num_samples = num_samples
+        if self._is_husky:
+            self.num_samples = num_samples
+        else:
+            self.num_samples = num_samples // 2
         self._print_device_info()
 
     @property
@@ -171,12 +174,14 @@ class CwSegmented:
         self._scope.adc.offset = 0
         self._scope.adc.basic_mode = "rising_edge"
         if self._is_husky:
+            # We sample using the target clock * 2 (200 MHz).
+            self._scope.clock.clkgen_freq = 100000000
             self._scope.clock.clkgen_src = 'extclk'
-            self._scope.clock.adc_mul = 1
+            self._scope.clock.adc_mul = 2
         else:
+            # We sample using the target clock (100 MHz).
             self._scope.adc.fifo_fill_mode = "segment"
             self._scope.clock.clkgen_freq = 100000000
-            # We sample using the target clock (100 MHz).
             self._scope.clock.adc_src = "extclk_dir"
 
         self._scope.trigger.triggers = "tio4"

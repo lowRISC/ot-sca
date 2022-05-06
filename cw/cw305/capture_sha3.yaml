@@ -7,7 +7,7 @@ capture:
   key_len_bytes: 16
   plain_text_len_bytes: 16
   output_len_bytes: 32
-  num_samples: 2000
+  num_samples: 4000
   scope_gain: 30
   num_traces: 100
   project_name: projects/opentitan_simple_sha3

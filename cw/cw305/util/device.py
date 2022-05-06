@@ -111,16 +111,19 @@ class OpenTitan(object):
         """Initializes chipwhisperer scope."""
         scope = cw.scope()
         scope.gain.db = scope_gain
-        scope.adc.samples = num_samples
         scope.adc.offset = 0
         scope.adc.basic_mode = "rising_edge"
-        scope.clock.clkgen_freq = 100000000
-        # We sample using the target clock (100 MHz).
         if hasattr(scope, '_is_husky') and scope._is_husky:
+            # We sample using the target clock * 2 (200 MHz).
+            scope.adc.samples = num_samples
+            scope.clock.clkgen_freq = 100000000
             scope.clock.clkgen_src = 'extclk'
-            scope.clock.adc_mul = 1
+            scope.clock.adc_mul = 2
             husky = True
         else:
+            # We sample using the target clock (100 MHz).
+            scope.adc.samples = num_samples // 2
+            scope.clock.clkgen_freq = 100000000
             scope.clock.adc_src = 'extclk_dir'
             husky = False
         scope.trigger.triggers = "tio4"

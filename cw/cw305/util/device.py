@@ -41,7 +41,7 @@ class RuntimePatchFPGAProgram:
 
 class OpenTitan(object):
     def __init__(self, bitstream, firmware, pll_frequency, baudrate, scope_gain,
-                 num_samples, output_len):
+                 num_samples, offset, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -57,7 +57,7 @@ class OpenTitan(object):
             raise ValueError('Could not infer target board type from bistream name')
 
         self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
-        self.scope = self.initialize_scope(scope_gain, num_samples)
+        self.scope = self.initialize_scope(scope_gain, num_samples, offset)
         self.target = self.initialize_target(fw_programmer, baudrate, output_len)
 
     def initialize_fpga(self, fpga, bitstream, pll_frequency):
@@ -107,11 +107,10 @@ class OpenTitan(object):
 
         return fpga
 
-    def initialize_scope(self, scope_gain, num_samples):
+    def initialize_scope(self, scope_gain, num_samples, offset):
         """Initializes chipwhisperer scope."""
         scope = cw.scope()
         scope.gain.db = scope_gain
-        scope.adc.offset = 0
         scope.adc.basic_mode = "rising_edge"
         if hasattr(scope, '_is_husky') and scope._is_husky:
             # We sample using the target clock * 2 (200 MHz).
@@ -126,6 +125,12 @@ class OpenTitan(object):
             scope.clock.clkgen_freq = 100000000
             scope.clock.adc_src = 'extclk_dir'
             husky = False
+            offset = offset // 2
+        if offset >= 0:
+            scope.adc.offset = offset
+        else:
+            scope.adc.offset = 0
+            scope.adc.presamples = -offset
         scope.trigger.triggers = "tio4"
         scope.io.tio1 = "serial_tx"
         scope.io.tio2 = "serial_rx"

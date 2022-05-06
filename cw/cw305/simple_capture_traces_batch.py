@@ -32,7 +32,9 @@ def create_waverunner(ot, capture_cfg):
 
 def create_cw_segmented(ot, capture_cfg):
     return CwSegmented(num_samples=capture_cfg["num_samples"],
-                           scope_gain=capture_cfg["scope_gain"], scope=ot.scope)
+                       offset=capture_cfg["offset"],
+                       scope_gain=capture_cfg["scope_gain"],
+                       scope=ot.scope)
 
 
 SCOPE_FACTORY = {

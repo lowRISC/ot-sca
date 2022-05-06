@@ -37,6 +37,7 @@ def initialize_capture(device_cfg, capture_cfg):
                           device_cfg["baudrate"],
                           capture_cfg["scope_gain"],
                           capture_cfg["num_samples"],
+                          capture_cfg["offset"],
                           capture_cfg["output_len_bytes"])
     print(f'Scope setup with sampling rate {ot.scope.clock.adc_freq} S/s')
     # Ping target

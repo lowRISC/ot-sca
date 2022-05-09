@@ -411,7 +411,7 @@ The main configuration of the OpenTitan SCA setup is stored in the files
 cw/cw305/capture_aes.yaml
 cw/cw305/capture_sha3.yaml
 ```
-for AES and KMAC, respectively.
+for AES and SHA3 (KMAC), respectively.
 
 For example, these files allow to specify the FPGA bitstream to be loaded, the
 OpenTitan application binary to execute, the default number of traces to
@@ -435,7 +435,7 @@ the specified file paths.
 There are currently two different scripts available for capturing OpenTitan
 power traces:
 
-* `simple_capture_traces.py`: Supports capturing AES and KMAC power traces
+* `simple_capture_traces.py`: Supports capturing AES and SHA3 (KMAC) power traces
   using either a CW-Husky or CW-Lite capture board.
 
 * `simple_capture_traces_batch.py`: Supports capturing AES power traces
@@ -451,12 +451,13 @@ a capture with fewer traces to make sure the setup is configured as expected
 To perform a non-batched AES capture, you can use the following command:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes --num-traces 100 --plot-traces 10
+$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-random --num-traces 100 --plot-traces 10
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
-and out of the target while capturing power traces on the capture board. It
-should produce console output similar to the following output:
+and out of the target while capturing power traces on the capture board. It 
+will send AES requests with a fixed key and random texts. It should produce 
+console output similar to the following output:
 
 ```console
 Connecting and loading FPGA... Done!
@@ -475,6 +476,13 @@ Target simpleserial version: z01 (attempts: 2).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'                                  
 Capturing: 100%|██████████████████████████████| 100/100 [00:01<00:00, 50.04it/s]
 Created plot with 10 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
+```
+
+Following command may be used to capture traces for DTR TVLA Section 5.3: 
+"General Test: Fixed-vs.-Random Key Datasets":
+```console
+$ cd cw/cw305
+$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-fvsr-key --num-traces 100 --plot-traces 10
 ```
 
 In case you see console output like
@@ -499,13 +507,22 @@ in the `.yaml` configuration file. Note that boards have some natural
 variation, and changes such as the clock frequency, core voltage, and device
 utilization (FPGA build) will all affect the safe maximum gain setting.
 
-### KMAC Capture
+### SHA3 (KMAC) Capture
 
-To perform a KMAC capture, use this command:
+To perform a SHA3 (KMAC) capture, use this command:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3 --num-traces 100 --plot-traces 10
+$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3-random --num-traces 100 --plot-traces 10
 ```
+
+The above command will send SHA3 (KMAC) requests with a fixed key and random 
+texts. In order to capture traces for DTR TVLA Section 5.3: "General Test: 
+Fixed-vs.-Random Key Datasets", following command may be used:
+```console
+$ cd cw/cw305
+$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
+```
+
 
 You should see similar output as in the AES example. Once the power traces have
 been collected, a picture similar to the following should be shown in your

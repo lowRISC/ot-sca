@@ -124,8 +124,9 @@ def capture_end(cfg):
         plot_results(cfg["plot_capture"], cfg["capture"]["project_name"])
 
 
-def capture_aes(ot, ktp):
+def capture_aes_random(ot, ktp):
     """A generator for capturing AES traces.
+    Fixed key, Random texts.
 
     Args:
       ot: Initialized OpenTitan target.
@@ -146,18 +147,77 @@ def capture_aes(ot, ktp):
         yield ret
 
 
+def capture_aes_fvsr_key(ot):
+    """A generator for capturing AES traces for fixed vs random key test.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected key.
+    In order to simplify the analysis, the first sample has to use fixed key.
+    The initial key and plaintext values as well as the derivation methods are as specified in the
+    DTR.
+
+    Args:
+      ot: Initialized OpenTitan target.
+    """
+    key_generation = bytearray([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF1,
+                                0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xE0, 0xF0])
+    cipher_gen = AES.new(bytes(key_generation), AES.MODE_ECB)
+    text_fixed = bytearray([0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                            0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA])
+    text_random = bytearray([0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+                             0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC])
+    key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                           0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    key_random = bytearray([0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53,
+                            0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53])
+
+    tqdm.write(f'Fixed key: {binascii.b2a_hex(bytes(key_fixed))}')
+
+    sample_fixed = 1
+    while True:
+        if sample_fixed:
+            text_fixed = bytearray(cipher_gen.encrypt(text_fixed))
+            key, text = key_fixed, text_fixed
+        else:
+            text_random = bytearray(cipher_gen.encrypt(text_random))
+            key_random = bytearray(cipher_gen.encrypt(key_random))
+            key, text = key_random, text_random
+        sample_fixed = random.randint(0, 1)
+
+        cipher = AES.new(bytes(key), AES.MODE_ECB)
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
+        if not ret:
+            raise RuntimeError('Capture failed.')
+        expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
+        got = binascii.b2a_hex(ret.textout)
+        if got != expected:
+            raise RuntimeError(f'Bad ciphertext: {got} != {expected}.')
+        yield ret
+
+
 @app_capture.command()
-def aes(ctx: typer.Context,
+def aes_random(ctx: typer.Context,
         num_traces: int = opt_num_traces,
         plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_aes(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
-def capture_kmac(ot, ktp):
-    """A generator for capturing KMAC traces.
+@app_capture.command()
+def aes_fvsr_key(ctx: typer.Context,
+        num_traces: int = opt_num_traces,
+        plot_traces: int = opt_plot_traces):
+    """Capture AES traces from a target that runs the `aes_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+def capture_sha3_random(ot, ktp):
+    """A generator for capturing SHA3 (KMAC) traces.
+    Fixed key, Random texts.
 
     Args:
       ot: Initialized OpenTitan target.
@@ -181,9 +241,9 @@ def capture_kmac(ot, ktp):
         yield ret
 
 
-def capture_kmac_key(ot):
-    """A generator for capturing KMAC traces.
-    The date -collection method is based on the derived test requirements (DTR) for TVLA:
+def capture_sha3_fvsr_key(ot):
+    """A generator for capturing SHA3 (KMAC) traces.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
     The measurements are taken by using either fixed or randomly selected key.
     In order to simplify the analysis, the first sample has to use fixed key.
@@ -194,8 +254,8 @@ def capture_kmac_key(ot):
       ot: Initialized OpenTitan target.
     """
 
-    key_generation = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
-                                0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    key_generation = bytearray([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF1,
+                                0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xE0, 0xF0])
     cipher = AES.new(bytes(key_generation), AES.MODE_ECB)
     text_fixed = bytearray([0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
                             0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA])
@@ -242,13 +302,22 @@ def capture_kmac_key(ot):
 
 
 @app_capture.command()
-def sha3(ctx: typer.Context,
+def sha3_random(ctx: typer.Context,
          num_traces: int = opt_num_traces,
          plot_traces: int = opt_plot_traces):
-    """Capture KMAC traces from a target that runs the `sha3_serial` program."""
+    """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    # capture_loop(capture_kmac_key(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
-    capture_loop(capture_kmac_key(ctx.obj.ot), ctx.obj.cfg["capture"])
+    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+@app_capture.command()
+def sha3_fvsr_key(ctx: typer.Context,
+         num_traces: int = opt_num_traces,
+         plot_traces: int = opt_plot_traces):
+    """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

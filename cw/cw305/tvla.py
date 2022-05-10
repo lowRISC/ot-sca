@@ -589,12 +589,19 @@ def main():
 
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
-                traces = np.empty((num_traces, num_samples), dtype=np.double)
-                for i_trace in range(num_traces):
-                    traces[i_trace] = project.waves[i_trace +
-                                                    trace_start] * trace_resolution
-                offset = traces.min().astype('uint16')
-                traces = traces.astype('uint16') - offset
+                if project.waves[0].dtype == 'uint16':
+                    traces = np.empty((num_traces, num_samples), dtype=np.uint16)
+                    for i_trace in range(num_traces):
+                        traces[i_trace] = project.waves[i_trace + trace_start]
+                    offset = traces.min()
+                    traces = traces - offset
+                else:
+                    traces = np.empty((num_traces, num_samples), dtype=np.double)
+                    for i_trace in range(num_traces):
+                        traces[i_trace] = project.waves[i_trace +
+                                                        trace_start] * trace_resolution
+                    offset = traces.min().astype('uint16')
+                    traces = traces.astype('uint16') - offset
 
                 if general_test is False:
                     # Filter out noisy traces.

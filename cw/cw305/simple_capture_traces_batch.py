@@ -116,7 +116,8 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
             # Add traces of this batch to the project.
             for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
                 project.traces.append(
-                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key)
+                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key),
+                    dtype=np.uint16
                 )
             # Update the loop variable and the progress bar.
             rem_num_traces -= scope.num_segments

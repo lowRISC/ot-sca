@@ -229,6 +229,6 @@ class CwSegmented:
             self._scope.capture()
         else:
             self._scope.capture_segmented()
-        data = self._scope.get_last_trace()
+        data = self._scope.get_last_trace(as_int=True)
         waves = self._parse_waveform(data)
         return waves

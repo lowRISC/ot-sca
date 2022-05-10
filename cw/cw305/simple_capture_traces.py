@@ -64,14 +64,21 @@ def plot_results(plot_cfg, project_name):
         print('Project contains no traces. Did the capture fail?')
         return
 
-    # The ADC output is in the interval [-0.5, 0.5). Check that the recorded
-    # traces are within that range with some safety margin.
-    if not (np.all(np.greater(project.waves, -plot_cfg["amplitude_max"]))
-            and np.all(np.less(project.waves, plot_cfg["amplitude_max"]))):
+    # The ADC output is in the interval [-0.5, 0.5) when using doubles or [0, 2**resolution] when
+    # using integers. Check that the recorded traces are within that range with some safety margin.
+    if project.waves[0].dtype == 'uint16':
+        adc_range = np.array([0, 2**12])
+        amplitude_range = ((np.array([-plot_cfg["amplitude_max"],
+                                      plot_cfg["amplitude_max"]]) + 0.5) * 2**12).astype('uint16')
+    else:
+        adc_range = np.array([-0.5, 0.5])
+        amplitude_range = np.array([-plot_cfg["amplitude_max"], plot_cfg["amplitude_max"]])
+    if not (np.all(np.greater(project.waves, amplitude_range[0]))
+            and np.all(np.less(project.waves, amplitude_range[1]))):
         print('WARNING: Some traces have samples outside the range (' +
-              str(-plot_cfg["amplitude_max"]) + ', ' +
-              str(plot_cfg["amplitude_max"]) + ').')
-        print('The ADC has a max range of [-0.5, 0.5) and might saturate.')
+              str(amplitude_range[0]) + ', ' + str(amplitude_range[1]) + ').')
+        print('The ADC has a max range of [' +
+              str(adc_range[0]) + ', ' + str(adc_range[1]) + ') and might saturate.')
         print('It is recommended to reduce the scope gain (see device.py).')
 
     plot.save_plot_to_file(project.waves, plot_cfg["num_traces"],
@@ -115,7 +122,7 @@ def capture_loop(trace_gen, capture_cfg):
     """
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing', ncols=80):
-        project.traces.append(next(trace_gen))
+        project.traces.append(next(trace_gen), dtype=np.uint16)
     project.save()
 
 
@@ -137,7 +144,7 @@ def capture_aes_random(ot, ktp):
     cipher = AES.new(bytes(key), AES.MODE_ECB)
     while True:
         _, text = ktp.next()
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
         if not ret:
             raise RuntimeError('Capture failed.')
         expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -185,7 +192,7 @@ def capture_aes_fvsr_key(ot):
         sample_fixed = random.randint(0, 1)
 
         cipher = AES.new(bytes(key), AES.MODE_ECB)
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
         if not ret:
             raise RuntimeError('Capture failed.')
         expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -228,7 +235,7 @@ def capture_sha3_random(ot, ktp):
     ot.target.simpleserial_write('k', key)
     while True:
         _, text = ktp.next()
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False)
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
         if not ret:
             raise RuntimeError('Capture failed.')
         expected = binascii.b2a_hex(pyxkcp.kmac128(key, ktp.key_len,
@@ -276,7 +283,8 @@ def capture_sha3_fvsr_key(ot):
     while True:
         if sample_fixed:
             text_fixed = bytearray(cipher.encrypt(text_fixed))
-            ret = cw.capture_trace(ot.scope, ot.target, text_fixed, key_fixed, ack=False)
+            ret = cw.capture_trace(ot.scope, ot.target, text_fixed, key_fixed, ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError('Capture failed.')
             expected = binascii.b2a_hex(pyxkcp.kmac128(key_fixed, key_len,
@@ -287,7 +295,8 @@ def capture_sha3_fvsr_key(ot):
         else:
             text_random = bytearray(cipher.encrypt(text_random))
             key_random = bytearray(cipher.encrypt(key_random))
-            ret = cw.capture_trace(ot.scope, ot.target, text_random, key_random, ack=False)
+            ret = cw.capture_trace(ot.scope, ot.target, text_random, key_random, ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError('Capture failed.')
             expected = binascii.b2a_hex(pyxkcp.kmac128(key_random, key_len,

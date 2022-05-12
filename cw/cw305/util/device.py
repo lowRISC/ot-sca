@@ -114,18 +114,19 @@ class OpenTitan(object):
         scope.adc.basic_mode = "rising_edge"
         if hasattr(scope, '_is_husky') and scope._is_husky:
             # We sample using the target clock * 2 (200 MHz).
-            scope.adc.samples = num_samples
-            scope.clock.clkgen_freq = 100000000
-            scope.clock.clkgen_src = 'extclk'
             scope.clock.adc_mul = 2
+            scope.clock.clkgen_freq = 100000000
+            scope.adc.samples = num_samples
+            scope.clock.clkgen_src = 'extclk'
             husky = True
         else:
             # We sample using the target clock (100 MHz).
-            scope.adc.samples = num_samples // 2
+            scope.clock.adc_mul = 1
             scope.clock.clkgen_freq = 100000000
+            scope.adc.samples = num_samples // 2
+            offset = offset // 2
             scope.clock.adc_src = 'extclk_dir'
             husky = False
-            offset = offset // 2
         if offset >= 0:
             scope.adc.offset = offset
         else:

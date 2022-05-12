@@ -182,14 +182,15 @@ class CwSegmented:
         self._scope.adc.basic_mode = "rising_edge"
         if self._is_husky:
             # We sample using the target clock * 2 (200 MHz).
+            self._scope.clock.adc_mul = 2
             self._scope.clock.clkgen_freq = 100000000
             self._scope.clock.clkgen_src = 'extclk'
-            self._scope.clock.adc_mul = 2
         else:
             # We sample using the target clock (100 MHz).
-            self._scope.adc.fifo_fill_mode = "segment"
+            self._scope.clock.adc_mul = 1
             self._scope.clock.clkgen_freq = 100000000
             self._scope.clock.adc_src = "extclk_dir"
+            self._scope.adc.fifo_fill_mode = "segment"
 
         self._scope.trigger.triggers = "tio4"
         self._scope.io.tio1 = "serial_tx"

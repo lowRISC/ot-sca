@@ -30,5 +30,3 @@ plot_capture:
   show: true
   num_traces: 100
   trace_image_filename: projects/sample_traces_sha3.html
-  # The ADC output is in the interval [-0.5, 0.5). Define safety margin.
-  amplitude_max: 0.48

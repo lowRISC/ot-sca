@@ -79,6 +79,8 @@ def run_batch_capture(capture_cfg, ot, ktp, scope):
             # Transfer traces
             waves = scope.capture_and_transfer_waves()
             assert waves.shape[0] == scope.num_segments
+            # Check ADC output range
+            simple_capture.check_range(waves, ot.scope.adc.bits_per_sample)
             # Generate plaintexts and ciphertexts for the batch.
             # Note: Plaintexts are encrypted in parallel.
             plaintexts = [ktp.next()[1] for _ in range(scope.num_segments_actual)]

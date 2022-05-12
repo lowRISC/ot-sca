@@ -28,7 +28,7 @@ opt_num_traces = typer.Option(None, help="Number of traces to capture.")
 opt_plot_traces = typer.Option(None, help="Number of traces to plot.")
 
 
-# Note: initialize_capture and plot_results are also used by other scripts.
+# Note: initialize_capture, check_range and plot_results are also used by other scripts.
 def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
     ot = device.OpenTitan(device_cfg["fpga_bitstream"],
@@ -56,6 +56,19 @@ def initialize_capture(device_cfg, capture_cfg):
     return ot
 
 
+def check_range(waves, bits_per_sample):
+    """ The ADC output is in the interval [0, 2**bits_per_sample-1]. Check that the recorded
+        traces are within [1, 2**bits_per_sample-2] to ensure the ADC doesn't saturate. """
+    adc_range = np.array([0, 2**bits_per_sample])
+    if not (np.all(np.greater(waves[:], adc_range[0]))
+            and np.all(np.less(waves[:], adc_range[1] - 1))):
+        print('\nWARNING: Some samples are outside the range [' +
+              str(adc_range[0] + 1) + ', ' + str(adc_range[1] - 2) + '].')
+        print('The ADC has a max range of [' +
+              str(adc_range[0]) + ', ' + str(adc_range[1]-1) + '] and might saturate.')
+        print('It is recommended to reduce the scope gain (see device.py).')
+
+
 def plot_results(plot_cfg, project_name):
     """Plots traces from `project_name` using `plot_cfg` settings."""
     project = cw.open_project(project_name)
@@ -63,23 +76,6 @@ def plot_results(plot_cfg, project_name):
     if len(project.waves) == 0:
         print('Project contains no traces. Did the capture fail?')
         return
-
-    # The ADC output is in the interval [-0.5, 0.5) when using doubles or [0, 2**resolution] when
-    # using integers. Check that the recorded traces are within that range with some safety margin.
-    if project.waves[0].dtype == 'uint16':
-        adc_range = np.array([0, 2**12])
-        amplitude_range = ((np.array([-plot_cfg["amplitude_max"],
-                                      plot_cfg["amplitude_max"]]) + 0.5) * 2**12).astype('uint16')
-    else:
-        adc_range = np.array([-0.5, 0.5])
-        amplitude_range = np.array([-plot_cfg["amplitude_max"], plot_cfg["amplitude_max"]])
-    if not (np.all(np.greater(project.waves, amplitude_range[0]))
-            and np.all(np.less(project.waves, amplitude_range[1]))):
-        print('WARNING: Some traces have samples outside the range (' +
-              str(amplitude_range[0]) + ', ' + str(amplitude_range[1]) + ').')
-        print('The ADC has a max range of [' +
-              str(adc_range[0]) + ', ' + str(adc_range[1]) + ') and might saturate.')
-        print('It is recommended to reduce the scope gain (see device.py).')
 
     plot.save_plot_to_file(project.waves, plot_cfg["num_traces"],
                            plot_cfg["trace_image_filename"])
@@ -113,7 +109,7 @@ def capture_init(ctx, num_traces, plot_traces):
     ctx.obj.ot = initialize_capture(cfg["device"], cfg["capture"])
 
 
-def capture_loop(trace_gen, capture_cfg):
+def capture_loop(trace_gen, ot, capture_cfg):
     """Main capture loop.
 
     Args:
@@ -122,7 +118,9 @@ def capture_loop(trace_gen, capture_cfg):
     """
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing', ncols=80):
-        project.traces.append(next(trace_gen), dtype=np.uint16)
+        traces = next(trace_gen)
+        check_range(traces.wave, ot.scope.adc.bits_per_sample)
+        project.traces.append(traces, dtype=np.uint16)
     project.save()
 
 
@@ -208,7 +206,7 @@ def aes_random(ctx: typer.Context,
         plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
@@ -218,7 +216,7 @@ def aes_fvsr_key(ctx: typer.Context,
         plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.cfg["capture"])
+    capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
@@ -316,7 +314,7 @@ def sha3_random(ctx: typer.Context,
          plot_traces: int = opt_plot_traces):
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.cfg["capture"])
+    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
@@ -326,7 +324,7 @@ def sha3_fvsr_key(ctx: typer.Context,
          plot_traces: int = opt_plot_traces):
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.cfg["capture"])
+    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

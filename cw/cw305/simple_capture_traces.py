@@ -202,8 +202,8 @@ def capture_aes_fvsr_key(ot):
 
 @app_capture.command()
 def aes_random(ctx: typer.Context,
-        num_traces: int = opt_num_traces,
-        plot_traces: int = opt_plot_traces):
+               num_traces: int = opt_num_traces,
+               plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
@@ -212,8 +212,8 @@ def aes_random(ctx: typer.Context,
 
 @app_capture.command()
 def aes_fvsr_key(ctx: typer.Context,
-        num_traces: int = opt_num_traces,
-        plot_traces: int = opt_plot_traces):
+                 num_traces: int = opt_num_traces,
+                 plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
@@ -310,8 +310,8 @@ def capture_sha3_fvsr_key(ot):
 
 @app_capture.command()
 def sha3_random(ctx: typer.Context,
-         num_traces: int = opt_num_traces,
-         plot_traces: int = opt_plot_traces):
+                num_traces: int = opt_num_traces,
+                plot_traces: int = opt_plot_traces):
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
@@ -320,8 +320,8 @@ def sha3_random(ctx: typer.Context,
 
 @app_capture.command()
 def sha3_fvsr_key(ctx: typer.Context,
-         num_traces: int = opt_num_traces,
-         plot_traces: int = opt_plot_traces):
+                  num_traces: int = opt_num_traces,
+                  plot_traces: int = opt_plot_traces):
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])

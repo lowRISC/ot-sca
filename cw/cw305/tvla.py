@@ -897,7 +897,7 @@ def main():
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
-        if args.mode == "aes":
+        if args.mode == "aes" and general_test is False:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
@@ -931,7 +931,7 @@ def main():
                 axs[1 + i_order].plot(-threshold * c, "r")
                 axs[1 + i_order].set_ylabel('t-test ' + str(i_order + 1))
             plt.xlabel("time [samples]")
-            plt.savefig('tmp/figures/sha3_fixed_vs_random.png')
+            plt.savefig('tmp/figures/' + args.mode + '_fixed_vs_random.png')
             plt.show()
 
         # Plotting figures for t-test statistics vs. number of traces used.

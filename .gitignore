@@ -35,3 +35,6 @@ projects/
 
 # Python requirements source directory
 src/
+
+# Python virtual environment
+.venv/

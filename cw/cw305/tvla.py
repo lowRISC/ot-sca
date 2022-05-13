@@ -958,28 +958,29 @@ def main():
                 # is altered.
 
                 if general_test is False:
-                    # Each regular round lasts for 50 samples.
-                    samples_per_rnd = 50
-                    # The initial key and data loading lasts for 10 samples, the initial round
-                    # lasts for 50 samples. Then center the window around the middle of the round.
-                    rnd_offset = 60 + samples_per_rnd // 2
-                    # The widnow width is 50 samples + 20 samples extended on each side.
-                    half_window = samples_per_rnd // 2 + 20
+                    # Each regular round lasts for 100 samples.
+                    samples_per_rnd = 100
+                    # We have a negative trigger offset of 20 samples. The initial key and data
+                    # loading takes another 20 samples, the initial round lasts for 100 samples.
+                    # Then center the window around the middle of the round. The effective
+                    # numbers are best tuned by doing a capture with masking switched off.
+                    rnd_offset = 150 + samples_per_rnd // 2
+                    # The widnow width is 100 samples + 40 samples extended on each side.
+                    half_window = samples_per_rnd // 2 + 40
 
                     samples = range(max(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) -
                                         half_window, 0),
                                     min(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) +
                                         half_window, num_samples))
+
                 else:
                     if args.mode == "aes":
                         # Simply plot everything.
                         samples = range(0, num_samples)
                     else:
-                        # For now, let's focus on the middle block where the key is processed.
-                        # Numbers for the dev branch:
-                        samples = range(1400, 2400)
+                        # For now, let's focus on the key absorption only.
+                        samples = range(520, 2460)
                         # Numbers for the eval branch:
-                        # samples = range(1000, 3000)
 
                 for i_order in range(num_orders):
                     for i_byte in range(num_bytes):

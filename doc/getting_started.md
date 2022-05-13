@@ -59,13 +59,38 @@ machine or obtained using the provided [Dockerfile](https://github.com/lowRISC/o
 
 #### Installing on a Machine
 
+##### Python Virtual Environment
+
+To avoid potential dependency conflicts (in particular with the main OpenTitan
+repository which may be using a different version of ChipWhisperer) it is
+strongly recommended to setup a virtual Python environment for this repository.
+
+To this end, type
+```console
+$ python3 -m venv .venv
+```
+to create a new virtual environment.
+
+From this point on, whenever you want to work with this repository, type
+```console
+$ source .venv/bin/activate
+```
+to enable the virtual environment previously initialized.
+
+
 ##### Python Dependencies
 
-This repository has a couple of Python dependencies. You can run
+This repository has a couple of Python dependencies to be installed through
+`pip`. It is recommended to first install the latest version of `pip` and
+`setuptools` using
 ```console
-$ pip install --user -r python-requirements.txt
+python3 -m pip install -U pip setuptools
 ```
-to install those dependencies.
+You can then run
+```console
+$ pip install -r python-requirements.txt
+```
+to install all the required Python dependencies.
 
 
 ##### ChipWhisperer Dependencies

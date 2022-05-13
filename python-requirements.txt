@@ -18,11 +18,11 @@ scared
 tqdm
 trsfile
 typer
+wheel
 # can be removed after switching to ray
 joblib
 
-# Development version of ChipWhisperer toolchain - Fix the version for now
-# Prefer the archive download over a git clone to decrease installation time
-# (The chipwhisperer repository is rather large and uses additionally uses
-# submodules, which need to be fetched as well.)
-https://github.com/newaetech/chipwhisperer/archive/99abbcad2bfdadee47dded973684a696b64a1c09.tar.gz
+# Development version of ChipWhisperer toolchain with latest features and
+# bug fixes - Needs to be installed in editable mode. We fix the version
+# for improved stability and manually update if necessary.
+-e git+https://github.com/newaetech/chipwhisperer.git@99abbcad2bfdadee47dded973684a696b64a1c09#egg=chipwhisperer

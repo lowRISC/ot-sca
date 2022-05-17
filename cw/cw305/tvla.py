@@ -809,8 +809,8 @@ def main():
                      rnd_list=rnd_list,
                      byte_list=byte_list)
 
-        rnd_ext = rnd_list
-        byte_ext = byte_list
+        rnd_ext = list(range(num_rnds))
+        byte_ext = list(range(num_bytes))
 
     elif args.ttest_step_file is not None:
         # Load previously generated t-test results.

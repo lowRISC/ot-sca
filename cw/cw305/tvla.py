@@ -593,15 +593,12 @@ def main():
                     traces = np.empty((num_traces, num_samples), dtype=np.uint16)
                     for i_trace in range(num_traces):
                         traces[i_trace] = project.waves[i_trace + trace_start]
-                    offset = traces.min()
-                    traces = traces - offset
                 else:
                     traces = np.empty((num_traces, num_samples), dtype=np.double)
                     for i_trace in range(num_traces):
-                        traces[i_trace] = project.waves[i_trace +
-                                                        trace_start] * trace_resolution
-                    offset = traces.min().astype('uint16')
-                    traces = traces.astype('uint16') - offset
+                        traces[i_trace] = (project.waves[i_trace +
+                                                         trace_start] + 0.5) * trace_resolution
+                    traces = traces.astype('uint16')
 
                 if general_test is False:
                     # Filter out noisy traces.

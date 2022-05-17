@@ -243,11 +243,12 @@ def compute_histograms_general(trace_resolution, traces, leakage):
 def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakage):
     """ Building histograms for AES.
 
-    For each time sample we make nine histograms, one for each possible Hamming weight of the
-    sensitive variable. The value stored in histograms[v][w][x][y][z] shows how many traces have
-    value z at time y, given that HW(state byte w in AES round v) = x.
+    For each time sample we make two histograms, one for Hamming weight of the sensitive variable
+    = 0 (fixed set) and one for Hamming weight > 0 (random set). The value stored in
+    histograms[v][w][x][y][z] shows how many traces have value z at time y, given that
+    HW(state byte w in AES round v) = 0 (fixed set, x = 0) or > 0 (random set, x = 1).
     """
-    num_leakages = 9
+    num_leakages = 2
     num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
     num_samples = traces.shape[1]
@@ -259,7 +260,7 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
             for i_sample in range(num_samples):
                 histograms[i_rnd, i_byte, :, i_sample, :] = np.histogram2d(
                     leakage[rnd_list[i_rnd], byte_list[i_byte], :], traces[:, i_sample],
-                    bins=[range(num_leakages + 1), range(trace_resolution + 1)])[0]
+                    bins=[np.append(range(num_leakages), 9), range(trace_resolution + 1)])[0]
 
     return histograms
 
@@ -732,11 +733,12 @@ def main():
 
             log.info("Building Histograms")
             if general_test is False:
-                # For every time sample we make nine histograms, one for each possible Hamming
-                # weight of the sensitive variable.
-                # histograms has dimensions [num_rnds, num_bytes, 9, num_samples, trace_resolution]
+                # For every time sample we make two histograms, one for Hamming weight of the
+                # sensitive variable = 0 (fixed set) and one for Hamming weight > 0 (random set).
+                # histograms has dimensions [num_rnds, num_bytes, 2, num_samples, trace_resolution]
                 # The value stored in histograms[v][w][x][y][z] shows how many traces have value z
-                # at sample y, given that HW(state byte w in AES round v) = x.
+                # at sample y, given that HW(state byte w in AES round v) = 0 (fixed set, x = 0) or
+                # > 0 (random set, x = 1).
                 # The computation is parallelized over the samples.
                 histograms = Parallel(n_jobs=num_jobs)(
                         delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
@@ -746,7 +748,7 @@ def main():
             else:
                 # For every time sample we make 2 histograms, one for the fixed set and one for the
                 # random set.
-                # histograms has dimensions [0, 0, 9, num_samples, trace_resolution]
+                # histograms has dimensions [0, 0, 2, num_samples, trace_resolution]
                 # The value stored in histograms[v][w][x][y][z] shows how many traces have value z
                 # at time y, given that trace is in the fixed (x = 0) or random (x = 1) group. The
                 # v and w indices are not used but we keep them for code compatiblitly with

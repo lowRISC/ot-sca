@@ -221,30 +221,23 @@ everything is working correctly:
 ```console
 Creating user 'ot' with UID=1000, GID=1000.
 ot@ot-sca:/repo$ cd cw/cw305/
-ot@ot-sca:/repo/cw/cw305$ ./simple_capture_traces.py 
+ot@ot-sca:/repo/cw/cw305$ ./capture.py --cfg-file capture_aes.yaml capture aes-random
 Connecting and loading FPGA... Done!
 Initializing PLL1
-Programming OpenTitan with "objs/aes_serial_fpga_nexysvideo.bin"...
-Transferring frame 0x00000000 @ 0x00000000.
-Transferring frame 0x00000001 @ 0x000003D8.
-Transferring frame 0x00000002 @ 0x000007B0.
-Transferring frame 0x00000003 @ 0x00000B88.
-Transferring frame 0x00000004 @ 0x00000F60.
-Transferring frame 0x00000005 @ 0x00001338.
-Transferring frame 0x00000006 @ 0x00001710.
-Transferring frame 0x00000007 @ 0x00001AE8.
-Transferring frame 0x00000008 @ 0x00001EC0.
-Transferring frame 0x00000009 @ 0x00002298.
-Transferring frame 0x0000000A @ 0x00002670.
-Transferring frame 0x8000000B @ 0x00002A48.
-Serial baud rate = 38400
-Serial baud rate = 115200
-Scope setup with sampling rate 100003051.0 S/s
-Target simpleserial version: z01 (attempts: 2).
-Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
+Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
+Transferring frame 0x00000000 @             0x00000000.
+Transferring frame 0x00000001 @             0x000007D8.
+Transferring frame 0x00000002 @             0x00000FB0.
+Transferring frame 0x00000003 @             0x00001788.
+Transferring frame 0x00000004 @             0x00001F60.
+Transferring frame 0x00000005 @             0x00002738.
+Transferring frame 0x80000006 @             0x00002F10.
+Scope setup with sampling rate 200009376.0 S/s
 Reading from FPGA using simpleserial protocol.
-Checking version: 
+Target simpleserial version: z01 (attempts: 1).
+Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Capturing: 100%|████████████████████████████| 5000/5000 [00:55<00:00, 90.34it/s]
+Created plot with 10 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
 ```
 
 
@@ -457,15 +450,10 @@ the specified file paths.
 
 ## Capturing Power Traces
 
-There are currently two different scripts available for capturing OpenTitan
-power traces:
-
-* `simple_capture_traces.py`: Supports capturing AES and SHA3 (KMAC) power traces
-  using either a CW-Husky or CW-Lite capture board.
-
-* `simple_capture_traces_batch.py`: Supports capturing AES power traces
-  traces in batches to achieve substantially higher capture rates (ca.
-  1300 traces/s). Requires the CW-Husky capture board.
+`capture.py`: Supports capturing AES and SHA3 (KMAC) power traces using either 
+a CW-Husky or CW-Lite capture board. When using a CW-Husky board, the script 
+also supports capturing AES power traces in batches to achieve substantially 
+higher capture rates (ca. 1300 traces/s).
 
 Before starting a long running capture, it is recommended to always perform
 a capture with fewer traces to make sure the setup is configured as expected
@@ -476,7 +464,7 @@ a capture with fewer traces to make sure the setup is configured as expected
 To perform a non-batched AES capture, you can use the following command:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-random --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_aes.yaml capture aes-random --num-traces 5000 --plot-traces 10
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
@@ -499,15 +487,26 @@ Scope setup with sampling rate 100004608.0 S/s
 Reading from FPGA using simpleserial protocol.
 Target simpleserial version: z01 (attempts: 2).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'                                  
-Capturing: 100%|██████████████████████████████| 100/100 [00:01<00:00, 50.04it/s]
-Created plot with 10 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
+Capturing: 100%|████████████████████████████| 5000/5000 [01:35<00:00, 52.15it/s]
+Created plot with 5000 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
 ```
+
+Following command may be used to capture AES traces in batch mode: 
+```console
+$ cd cw/cw305
+$ ./capture.py --cfg-file capture_aes.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
+```
+
+By default, this will capture 5000 traces which should be sufficient to make
+sure the setup is configured and working as expected before starting a long
+running capture. The plot should look very similar to the one of the
+non-batched AES capture.
 
 Following command may be used to capture traces for DTR TVLA Section 5.3: 
 "General Test: Fixed-vs.-Random Key Datasets":
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-fvsr-key --num-traces 100 --plot-traces 10
+$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
 ```
 
 In case you see console output like
@@ -537,7 +536,7 @@ utilization (FPGA build) will all affect the safe maximum gain setting.
 To perform a SHA3 (KMAC) capture, use this command:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3-random --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_sha3.yaml capture sha3-random --num-traces 100 --plot-traces 10
 ```
 
 The above command will send SHA3 (KMAC) requests with a fixed key and random 
@@ -545,55 +544,14 @@ texts. In order to capture traces for DTR TVLA Section 5.3: "General Test:
 Fixed-vs.-Random Key Datasets", following command may be used:
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_sha3.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_sha3.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
 ```
-
 
 You should see similar output as in the AES example. Once the power traces have
 been collected, a picture similar to the following should be shown in your
 browser.
 
 ![](img/sample_traces_sha3.png)
-
-### AES Batch Capture
-
-To capture AES power traces in batch mode,
-
-```console
-$ cd cw/cw305
-$ ./simple_capture_traces_batch.py --scope cw
-```
-
-This should produce console output like
-```console
-Connecting and loading FPGA... Done!
-Initializing PLL1
-Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
-Transferring frame 0x00000000 @             0x00000000.
-Transferring frame 0x00000001 @             0x000007D8.
-Transferring frame 0x00000002 @             0x00000FB0.
-Transferring frame 0x00000003 @             0x00001788.
-Transferring frame 0x00000004 @             0x00001F60.
-Transferring frame 0x00000005 @             0x00002738.
-Transferring frame 0x80000006 @             0x00002F10.
-Scope setup with sampling rate 100004653.0 S/s
-Reading from FPGA using simpleserial protocol.
-Target simpleserial version: z01 (attempts: 2).
-Connected to ChipWhisperer (num_samples: 740, num_samples_actual: 740, num_segments_actual: 1)
-Using key: '2b7e151628aed2a6abf7158809cf4f3c'.
-Capturing: 100%|█████████████████████| 5000/5000 [00:03<00:00, 1301.86 traces/s]
-```
-
-By default, this will capture 5000 traces which should be sufficient to make
-sure the setup is configured and working as expected before starting a long
-running capture. The plot should look very similar to the one of the
-non-batched AES capture above.
-
-To capture e.g. 2 Mio traces, open the config file `capture_aes.yaml` and change
-`capture.num_traces` to `2000000`. Also, it is recommended to set
-`plot_capture.show` to `false` as the routine checking the ADC gain setting
-(as part of the plot generation) can take a long time for high number of traces.
-
 
 ## Performing Example SCA Attack on AES with Masking Disabled
 
@@ -621,8 +579,6 @@ Open the config file `cw/cw305/capture_aes.yaml` and make sure to:
 1. Change the path to application binary to use the one from the previous step.
 1. If necessary, change the path to the bitstream to use a bitstream matching
    The application binary.
-1. Set `capture.num_traces` to `2000000`.
-1. Set `plot_capture.show` to `false`.
 
 ### Capturing Power Traces
 
@@ -630,7 +586,7 @@ Run the following commands
 
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces_batch.py --scope cw
+$ ./capture.py --cfg-file capture_aes.yaml capture aes-random-batch --num-traces 2000000
 ```
 to start the capture.
 

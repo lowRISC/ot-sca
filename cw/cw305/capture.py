@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: Apache-2.0
 import binascii
 from Crypto.Cipher import AES
+from enum import Enum
 import numpy as np
+import scared
 import time
 from tqdm import tqdm
 import yaml
@@ -14,10 +16,18 @@ from pathlib import Path
 
 import chipwhisperer as cw
 import random
+from waverunner import WaveRunner
+from cw_segmented import CwSegmented
 
 from util import device
 from util import plot
 from pyXKCP import pyxkcp
+
+
+class ScopeType(str, Enum):
+    cw = "cw"
+    waverunner = "waverunner"
+
 
 app = typer.Typer(add_completion=False)
 # To be able to define subcommands for the "capture" command.
@@ -26,9 +36,29 @@ app.add_typer(app_capture, name="capture", help="Capture traces for SCA")
 # Shared options for "capture aes" and "capture sha3".
 opt_num_traces = typer.Option(None, help="Number of traces to capture.")
 opt_plot_traces = typer.Option(None, help="Number of traces to plot.")
+opt_scope_type = typer.Option(ScopeType.cw, help=("Scope type"))
 
 
-# Note: initialize_capture, check_range and plot_results are also used by other scripts.
+def create_waverunner(ot, capture_cfg):
+    """Create a WaveRunner object to capture traces faster"""
+    return WaveRunner(capture_cfg["waverunner_ip"])
+
+
+def create_cw_segmented(ot, capture_cfg):
+    """Create CwSegmented object to capture traces faster."""
+    return CwSegmented(num_samples=capture_cfg["num_samples"],
+                       offset=capture_cfg["offset"],
+                       scope_gain=capture_cfg["scope_gain"],
+                       scope=ot.scope)
+
+
+SCOPE_FACTORY = {
+    ScopeType.cw: create_cw_segmented,
+    ScopeType.waverunner: create_waverunner,
+}
+
+
+# Note: initialize_capture and plot_results are also used by other scripts.
 def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
     ot = device.OpenTitan(device_cfg["fpga_bitstream"],
@@ -152,6 +182,106 @@ def capture_aes_random(ot, ktp):
         yield ret
 
 
+def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type):
+    """A generator for capturing AES traces in batch mode.
+    Fixed key, Random texts.
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+      capture_cfg: Capture configuration.
+      scope_type: cw or waverunner as a scope for batch capture.
+    """
+    # Seed host's PRNG.
+    # TODO: Replace this with a dedicated PRNG to avoid other packages breaking our code.
+    random.seed(capture_cfg["batch_prng_seed"])
+    # Set the target's key
+    key = ktp.next_key()
+    tqdm.write(f'Using key: {binascii.b2a_hex(bytes(key))}')
+    ot.target.simpleserial_write("k", key)
+    # Seed the target's PRNG
+    ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+
+    # Create the ChipWhisperer project.
+    project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # Capture traces.
+    rem_num_traces = capture_cfg["num_traces"]
+    num_segments_storage = 1
+    # cw and waverunner scopes are supported fot batch capture.
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+        while rem_num_traces > 0:
+            # Determine the number of traces for this batch and arm the oscilloscope.
+            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+            scope.arm()
+
+            # Start batch encryption.
+            ot.target.simpleserial_write(
+                "b", scope.num_segments_actual.to_bytes(4, "little")
+            )
+
+            # Transfer traces
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == scope.num_segments
+            # Check that the ADC didn't saturate when recording this batch.
+            check_range(waves, ot.scope.adc.bits_per_sample)
+
+            # Generate plaintexts and ciphertexts to compare with the batch encryption results.
+            plaintexts = [ktp.next()[1] for _ in range(scope.num_segments_actual)]
+            ciphertexts = [
+                bytearray(c)
+                for c in scared.aes.base.encrypt(
+                    np.asarray(plaintexts), np.asarray(key)
+                )
+            ]
+            # Check the last ciphertext of this batch to make sure we are in sync.
+            actual_last_ciphertext = ot.target.simpleserial_read("r", 16, ack=False)
+            expected_last_ciphertext = ciphertexts[-1]
+            assert actual_last_ciphertext == expected_last_ciphertext, (
+                f"Incorrect encryption result!\n"
+                f"actual: {actual_last_ciphertext}\n"
+                f"expected: {expected_last_ciphertext}"
+            )
+
+            # Make sure to allocate sufficient memory for the storage segment array during the
+            # first resize operation. By default, the ChipWhisperer API starts every new segment
+            # with 1 trace and then increases it on demand by 25 traces at a time. This results in
+            # frequent array resizing and decreasing capture rate.
+            # See addWave() in chipwhisperer/common/traces/_base.py.
+            if project.traces.cur_seg.tracehint < project.traces.seg_len:
+                project.traces.cur_seg.setTraceHint(project.traces.seg_len)
+            # Only keep the latest two trace storage segments enabled. By default the ChipWhisperer
+            # API keeps all segments enabled and after appending a new trace, the trace ranges are
+            # updated for all segments. This leads to a decreasing capture rate after time.
+            # See:
+            # - _updateRanges() in chipwhisperer/common/api/TraceManager.py.
+            # - https://github.com/newaetech/chipwhisperer/issues/344
+            if num_segments_storage != len(project.segments):
+                if num_segments_storage >= 2:
+                    project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2, False)
+                num_segments_storage = len(project.segments)
+
+            # Add traces of this batch to the project.
+            for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
+                project.traces.append(
+                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key),
+                    dtype=np.uint16
+                )
+
+            # Update the loop variable and the progress bar.
+            rem_num_traces -= scope.num_segments
+            pbar.update(scope.num_segments)
+
+    # Before saving the project, re-enable all trace storage segments.
+    for s in range(len(project.segments)):
+        project.traces.tm.setTraceSegmentStatus(s, True)
+    assert len(project.traces) == capture_cfg["num_traces"]
+
+    # Save the project to disk.
+    project.save()
+
+
 def capture_aes_fvsr_key(ot):
     """A generator for capturing AES traces for fixed vs random key test.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
@@ -207,6 +337,17 @@ def aes_random(ctx: typer.Context,
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+@app_capture.command()
+def aes_random_batch(ctx: typer.Context,
+                     num_traces: int = opt_num_traces,
+                     plot_traces: int = opt_plot_traces,
+                     scope_type: ScopeType = opt_scope_type):
+    """Capture AES traces in batch mode. Fixed key random texts."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_aes_random_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type)
     capture_end(ctx.obj.cfg)
 
 

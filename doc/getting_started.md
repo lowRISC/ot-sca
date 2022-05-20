@@ -509,6 +509,12 @@ $ cd cw/cw305
 $ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
 ```
 
+Following command may be used to capture AES traces for Mix Column HD CPA Attack: 
+```console
+$ cd cw/cw305
+$ ./capture.py --cfg-file capture_aes.yaml capture aes-mix-column --num-traces=6000 --plot-traces=10
+```
+
 In case you see console output like
 ```console
 WARNING:root:Your firmware is outdated - latest is 0.20. Suggested to update firmware, as you may experience errors

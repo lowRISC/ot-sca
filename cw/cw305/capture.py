@@ -361,6 +361,33 @@ def aes_fvsr_key(ctx: typer.Context,
     capture_end(ctx.obj.cfg)
 
 
+@app_capture.command()
+def aes_mix_column(ctx: typer.Context,
+                   num_traces: int = opt_num_traces,
+                   plot_traces: int = opt_plot_traces):
+    """Capture AES traces. Fixed key, Random texts. 4 sets of traces. Mix Column HD CPA Attack.
+    Attack implemented by ChipWhisperer:
+    Repo: https://github.com/newaetech/chipwhisperer-jupyter/blob/master/experiments/MixColumn%20Attack.ipynb # noqa: E501
+    Reference: https://eprint.iacr.org/2019/343.pdf
+    See mix_columns_cpa_attack.py for attack portion.
+    """
+    capture_init(ctx, num_traces, plot_traces)
+
+    ctx.obj.ktp = cw.ktp.VarVec()
+    project_name = ctx.obj.cfg["capture"]['project_name']
+    # For each iteration, run a capture where only the bytes specified in
+    # `text_range` are set to random values. All other bytes are set to a
+    # fixed value.
+    for var_vec in range(4):
+        ctx.obj.cfg['capture']['project_name'] = f'{project_name}_{var_vec}'
+        ctx.obj.ktp.var_vec = var_vec
+        capture_loop(capture_aes_random(
+            ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"]
+        )
+
+    capture_end(ctx.obj.cfg)
+
+
 def capture_sha3_random(ot, ktp):
     """A generator for capturing SHA3 (KMAC) traces.
     Fixed key, Random texts.

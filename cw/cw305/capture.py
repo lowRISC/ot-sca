@@ -374,6 +374,8 @@ def aes_mix_column(ctx: typer.Context,
     capture_init(ctx, num_traces, plot_traces)
 
     ctx.obj.ktp = cw.ktp.VarVec()
+    ctx.obj.ktp.key_len = ctx.obj.cfg['capture']['key_len_bytes']
+    ctx.obj.ktp.text_len = ctx.obj.cfg['capture']['plain_text_len_bytes']
     project_name = ctx.obj.cfg["capture"]['project_name']
     # For each iteration, run a capture where only the bytes specified in
     # `text_range` are set to random values. All other bytes are set to a

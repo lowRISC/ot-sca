@@ -9,7 +9,7 @@ import time
 import re
 
 import chipwhisperer as cw
-from vendor.lowrisc_opentitan import cw_spiflash
+from util.spiflash import SpiProgrammer
 
 
 class RuntimePatchFPGAProgram:
@@ -48,17 +48,16 @@ class OpenTitan(object):
         if m:
             if m.group() == 'cw305':
                 fpga = cw.capture.targets.CW305()
-                fw_programmer = cw_spiflash.SPIProgrammer(firmware, 'CW305')
             else:
                 assert m.group() == 'cw310'
                 fpga = cw.capture.targets.CW310()
-                fw_programmer = cw_spiflash.SPIProgrammer(firmware, 'CW310')
+            programmer = SpiProgrammer(fpga)
         else:
             raise ValueError('Could not infer target board type from bistream name')
 
         self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
         self.scope = self.initialize_scope(scope_gain, num_samples, offset)
-        self.target = self.initialize_target(fw_programmer, baudrate, output_len)
+        self.target = self.initialize_target(programmer, firmware, baudrate, output_len)
 
     def initialize_fpga(self, fpga, bitstream, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
@@ -144,9 +143,9 @@ class OpenTitan(object):
         assert (scope.clock.adc_locked), "ADC failed to lock"
         return scope
 
-    def initialize_target(self, fw_programmer, baudrate, output_len):
+    def initialize_target(self, programmer, firmware, baudrate, output_len):
         """Loads firmware image and initializes test target."""
-        fw_programmer.run(self.fpga)
+        programmer.bootstrap(firmware)
         time.sleep(0.5)
         target = cw.target(self.scope)
         target.output_len = output_len

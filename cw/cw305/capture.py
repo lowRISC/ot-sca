@@ -215,11 +215,8 @@ def optimize_cw_capture(project, num_segments_storage):
     return num_segments_storage
 
 
-def check_ciphertext(ot, expected_last_ciphertext, only_first_word):
+def check_ciphertext(ot, expected_last_ciphertext, ciphertext_len):
     """Check the first word of the last ciphertext in a batch to make sure we are in sync."""
-    ciphertext_len = 16
-    if only_first_word:
-        ciphertext_len = 4
     actual_last_ciphertext = ot.target.simpleserial_read("r", ciphertext_len, ack=False)
     assert actual_last_ciphertext == expected_last_ciphertext[0:ciphertext_len], (
         f"Incorrect encryption result!\n"
@@ -282,7 +279,7 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type):
                 )
             ]
 
-            check_ciphertext(ot, ciphertexts[-1], True)
+            check_ciphertext(ot, ciphertexts[-1], 4)
 
             num_segments_storage = optimize_cw_capture(project, num_segments_storage)
 
@@ -457,7 +454,7 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
             for ii in range(scope.num_segments_actual):
                 _ = np.asarray(ktp.next()[1])
 
-            check_ciphertext(ot, expected_last_ciphertext, True)
+            check_ciphertext(ot, expected_last_ciphertext, 4)
 
             num_segments_storage = optimize_cw_capture(project, num_segments_storage)
 
@@ -559,6 +556,99 @@ def capture_sha3_random(ot, ktp):
             raise RuntimeError(f'Bad digest: {got} != {expected}.')
         yield ret
 
+def capture_sha3_fvsr_key_batch (ot, ktp, capture_cfg, scope_type):
+    """A generator for fast capturing SHA3 (KMAC) traces.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected key.
+    In order to simplify the analysis, the first sample has to use fixed key.
+    The initial key and plaintext values as well as the derivation methods are as specified in the
+    DTR.
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+      capture_cfg: Capture configuration.
+      scope_type: cw or waverunner as a scope for batch capture.
+    """
+
+    key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                           0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    ot.target.simpleserial_write("t", key_fixed)
+    key = key_fixed
+    random.seed(capture_cfg["batch_prng_seed"])
+    ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+
+    # Create the ChipWhisperer project.
+    project_file = capture_cfg["project_name"]
+    project = cw.create_project(project_file, overwrite=True)
+    # Capture traces.
+    rem_num_traces = capture_cfg["num_traces"]
+    num_segments_storage = 1
+    sample_fixed = False
+    # cw and waverunner scopes are supported fot batch capture.
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+        while rem_num_traces > 0:
+            # Determine the number of traces for this batch and arm the oscilloscope.
+            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+
+            scope.arm()
+            # Start batch encryption.
+            ot.target.simpleserial_write(
+                "b", scope.num_segments_actual.to_bytes(4, "little")
+            )
+
+            plaintexts = []
+            ciphertexts = []
+            keys = []
+
+            for i in range(scope.num_segments_actual):
+
+                if sample_fixed:
+                    key = key_fixed
+                else:
+                    random_key = ktp.next()[1]
+                    key = random_key
+
+                plaintext = ktp.next()[1]
+
+                ciphertext = pyxkcp.kmac128(key, ktp.key_len,
+                                            plaintext, ktp.text_len,
+                                            ot.target.output_len,
+                                            b'\x00', 0)
+                batch_digest = (ciphertext if i == 0
+                                else bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest)))
+                plaintexts.append(plaintext)
+                ciphertexts.append(binascii.b2a_hex(ciphertext))
+                keys.append(key)
+                sample_fixed = plaintext[0]&1
+
+            # Transfer traces
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == scope.num_segments
+
+            # Check the batch digest to make sure we are in sync.
+            check_ciphertext(ot, batch_digest, 32)
+
+            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+
+            # Add traces of this batch to the project.
+            for wave, plaintext, ciphertext, key in zip(waves, plaintexts, ciphertexts, keys):
+                project.traces.append(
+                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key),
+                    dtype=np.uint16
+                )
+            # Update the loop variable and the progress bar.
+            rem_num_traces -= scope.num_segments
+            pbar.update(scope.num_segments)
+    # Before saving the project, re-enable all trace storage segments.
+    for s in range(len(project.segments)):
+        project.traces.tm.setTraceSegmentStatus(s, True)
+    assert len(project.traces) == capture_cfg["num_traces"]
+    # Save the project to disk.
+    project.save()
+
 
 @app_capture.command()
 def sha3_random(ctx: typer.Context,
@@ -639,6 +729,17 @@ def sha3_fvsr_key(ctx: typer.Context,
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+@app_capture.command()
+def sha3_fvsr_key_batch(ctx: typer.Context,
+                    num_traces: int = opt_num_traces,
+                    plot_traces: int = opt_plot_traces,
+                    scope_type: ScopeType = opt_scope_type):
+    """Capture SHA3 (KMAC) traces in batch mode. Fixed vs Random."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_sha3_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type)
     capture_end(ctx.obj.cfg)
 
 

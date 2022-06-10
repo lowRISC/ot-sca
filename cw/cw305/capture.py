@@ -640,7 +640,7 @@ def plot_cmd(ctx: typer.Context, num_traces: int = opt_plot_traces):
 def main(ctx: typer.Context, cfg_file: str = None):
     """Capture traces for side-channel analysis."""
 
-    cfg_file = 'capture_aes.yaml' if cfg_file is None else cfg_file
+    cfg_file = 'capture_aes_cw310.yaml' if cfg_file is None else cfg_file
     with open(cfg_file) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 

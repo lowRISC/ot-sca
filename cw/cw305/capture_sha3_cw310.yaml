@@ -1,5 +1,5 @@
 device:
-  fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
+  fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   fw_bin: objs/sha3_serial_fpga_cw310.bin
   pll_frequency: 100000000
   baudrate: 115200
@@ -11,18 +11,18 @@ capture:
   # for the key absorb w/o or w/ DOM, respectively, as well as 23 cycles for
   # XORing the key into the state.
   # w/o DOM
-  num_samples: 1600
+  #num_samples: 1600
   # w/ DOM
-  #num_samples: 3200
+  num_samples: 3200
   # Offest in samples - During the first activity block, KMAC just absorbs the
   # fixed prefix (23 cycles XORing + 24 or 96 cycles absorbing w/o or w/ DOM,
   # respectively). This first activity block can be skipped.
   # w/o DOM
-  offset: 860
+  #offset: 860
   # w/ DOM
-  #offset: 2300
-  scope_gain: 30
-  num_traces: 100
+  offset: 2300
+  scope_gain: 27
+  num_traces: 5000
   project_name: projects/opentitan_simple_sha3
   waverunner_ip: 192.168.1.228
   batch_prng_seed: 0

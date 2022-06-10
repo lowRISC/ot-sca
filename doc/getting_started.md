@@ -221,7 +221,7 @@ everything is working correctly:
 ```console
 Creating user 'ot' with UID=1000, GID=1000.
 ot@ot-sca:/repo$ cd cw/cw305/
-ot@ot-sca:/repo/cw/cw305$ ./capture.py --cfg-file capture_aes.yaml capture aes-random
+ot@ot-sca:/repo/cw/cw305$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random
 Connecting and loading FPGA... Done!
 Initializing PLL1
 Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
@@ -426,8 +426,8 @@ in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instr
 
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```
-cw/cw305/capture_aes.yaml
-cw/cw305/capture_sha3.yaml
+cw/cw305/capture_aes_cw310.yaml
+cw/cw305/capture_sha3_cw310.yaml
 ```
 for AES and SHA3 (KMAC), respectively.
 
@@ -443,9 +443,9 @@ the specified file paths.
   Otherwise you might risk to end up with an incompatible combination of
   bitstream and application binary.
 * The default configurations target the CW310 board. When using
-  the CW305 FPGA board, the paths specifying the bitstream and application
-  binary in `cw/cw305/capture_aes.yaml` need to be adjusted accordingly. Also
-  the ADC gain should be adjusted.
+  the CW305 FPGA board, the config file `cw/cw305/capture_aes_cw305.yaml`
+  must be used to select a different bitstream and application binary, and
+  adjust the ADC gain.
 
 
 ## Capturing Power Traces
@@ -464,7 +464,7 @@ a capture with fewer traces to make sure the setup is configured as expected
 To perform a non-batched AES capture, you can use the following command:
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_aes.yaml capture aes-random --num-traces 5000 --plot-traces 10
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random --num-traces 5000 --plot-traces 10
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
 and start the application binary to the target via SPI, and then feed data in
@@ -494,7 +494,7 @@ Created plot with 5000 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
 Following command may be used to capture AES traces in batch mode: 
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_aes.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
 ```
 
 By default, this will capture 5000 traces which should be sufficient to make
@@ -506,13 +506,13 @@ Following command may be used to capture traces for DTR TVLA Section 5.3:
 "General Test: Fixed-vs.-Random Key Datasets":
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_aes.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
+$ ./simple_capture_traces.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
 ```
 
 Following command may be used to capture AES traces for Mix Column HD CPA Attack: 
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_aes.yaml capture aes-mix-column --num-traces=6000 --plot-traces=10
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-mix-column --num-traces=6000 --plot-traces=10
 ```
 
 In case you see console output like
@@ -542,7 +542,7 @@ utilization (FPGA build) will all affect the safe maximum gain setting.
 To perform a SHA3 (KMAC) capture, use this command:
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_sha3.yaml capture sha3-random --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-random --num-traces 100 --plot-traces 10
 ```
 
 The above command will send SHA3 (KMAC) requests with a fixed key and random 
@@ -550,7 +550,7 @@ texts. In order to capture traces for DTR TVLA Section 5.3: "General Test:
 Fixed-vs.-Random Key Datasets", following command may be used:
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_sha3.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
 ```
 
 You should see similar output as in the AES example. Once the power traces have
@@ -581,7 +581,7 @@ $ ninja -C build-out all
 
 ### Configuration
 
-Open the config file `cw/cw305/capture_aes.yaml` and make sure to:
+Open the config file `cw/cw305/capture_aes_cw310.yaml` and make sure to:
 1. Change the path to application binary to use the one from the previous step.
 1. If necessary, change the path to the bitstream to use a bitstream matching
    The application binary.
@@ -592,7 +592,7 @@ Run the following commands
 
 ```console
 $ cd cw/cw305
-$ ./capture.py --cfg-file capture_aes.yaml capture aes-random-batch --num-traces 2000000
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 2000000
 ```
 to start the capture.
 

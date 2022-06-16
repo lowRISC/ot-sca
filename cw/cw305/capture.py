@@ -402,6 +402,7 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     ot.target.simpleserial_write("t", key_fixed)
 
     sample_fixed = 1
+    is_first_batch = True
 
     # Create the ChipWhisperer project.
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
@@ -410,9 +411,6 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     num_segments_storage = 1
     # cw and waverunner scopes are supported for batch capture.
     scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
-
-    # Generate random keys and plaintexts on the device to be used in the first batch.
-    ot.target.simpleserial_write("g", scope.num_segments_actual.to_bytes(4, "little"))
 
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
@@ -423,6 +421,9 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
             # Start batch encryption. In order to increase capture rate, after the first batch
             # encryption, the device will start automatically to generate random keys and plaintexts
             # when this script is getting waves from the scope.
+            if is_first_batch:
+                ot.target.simpleserial_write("g", scope.num_segments_actual.to_bytes(4, "little"))
+                is_first_batch = False
             ot.target.simpleserial_write("f", scope.num_segments_actual.to_bytes(4, "little"))
 
             # Transfer traces.

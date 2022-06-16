@@ -263,8 +263,7 @@ OpenTitan using the CW310, follow these steps:
 1. Build the regular binaries with
 ```console
 $ cd $REPO_TOP
-$ ./meson_init.sh
-$ ninja -C build-out all
+$ ./bazelisk.sh build //sw/...
 ```
 1. Then, the bitstream generation can be started by running
 ```console
@@ -282,12 +281,10 @@ build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlg
    traces on the CW310, run
 ```console
 $ cd $REPO_TOP
-$ ninja -C build-out sw/device/sca/aes_serial_export_fpga_cw310
+$ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_cw310_bin
 ```
-   The generated binary can be found under
-```
-build-bin/sw/device/sca/aes_serial_fpga_cw310.bin
-```
+The path to the generated binary will be printed to the terminal after running 
+the command.
 
 #### English Breakfast for CW305
 
@@ -327,13 +324,17 @@ build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_syste
    make sure the `prepare_sw.py` script has been run before executing
 ```console
 $ cd $REPO_TOP
-$ ninja -C build-out sw/device/sca/aes_serial_export_fpga_nexysvideo
+$ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_nexysvideo_bin --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
 ```
-   The generated binary can be found in
-```
-build-bin/sw/device/sca/aes_serial_fpga_nexysvideo.bin
-```
+The path to the generated binary will be printed to the terminal after running 
+the command.
 
+If you need to generate binaries for CW310 after you generate binaries for
+CW305, use the following command:
+```console
+$ ./hw/top_englishbreakfast/util/prepare_sw.py --delete
+```
+and clean the auto-generated files with a checkout.
 
 ## Setup
 
@@ -461,7 +462,20 @@ a capture with fewer traces to make sure the setup is configured as expected
 
 ### AES Capture
 
-To perform a non-batched AES capture, you can use the following command:
+To perform a capture `cw/cw305/capture.py` is used with default configurations
+set in the `*.yaml` files. When using this script configuration file and capture 
+mode need to be given as parameters. Also number of traces to be captured,
+number of traces to be plotted and scope type may be given as optional 
+parameters.
+
+There are 5 capture modes for AES:
+1. AES Random
+1. AES Random Batch
+1. AES Fixed vs Random Key
+1. AES Fixed vs Random Key Batch
+1. AES Mix Column
+
+To perform a non-batched random AES capture, you can use the following command:
 ```console
 $ cd cw/cw305
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random --num-traces 5000 --plot-traces 10
@@ -491,7 +505,7 @@ Capturing: 100%|█████████████████████�
 Created plot with 5000 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
 ```
 
-Following command may be used to capture AES traces in batch mode: 
+Following command may be used to capture random AES traces in batch mode: 
 ```console
 $ cd cw/cw305
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
@@ -506,7 +520,14 @@ Following command may be used to capture traces for DTR TVLA Section 5.3:
 "General Test: Fixed-vs.-Random Key Datasets":
 ```console
 $ cd cw/cw305
-$ ./simple_capture_traces.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
+```
+
+Following command may be used to capture traces in batch mode for DTR TVLA 
+Section 5.3: "General Test: Fixed-vs.-Random Key Datasets":
+```console
+$ cd cw/cw305
+$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key-batch --num-traces 5000 --plot-traces 10
 ```
 
 Following command may be used to capture AES traces for Mix Column HD CPA Attack: 
@@ -575,7 +596,7 @@ masking cannot be disabled.
    `.masking = kDifAesMaskingForceZero`.
 1. From the root directory of the OpenTitan repository, run
 ```console
-$ ninja -C build-out all
+$ ./bazelisk.sh build //sw/...
 ```
    To re-generate the application binary.
 
@@ -622,3 +643,12 @@ the number of traces.
 
 The setting of `-a 505 520` specifies a location in the power traces, you may need to change
 these settings with new FPGA builds as the leakage location will shift.
+
+### Debugging
+
+Run the following command to see serial outputs of the target program:
+
+```console
+$ screen /dev/ttyACM1 115200,cs8,-ixon,-ixoff
+```
+Note that you may need to change "ttyACM1" to something else.

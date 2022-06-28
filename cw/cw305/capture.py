@@ -91,12 +91,12 @@ def check_range(waves, bits_per_sample):
     """ The ADC output is in the interval [0, 2**bits_per_sample-1]. Check that the recorded
         traces are within [1, 2**bits_per_sample-2] to ensure the ADC doesn't saturate. """
     adc_range = np.array([0, 2**bits_per_sample])
-    if not (np.all(np.greater(waves[:], adc_range[0]))
-            and np.all(np.less(waves[:], adc_range[1] - 1))):
+    if not (np.all(np.greater(waves[:], adc_range[0])) and
+            np.all(np.less(waves[:], adc_range[1] - 1))):
         print('\nWARNING: Some samples are outside the range [' +
               str(adc_range[0] + 1) + ', ' + str(adc_range[1] - 2) + '].')
         print('The ADC has a max range of [' +
-              str(adc_range[0]) + ', ' + str(adc_range[1]-1) + '] and might saturate.')
+              str(adc_range[0]) + ', ' + str(adc_range[1] - 1) + '] and might saturate.')
         print('It is recommended to reduce the scope gain (see device.py).')
 
 
@@ -556,7 +556,8 @@ def capture_sha3_random(ot, ktp):
             raise RuntimeError(f'Bad digest: {got} != {expected}.')
         yield ret
 
-def capture_sha3_fvsr_key_batch (ot, ktp, capture_cfg, scope_type):
+
+def capture_sha3_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
     """A generator for fast capturing SHA3 (KMAC) traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -603,6 +604,7 @@ def capture_sha3_fvsr_key_batch (ot, ktp, capture_cfg, scope_type):
             ciphertexts = []
             keys = []
 
+            batch_digest = None
             for i in range(scope.num_segments_actual):
 
                 if sample_fixed:
@@ -617,12 +619,12 @@ def capture_sha3_fvsr_key_batch (ot, ktp, capture_cfg, scope_type):
                                             plaintext, ktp.text_len,
                                             ot.target.output_len,
                                             b'\x00', 0)
-                batch_digest = (ciphertext if i == 0
-                                else bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest)))
+                batch_digest = (ciphertext if batch_digest is None else
+                                bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest)))
                 plaintexts.append(plaintext)
                 ciphertexts.append(binascii.b2a_hex(ciphertext))
                 keys.append(key)
-                sample_fixed = plaintext[0]&1
+                sample_fixed = plaintext[0] & 1
 
             # Transfer traces
             waves = scope.capture_and_transfer_waves()
@@ -734,9 +736,9 @@ def sha3_fvsr_key(ctx: typer.Context,
 
 @app_capture.command()
 def sha3_fvsr_key_batch(ctx: typer.Context,
-                    num_traces: int = opt_num_traces,
-                    plot_traces: int = opt_plot_traces,
-                    scope_type: ScopeType = opt_scope_type):
+                        num_traces: int = opt_num_traces,
+                        plot_traces: int = opt_plot_traces,
+                        scope_type: ScopeType = opt_scope_type):
     """Capture SHA3 (KMAC) traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
     capture_sha3_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type)

@@ -4,7 +4,6 @@
 
 """Support for capturing traces using LeCroy WaveRunner 9104."""
 
-import logging
 import re
 
 import numpy as np
@@ -110,9 +109,8 @@ class WaveRunner:
     def _print_device_info(self):
         def print_info(manufacturer, model, serial, version, opts):
             # TODO: logging
-            print(
-                f"Connected to {manufacturer} {model} (ip: {self._ip_addr}, serial: {serial}, version: {version}, options: {opts})"
-            )
+            print(f"Connected to {manufacturer} {model} (ip: {self._ip_addr}, serial: {serial}, "
+                  f"version: {version}, options: {opts})")
 
         print_info(**self._device_info)
 

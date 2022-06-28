@@ -9,14 +9,22 @@ from cffi import FFI
 
 ffibuilder = FFI()
 
-ffibuilder.cdef("""
-typedef uint8_t BitSequence;
-typedef size_t BitLength;
-int cSHAKE128( const BitSequence *input, BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, const BitSequence *name, BitLength nameBitLen, const BitSequence *customization, BitLength customBitLen );
-int cSHAKE256( const BitSequence *input, BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, const BitSequence *name, BitLength nameBitLen, const BitSequence *customization, BitLength customBitLen );
-int KMAC128(const BitSequence *key, BitLength keyBitLen, const BitSequence *input, BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, const BitSequence *customization, BitLength customBitLen);
-int KMAC256(const BitSequence *key, BitLength keyBitLen, const BitSequence *input, BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, const BitSequence *customization, BitLength customBitLen);
-""")
+ffibuilder.cdef('\n'.join([
+    "typedef uint8_t BitSequence;",
+    "typedef size_t BitLength;",
+    ("int cSHAKE128( const BitSequence *input, BitLength inputBitLen, BitSequence *output, "
+     "BitLength outputBitLen, const BitSequence *name, BitLength nameBitLen, "
+     "const BitSequence *customization, BitLength customBitLen );"),
+    ("int cSHAKE256( const BitSequence *input, BitLength inputBitLen, BitSequence *output, "
+     "BitLength outputBitLen, const BitSequence *name, BitLength nameBitLen, "
+     "const BitSequence *customization, BitLength customBitLen );"),
+    ("int KMAC128(const BitSequence *key, BitLength keyBitLen, const BitSequence *input, "
+     "BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, "
+     "const BitSequence *customization, BitLength customBitLen);"),
+    ("int KMAC256(const BitSequence *key, BitLength keyBitLen, const BitSequence *input, "
+     "BitLength inputBitLen, BitSequence *output, BitLength outputBitLen, "
+     "const BitSequence *customization, BitLength customBitLen);")
+]))
 
 ffibuilder.set_source(
     "_xkcp",  # name of the output C extension

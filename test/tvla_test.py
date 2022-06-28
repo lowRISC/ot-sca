@@ -18,7 +18,7 @@ class TvlaCmd(RepoCmd):
 def test_help():
     tvla = TvlaCmd(Args('--help')).run()
     # Assert that a message is printed on stdout or stderr.
-    assert(len(tvla.stdout()) != 0 or len(tvla.stderr()) != 0)
+    assert (len(tvla.stdout()) != 0 or len(tvla.stderr()) != 0)
 
 
 def ttest_significant(ttest_trace) -> bool:
@@ -30,13 +30,15 @@ def ttest_significant(ttest_trace) -> bool:
 
 def test_general_leaking_histogram():
     hist_path = TestDataPath('tvla_general/sha3_hist_leaking.npz')
-    tvla = TvlaCmd(Args(f'-g -m sha3 -i {hist_path}')).run()
+    tvla = TvlaCmd(Args(['--input-file', str(hist_path),
+                        '--mode', 'sha3', 'run-tvla'])).run()
     assert ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did not find significant leakage, which is unexpected")
 
 
 def test_general_nonleaking_histogram():
     hist_path = TestDataPath('tvla_general/sha3_hist_nonleaking.npz')
-    tvla = TvlaCmd(Args(f'-g -m sha3 -i {hist_path}')).run()
+    tvla = TvlaCmd(Args(['--input-file', str(hist_path),
+                        '--mode', 'sha3', 'run-tvla'])).run()
     assert not ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did find significant leakage, which is unexpected")

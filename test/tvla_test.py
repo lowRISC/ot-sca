@@ -11,7 +11,7 @@ from .repo import RepoCmd, TestDataPath
 class TvlaCmd(RepoCmd):
     def __init__(self, args: Args):
         # Insert (relative) path to TVLA before the given arguments.
-        args = Args('cw/cw305/tvla.py') + args
+        args = Args('cw/tvla.py') + args
         super().__init__(args)
 
 

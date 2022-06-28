@@ -1,0 +1,18 @@
+// Copyright lowRISC contributors.
+// Licensed under the Apache License, Version 2.0, see LICENSE for details.
+// SPDX-License-Identifier: Apache-2.0
+{
+    name: "lowrisc_opentitan",
+    target_dir: "lowrisc_opentitan",
+
+    upstream: {
+        url: "https://github.com/lowRISC/opentitan"
+        rev: "master"
+    }
+
+    mapping: [
+        {from: "util/lintpy.py",  to: "lintpy.py"},
+        {from: ".flake8",  to: "flake8"},
+        {from: ".style.yapf",  to: "style.yapf"},
+    ]
+}

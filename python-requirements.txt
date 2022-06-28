@@ -30,6 +30,4 @@ joblib
 -e git+https://github.com/newaetech/chipwhisperer.git@c5181a87111d3aabab42d83b10dbc368140b43ef#egg=chipwhisperer
 
 # Linters
-flake8
-isort
-yapf
+-r python-requirements-lint.txt

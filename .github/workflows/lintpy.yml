@@ -1,0 +1,32 @@
+# This is a basic workflow to run lintpy.py
+
+name: lintpy
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push events
+  push:
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "lint"
+  lint:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - name: Set up virtual Python environment
+        run: python3 -m venv .venv; source .venv/bin/activate
+
+      - name: Install Python dependencies
+        run: python3 -m pip install -U pip setuptools; pip install -r python-requirements-lint.txt
+
+      - name: Run lintpy.py
+        run: ./util/lintpy.sh

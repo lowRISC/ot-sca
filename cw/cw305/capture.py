@@ -3,25 +3,24 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 import binascii
-from Crypto.Cipher import AES
-from enum import Enum
-import numpy as np
-import scared
+import random
 import time
-from tqdm import tqdm
-import yaml
-from types import SimpleNamespace
-import typer
+from enum import Enum
 from pathlib import Path
+from types import SimpleNamespace
 
 import chipwhisperer as cw
-import random
-from waverunner import WaveRunner
+import numpy as np
+import scared
+import typer
+import yaml
+from Crypto.Cipher import AES
 from cw_segmented import CwSegmented
-
-from util import device
-from util import plot
 from pyXKCP import pyxkcp
+from tqdm import tqdm
+from waverunner import WaveRunner
+
+from util import device, plot
 
 
 class ScopeType(str, Enum):

@@ -19,16 +19,17 @@ To load histograms from the INPUT_FILE
 
 """
 
-import os
-import logging as log
 import argparse
+import logging as log
+import multiprocessing
+import os
+from pathlib import Path
+
 import chipwhisperer as cw
-from chipwhisperer.analyzer import aes_funcs
 import matplotlib.pyplot as plt
 import numpy as np
-import multiprocessing
+from chipwhisperer.analyzer import aes_funcs
 from joblib import Parallel, delayed
-from pathlib import Path
 from scipy.stats import ttest_ind_from_stats
 
 

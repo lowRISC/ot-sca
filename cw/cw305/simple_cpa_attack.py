@@ -6,11 +6,9 @@
 import binascii
 import pickle
 
-import tqdm
-
 import chipwhisperer as cw
 import chipwhisperer.analyzer as cwa
-
+import tqdm
 
 project_file = "projects/opentitan_simple_aes"
 project = cw.open_project(project_file)

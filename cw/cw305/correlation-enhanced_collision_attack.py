@@ -10,12 +10,14 @@ See simple_cpa_attack.py for capture portion.
 """
 
 import binascii
+import multiprocessing
+
 import chipwhisperer as cw
 import chipwhisperer.analyzer as cwa
 import numpy as np
 import scared
-import multiprocessing
 from joblib import Parallel, delayed
+
 from util import plot
 
 # Configuration

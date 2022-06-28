@@ -2,35 +2,27 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-"""Test Vector Leakage Assessment
 
-
-
-Typical usage:
-
-To run the analysis without loading or saving the histograms:
->>> ./tvla.py
-
-To save histograms in the OUTPUT_FILE for later use:
->>> ./tvla.py -o OUTPUT_FILE
-
-To load histograms from the INPUT_FILE
->>> ./tvla.py -i INPUT_FILE
-
-"""
-
-import argparse
+import inspect
 import logging as log
 import multiprocessing
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import chipwhisperer as cw
 import matplotlib.pyplot as plt
 import numpy as np
+import typer
+import yaml
 from chipwhisperer.analyzer import aes_funcs
 from joblib import Parallel, delayed
 from scipy.stats import ttest_ind_from_stats
+
+app = typer.Typer(add_completion=False)
+
+
+script_dir = Path(__file__).parent.absolute()
 
 
 class UnformattedLog(object):
@@ -327,121 +319,11 @@ def compute_leakage_aes(keys, plaintexts, leakage_model):
     return leakage
 
 
-def parse_args():
-    """Parses command-line arguments."""
-    parser = argparse.ArgumentParser(
-        description="""A histogram-based TVLA described in "Fast Leakage Assessment" by O. Reparaz,
-        B. Gierlichs and I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
-    )
+@app.command()
+def run_tvla(ctx: typer.Context):
+    """Run TVLA described in "Fast Leakage Assessment"."""
 
-    parser.add_argument(
-        "-p",
-        "--project-file",
-        default="projects/opentitan_simple_aes.cwp",
-        help="""Name of the ChipWhisperer project file to use. Not required. If not provided,
-        projects/opentitan_simple_aes.cwp is used.""",
-    )
-    parser.add_argument(
-        "-t",
-        "--trace-file",
-        help="""Name of the trace file containing the numpy array with all traces in 16-bit integer
-        format. Not required. If not provided, the data from the ChipWhisperer project file
-        is used. Ignored for number-of-steps > 1.""",
-    )
-    parser.add_argument(
-        "-s",
-        "--trace-start",
-        help="""Index of the first trace to use. Not required. If not provided, starts at the first
-        trace.""",
-    )
-    parser.add_argument(
-        "-e",
-        "--trace-end",
-        help="""Index of the last trace to use. Not required. If not provided, ends at the last
-        trace.""",
-    )
-    parser.add_argument(
-        "-l",
-        "--leakage-file",
-        help="""Name of the leakage file containing the numpy array with the leakage model for all
-        rounds, all bytes, and all traces. Not required. If not provided, the leakage is computed
-        from the data in the ChipWhisperer project file. Ignored for number-of-steps > 1.""",
-    )
-    parser.add_argument(
-        "-d",
-        "--save-to-disk",
-        action="store_true",
-        default=False,
-        help="""Save trace, leakage and t-test files to disk. Ignored for trace and leakage files
-        when number-of-steps > 1.""",
-    )
-    parser.add_argument(
-        "-r",
-        "--round-select",
-        help="""Index of the AES round for which the histograms are to be computed: 0-10. Not
-        required. If not provided, the histograms for all AES rounds are computed.""",
-    )
-    parser.add_argument(
-        "-b",
-        "--byte-select",
-        help="""Index of the AES state byte for which the histograms are to be computed: 0-15. Not
-        required. If not provided, the histograms for all AES state bytes are computed.""",
-    )
-    parser.add_argument(
-        "-i",
-        "--input-file",
-        help="""Name of the input file containing the histograms. Not required. If both -i and -o
-        are provided, the input file is appended with more data to produce the output file.""",
-    )
-    parser.add_argument(
-        "-o",
-        "--output-file",
-        help="""Name of the output file to store generated histograms. Not required. If both -i and
-        -o are provided, the input file is appended with more data to produce the output file.""",
-    )
-    parser.add_argument(
-        "-n",
-        "--number-of-steps",
-        type=int,
-        default="1",
-        help="""Number of steps to breakdown the analysis into. For every step, traces are
-        separately filtered and the leakage is computed. The histograms are appended to the
-        ones of the previous step. This is useful when operating on very large trace sets and/or
-        when analyzing how results change with the number of traces used.""",
-    )
-    parser.add_argument(
-        "-a",
-        "--ttest-step-file",
-        help="""Name of the t-test step file containing one t-test analysis per step. Not
-        required. If not provided, the data is recomputed.""",
-    )
-    parser.add_argument(
-        "-f",
-        "--plot-figures",
-        action="store_true",
-        default=False,
-        help="""Plot figures and save them to disk. Not required.""",
-    )
-    parser.add_argument(
-        "-g",
-        "--general-test",
-        action="store_true",
-        default=False,
-        help="""Perform general fixed-vs-random TVLA without leakage model. Odd traces are grouped
-        in the fixed set while even traces are grouped in the random set. Not required.""",
-    )
-    parser.add_argument(
-        "-m",
-        "--mode",
-        default="aes",
-        help="""Select mode: can be either "aes" or "sha3". Not required. If not provided or if a
-        another string is provided, "aes" is used.""",
-    )
-
-    return parser.parse_args()
-
-
-def main():
+    cfg = ctx.obj.cfg
 
     Path("tmp").mkdir(exist_ok=True)
     log_format = "%(asctime)s %(levelname)s: %(message)s"
@@ -454,55 +336,53 @@ def main():
                     level=log.INFO,
                     force=True,)
 
-    args = parse_args()
+    if cfg["mode"] != "sha3" and cfg["mode"] != "aes":
+        log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    if args.mode != "sha3" and args.mode != "aes":
-        log.info("Unsupported mode {args.mode}, falling back to \"aes\"")
-
-    if args.mode == "sha3" or args.general_test is True:
+    if cfg["mode"] == "sha3" or cfg["general_test"] is True:
         general_test = True
     else:
         general_test = False
 
-    if args.mode == "sha3" or general_test is True:
+    if cfg["mode"] == "sha3" or general_test is True:
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.
         rnd_list = [0]
-    elif args.round_select is None:
+    elif cfg["round_select"] is None:
         rnd_list = list(range(11))
     else:
-        rnd_list = [int(args.round_select)]
+        rnd_list = [int(cfg["round_select"])]
     assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
 
     num_rnds = len(rnd_list)
 
-    if args.mode == "sha3" or general_test is True:
+    if cfg["mode"] == "sha3" or general_test is True:
         # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
-    elif args.byte_select is None:
+    elif cfg["byte_select"] is None:
         byte_list = list(range(16))
     else:
-        byte_list = [int(args.byte_select)]
+        byte_list = [int(cfg["byte_select"])]
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
     num_bytes = len(byte_list)
 
-    num_steps = int(args.number_of_steps)
+    num_steps = int(cfg["number_of_steps"])
     assert num_steps >= 1
 
-    save_to_disk_trace = args.save_to_disk
-    save_to_disk_leakage = args.save_to_disk
-    save_to_disk_ttest = args.save_to_disk
+    save_to_disk_trace = cfg["save_to_disk"]
+    save_to_disk_leakage = cfg["save_to_disk"]
+    save_to_disk_ttest = cfg["save_to_disk"]
 
     # Step-wise processing isn't compatible with a couple of other arguments.
     if num_steps > 1:
-        args.trace_file = None
-        args.leakage_file = None
+        cfg["trace_file"] = None
+        cfg["leakage_file"] = None
         save_to_disk_trace = False
         save_to_disk_leakage = False
 
-    if args.input_file is not None:
+    if cfg["input_file"] is not None:
         # Load previously generated histograms.
-        histograms_file = np.load(args.input_file)
+        histograms_file = np.load(cfg["input_file"])
         histograms_in = histograms_file['histograms']
         single_trace = histograms_file['single_trace']
         num_samples = histograms_in.shape[3]
@@ -536,18 +416,19 @@ def main():
         log.info("Saving T-test")
         np.save('tmp/ttest.npy', ttest_trace)
 
-    if (args.input_file is None or args.output_file is not None) and args.ttest_step_file is None:
+    if (cfg["input_file"] is None or cfg["output_file"] is not None) \
+            and cfg["ttest_step_file"] is None:
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
 
         # Make sure the project file is compatible with the previously generated histograms.
-        project = cw.open_project(args.project_file)
-        if args.input_file is None:
+        project = cw.open_project(cfg["project_file"])
+        if cfg["input_file"] is None:
             num_samples = len(project.waves[0])
         else:
             assert num_samples == len(project.waves[0])
 
-        if args.input_file is None:
+        if cfg["input_file"] is None:
             adc_bits = 12
             trace_resolution = 2**adc_bits
 
@@ -560,14 +441,14 @@ def main():
 
         # Overall number of traces, trace start and end indices.
         num_traces_tot = len(project.waves)
-        if args.trace_start is None:
+        if cfg["trace_start"] is None:
             trace_start_tot = 0
         else:
-            trace_start_tot = int(args.trace_start)
-        if args.trace_end is None:
+            trace_start_tot = int(cfg["trace_start"])
+        if cfg["trace_end"] is None:
             trace_end_tot = num_traces_tot - 1
         else:
-            trace_end_tot = int(args.trace_end)
+            trace_end_tot = int(cfg["trace_end"])
         assert trace_end_tot - trace_start_tot < num_traces_tot
         num_traces_tot = trace_end_tot - trace_start_tot + 1
 
@@ -607,12 +488,12 @@ def main():
             log.info("Processing Step %i/%i: Trace %i - %i",
                      i_step + 1, num_steps, trace_start, trace_end)
 
-            if args.trace_file is None:
+            if cfg["trace_file"] is None:
 
                 # Make sure to re-open the project file as we close it during the operation to free
                 # up some memory.
                 if i_step > 0:
-                    project = cw.open_project(args.project_file)
+                    project = cw.open_project(cfg["project_file"])
 
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
@@ -664,17 +545,17 @@ def main():
                     np.save('tmp/single_trace.npy', single_trace)
 
             else:
-                trace_file = np.load(args.trace_file)
+                trace_file = np.load(cfg["trace_file"])
                 traces = trace_file['traces']
                 traces_to_use = trace_file['traces_to_use']
                 assert num_samples == traces.shape[1]
                 # If a trace range is specified, it must match the range in the trace file.
                 # Otherwise, we might end up using a leakage model that doesn't match the actual
                 # traces.
-                if args.trace_start is None:
+                if cfg["trace_start"] is None:
                     trace_start = trace_file['trace_start']
                 assert trace_start == trace_file['trace_start']
-                if args.trace_end is None:
+                if cfg["trace_end"] is None:
                     trace_end = trace_file['trace_end']
                 assert trace_end == trace_file['trace_end']
                 num_traces = trace_end - trace_start + 1
@@ -689,7 +570,7 @@ def main():
                 f"({100*num_traces/num_traces_orig:.1f}%)"
             )
 
-            if args.leakage_file is None:
+            if cfg["leakage_file"] is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
                 keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
@@ -734,7 +615,7 @@ def main():
 
             if general_test is False:
                 # Compute or load prevsiously computed leakage model.
-                if args.leakage_file is None:
+                if cfg["leakage_file"] is None:
                     # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
                     log.info("Computing Leakage")
                     leakage = Parallel(n_jobs=num_jobs)(
@@ -747,7 +628,7 @@ def main():
                         log.info("Saving Leakage")
                         np.save('tmp/leakage.npy', leakage)
                 else:
-                    leakage = np.load(args.leakage_file)
+                    leakage = np.load(cfg["leakage_file"])
                     assert num_traces == leakage.shape[2]
             else:
                 log.info("Computing Leakage")
@@ -787,7 +668,7 @@ def main():
                 histograms = np.concatenate((histograms[:]), axis=3)
 
             # Add up new data to potential, previously generated histograms.
-            if args.input_file is not None or i_step > 0:
+            if cfg["input_file"] is not None or i_step > 0:
                 histograms = histograms + histograms_in
 
             # Move current histograms to temp variable for next step.
@@ -795,9 +676,9 @@ def main():
                 histograms_in = histograms
 
             # Histograms can be saved for later use if output file name is passed.
-            if args.output_file is not None:
+            if cfg["output_file"] is not None:
                 log.info("Saving Histograms")
-                np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
+                np.savez(cfg["output_file"], histograms=histograms, rnd_list=rnd_list,
                          byte_list=byte_list, single_trace = traces[1])
 
             # Computing the t-test statistics vs. time.
@@ -841,9 +722,9 @@ def main():
         rnd_ext = list(range(num_rnds))
         byte_ext = list(range(num_bytes))
 
-    elif args.ttest_step_file is not None:
+    elif cfg["ttest_step_file"] is not None:
         # Load previously generated t-test results.
-        ttest_step_file = np.load(args.ttest_step_file)
+        ttest_step_file = np.load(cfg["ttest_step_file"])
         ttest_step = ttest_step_file['ttest_step']
         num_orders = ttest_step.shape[0]
         num_samples = ttest_step.shape[3]
@@ -865,7 +746,7 @@ def main():
         ttest_trace = ttest_step[:, :, :, :, num_steps - 1]
 
         if general_test is True:
-            single_trace_file = os.path.dirname(args.ttest_step_file)
+            single_trace_file = os.path.dirname(cfg["ttest_step_file"])
             single_trace_file += "/" if single_trace_file else ""
             single_trace_file += "single_trace.npy"
             single_trace = np.load(single_trace_file)
@@ -924,13 +805,13 @@ def main():
                     log.info(f"{result_str}")
                 log.info("")
 
-    if args.plot_figures:
+    if cfg["plot_figures"]:
         log.info("Plotting Figures to tmp/figures")
         Path("tmp/figures").mkdir(exist_ok=True)
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
-        if args.mode == "aes" and general_test is False:
+        if cfg["mode"] == "aes" and general_test is False:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
@@ -964,7 +845,7 @@ def main():
                 axs[1 + i_order].plot(-threshold * c, "r")
                 axs[1 + i_order].set_ylabel('t-test ' + str(i_order + 1))
             plt.xlabel("time [samples]")
-            plt.savefig('tmp/figures/' + args.mode + '_fixed_vs_random.png')
+            plt.savefig('tmp/figures/' + cfg["mode"] + '_fixed_vs_random.png')
             plt.show()
 
         # Plotting figures for t-test statistics vs. number of traces used.
@@ -1007,7 +888,7 @@ def main():
                                         half_window, num_samples))
 
                 else:
-                    if args.mode == "aes":
+                    if cfg["mode"] == "aes":
                         # Simply plot everything.
                         samples = range(0, num_samples)
                     else:
@@ -1032,7 +913,7 @@ def main():
                                                     "\nfor samples " + str(samples[0]) +
                                                     ' to ' + str(samples[-1]))
 
-                filename = args.mode + "_t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
+                filename = cfg["mode"] + "_t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
                 plt.savefig("tmp/figures/" + filename)
                 if num_rnds == 1:
                     plt.show()
@@ -1040,5 +921,134 @@ def main():
                     plt.close()
 
 
+# Default values of the options.
+default_cfg_file = None
+default_project_file = str(script_dir) + "/projects/opentitan_simple_aes.cwp"
+default_trace_file = None
+default_trace_start = None
+default_trace_end = None
+default_leakage_file = None
+default_save_to_disk = None
+default_round_select = None
+default_byte_select = None
+default_input_file = None
+default_output_file = None
+default_number_of_steps = 1
+default_ttest_step_file = None
+default_plot_figures = False
+default_general_test = True
+default_mode = "aes"
+default_update_cfg_file = False
+
+
+# Help messages of the options
+help_cfg_file = inspect.cleandoc("""Configuration file. Default: """ + str(default_cfg_file))
+help_project_file = inspect.cleandoc("""Name of the ChipWhisperer project file to use. Default:
+    """ + str(default_project_file))
+help_trace_file = inspect.cleandoc("""Name of the trace file containing the numpy array with all
+    traces in 16-bit integer format. If not provided, the data from the ChipWhisperer project file
+    is used. Ignored for number-of-steps > 1. Default: """ + str(default_trace_file))
+help_trace_start = inspect.cleandoc("""Index of the first trace to use. If not provided, starts at
+    the first trace. Default: """ + str(default_trace_start))
+help_trace_end = inspect.cleandoc("""Index of the last trace to use. If not provided, ends at the
+    last trace. Default: """ + str(default_trace_end))
+help_leakage_file = inspect.cleandoc("""Name of the leakage file containing the numpy array with the
+    leakage model for all rounds, all bytes, and all traces. If not provided, the leakage is
+    computed from the data in the ChipWhisperer project file. Ignored for number-of-steps > 1.
+    Default: """ + str(default_leakage_file))
+help_save_to_disk = inspect.cleandoc("""Save trace, leakage and t-test files to disk. Ignored for
+    trace and leakage files when number-of-steps > 1. Default: """ + str(default_save_to_disk))
+help_round_select = inspect.cleandoc("""Index of the AES round for which the histograms are to be
+    computed: 0-10. If not provided, the histograms for all AES rounds are computed. Default:
+    """ + str(default_round_select))
+help_byte_select = inspect.cleandoc("""Index of the AES state byte for which the histograms are to
+    be computed: 0-15. If not provided, the histograms for all AES state bytes are computed.
+    Default: """ + str(default_byte_select))
+help_input_file = inspect.cleandoc("""Name of the input file containing the histograms. Not
+    required. If both -input_file and -output_file are provided, the input file is appended with
+    more data to produce the output file. Default: """ + str(default_input_file))
+help_output_file = inspect.cleandoc("""Name of the output file to store generated histograms. Not
+    required. If both -input_file and -output_file are provided, the input file is appended with
+    more data to produce the output file. Default: """ + str(default_output_file))
+help_number_of_steps = inspect.cleandoc("""Number of steps to breakdown the analysis into. For
+    every step, traces are separately filtered and the leakage is computed. The histograms are
+    appended to the ones of the previous step. This is useful when operating on very large trace
+    sets and/or when analyzing how results change with the number of traces used. Default:
+    """ + str(default_number_of_steps))
+help_ttest_step_file = inspect.cleandoc("""Name of the t-test step file containing one t-test
+    analysis per step. If not provided, the data is recomputed. Default:
+    """ + str(default_ttest_step_file))
+help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Default:
+    """ + str(default_plot_figures))
+help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
+    model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
+    Default: """ + str(default_general_test))
+help_mode = inspect.cleandoc("""Select mode: can be either "aes" or "sha3". Default:
+    """ + str(default_mode))
+help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
+    isn't any configuration file. Default: """ + str(default_update_cfg_file))
+
+
+@app.callback()
+def main(ctx: typer.Context,
+         cfg_file: str = typer.Option(None, help=help_cfg_file),
+         project_file: str = typer.Option(None, help=help_project_file),
+         trace_file: str = typer.Option(None, help=help_trace_file),
+         trace_start: int = typer.Option(None, help=help_trace_start),
+         trace_end: int = typer.Option(None, help=help_trace_end),
+         leakage_file: str = typer.Option(None, help=help_leakage_file),
+         save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
+         round_select: int = typer.Option(None, help=help_round_select),
+         byte_select: int = typer.Option(None, help=help_byte_select),
+         input_file: str = typer.Option(None, help=help_input_file),
+         output_file: str = typer.Option(None, help=help_output_file),
+         number_of_steps: int = typer.Option(None, help=help_number_of_steps),
+         ttest_step_file: str = typer.Option(None, help=help_ttest_step_file),
+         plot_figures: bool = typer.Option(None, help=help_plot_figures),
+         general_test: bool = typer.Option(None, help=help_general_test),
+         mode: str = typer.Option(None, help=help_mode),
+         update_cfg_file: bool = typer.Option(None, help=help_update_cfg_file)):
+    """A histogram-based TVLA described in "Fast Leakage Assessment" by O. Reparaz, B. Gierlichs and
+    I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
+
+    cfg = {}
+
+    # Assign default values to the options.
+    for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
+              'save_to_disk', 'round_select', 'byte_select', 'input_file', 'output_file',
+              'number_of_steps', 'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+        run_cmd = f'''cfg[v] = default_{v}'''
+        exec(run_cmd)
+
+    # Load options from configuration file, if provided.
+    if cfg_file is not None:
+        with open(cfg_file) as f:
+            cfg = yaml.load(f, Loader=yaml.FullLoader)
+        f.close()
+
+    # Overwrite options from CLI, if provided.
+    for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
+              'save_to_disk', 'round_select', 'byte_select', 'input_file', 'output_file',
+              'number_of_steps', 'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+        run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
+        exec(run_cmd)
+
+    if not os.path.exists(str(script_dir) + "/tmp"):
+        os.makedirs(str(script_dir) + "/tmp")
+    with open(str(script_dir) + "/tmp/tvla_cfg.yaml", 'w') as f:
+        yaml.dump(cfg, f)
+    f.close()
+
+    if update_cfg_file:
+        if cfg_file is None:
+            cfg_file = str(script_dir) + "/tvla_cfg.yaml"
+        with open(cfg_file, 'w') as f:
+            yaml.dump(cfg, f, sort_keys=False)
+        f.close()
+
+    # Store config in the user data attribute (`obj`) of the context.
+    ctx.obj = SimpleNamespace(cfg=cfg)
+
+
 if __name__ == "__main__":
-    main()
+    app()

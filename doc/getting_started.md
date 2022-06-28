@@ -220,8 +220,8 @@ Once the container is running, try capturing some traces to verify that
 everything is working correctly:
 ```console
 Creating user 'ot' with UID=1000, GID=1000.
-ot@ot-sca:/repo$ cd cw/cw305/
-ot@ot-sca:/repo/cw/cw305$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random
+ot@ot-sca:/repo$ cd cw/
+ot@ot-sca:/repo/cw$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random
 Connecting and loading FPGA... Done!
 Initializing PLL1
 Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
@@ -237,7 +237,7 @@ Reading from FPGA using simpleserial protocol.
 Target simpleserial version: z01 (attempts: 1).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'
 Capturing: 100%|████████████████████████████| 5000/5000 [00:55<00:00, 90.34it/s]
-Created plot with 10 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
+Created plot with 10 traces: ~/ot-sca/cw/projects/sample_traces_aes.html
 ```
 
 
@@ -427,8 +427,8 @@ in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instr
 
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```
-cw/cw305/capture_aes_cw310.yaml
-cw/cw305/capture_sha3_cw310.yaml
+cw/capture_aes_cw310.yaml
+cw/capture_sha3_cw310.yaml
 ```
 for AES and SHA3 (KMAC), respectively.
 
@@ -444,7 +444,7 @@ the specified file paths.
   Otherwise you might risk to end up with an incompatible combination of
   bitstream and application binary.
 * The default configurations target the CW310 board. When using
-  the CW305 FPGA board, the config file `cw/cw305/capture_aes_cw305.yaml`
+  the CW305 FPGA board, the config file `cw/capture_aes_cw305.yaml`
   must be used to select a different bitstream and application binary, and
   adjust the ADC gain.
 
@@ -462,7 +462,7 @@ a capture with fewer traces to make sure the setup is configured as expected
 
 ### AES Capture
 
-To perform a capture `cw/cw305/capture.py` is used with default configurations
+To perform a capture `cw/capture.py` is used with default configurations
 set in the `*.yaml` files. When using this script configuration file and capture 
 mode need to be given as parameters. Also number of traces to be captured,
 number of traces to be plotted and scope type may be given as optional 
@@ -477,7 +477,7 @@ There are 5 capture modes for AES:
 
 To perform a non-batched random AES capture, you can use the following command:
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random --num-traces 5000 --plot-traces 10
 ```
 This script will load the OpenTitan FPGA bitstream to the target board, load
@@ -502,12 +502,12 @@ Reading from FPGA using simpleserial protocol.
 Target simpleserial version: z01 (attempts: 2).
 Using key: b'2b7e151628aed2a6abf7158809cf4f3c'                                  
 Capturing: 100%|████████████████████████████| 5000/5000 [01:35<00:00, 52.15it/s]
-Created plot with 5000 traces: ~/ot-sca/cw/cw305/projects/sample_traces_aes.html
+Created plot with 5000 traces: ~/ot-sca/cw/projects/sample_traces_aes.html
 ```
 
 Following command may be used to capture random AES traces in batch mode: 
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
 ```
 
@@ -519,20 +519,20 @@ non-batched AES capture.
 Following command may be used to capture traces for DTR TVLA Section 5.3: 
 "General Test: Fixed-vs.-Random Key Datasets":
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
 ```
 
 Following command may be used to capture traces in batch mode for DTR TVLA 
 Section 5.3: "General Test: Fixed-vs.-Random Key Datasets":
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key-batch --num-traces 5000 --plot-traces 10
 ```
 
 Following command may be used to capture AES traces for Mix Column HD CPA Attack: 
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-mix-column --num-traces=6000 --plot-traces=10
 ```
 
@@ -562,7 +562,7 @@ utilization (FPGA build) will all affect the safe maximum gain setting.
 
 To perform a SHA3 (KMAC) capture, use this command:
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-random --num-traces 100 --plot-traces 10
 ```
 
@@ -570,7 +570,7 @@ The above command will send SHA3 (KMAC) requests with a fixed key and random
 texts. In order to capture traces for DTR TVLA Section 5.3: "General Test: 
 Fixed-vs.-Random Key Datasets", following command may be used:
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
 ```
 
@@ -602,7 +602,7 @@ $ ./bazelisk.sh build //sw/...
 
 ### Configuration
 
-Open the config file `cw/cw305/capture_aes_cw310.yaml` and make sure to:
+Open the config file `cw/capture_aes_cw310.yaml` and make sure to:
 1. Change the path to application binary to use the one from the previous step.
 1. If necessary, change the path to the bitstream to use a bitstream matching
    The application binary.
@@ -612,7 +612,7 @@ Open the config file `cw/cw305/capture_aes_cw310.yaml` and make sure to:
 Run the following commands
 
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 2000000
 ```
 to start the capture.
@@ -622,7 +622,7 @@ to start the capture.
 Run the following commands:
 
 ```console
-$ cd cw/cw305
+$ cd cw
 $ ./ceca.py -f projects/opentitan_simple_aes.cwp -a 505 520 -d output -s 3 -w 16 -n 2000000
 ```
 

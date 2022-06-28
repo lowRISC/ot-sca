@@ -11,7 +11,7 @@ SP800-185.o
 _xkcp.c
 _xkcp.cpython*.so
 _xkcp.o
-cw/cw305/vendor/xkcp_xkcp/config.h
+cw/vendor/xkcp_xkcp/config.h
 
 
 # Jupyter Notebook

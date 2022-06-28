@@ -4,10 +4,10 @@
 
 import itertools
 
-from bokeh.plotting import figure, show
-from bokeh.palettes import Dark2_5 as palette
 from bokeh.io import output_file
 from bokeh.models import tools
+from bokeh.palettes import Dark2_5 as palette
+from bokeh.plotting import figure, show
 
 
 def save_plot_to_file(traces, num_traces, outfile):

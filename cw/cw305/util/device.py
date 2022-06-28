@@ -5,10 +5,11 @@
 r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
 
 import inspect
-import time
 import re
+import time
 
 import chipwhisperer as cw
+
 from util.spiflash import SpiProgrammer
 
 

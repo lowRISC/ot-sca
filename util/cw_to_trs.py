@@ -12,6 +12,7 @@ The --export-key option can be used to include the test key in the traces, but
 it is not required.
 """
 import argparse
+
 import chipwhisperer as cw
 import trsfile
 from tqdm import tqdm

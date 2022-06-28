@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 import binascii
+
 import chipwhisperer as cw
 from chipwhisperer.analyzer.attacks.attack_mix_columns import AttackMixColumns
 

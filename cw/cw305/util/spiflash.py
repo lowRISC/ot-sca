@@ -5,11 +5,11 @@
 """Class for programming OpenTitan over SPI using the SAM3X/U on CW310/305."""
 
 import time
-from functools import partial
 from collections import namedtuple
-from chipwhisperer.capture.targets import CW310
-from chipwhisperer.capture.targets import CW305
 from contextlib import contextmanager
+from functools import partial
+
+from chipwhisperer.capture.targets import CW305, CW310
 
 
 class SpiProgrammer:

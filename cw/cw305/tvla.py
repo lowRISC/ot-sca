@@ -504,12 +504,37 @@ def main():
         # Load previously generated histograms.
         histograms_file = np.load(args.input_file)
         histograms_in = histograms_file['histograms']
+        single_trace = histograms_file['single_trace']
         num_samples = histograms_in.shape[3]
         trace_resolution = histograms_in.shape[4]
         # If previously generated histograms are loaded, the rounds and bytes of interest must
         # match. Otherwise, indices would get mixed up.
-        assert rnd_list == histograms_file['rnd_list']
-        assert byte_list == histograms_file['byte_list']
+        assert np.all(rnd_list == histograms_file['rnd_list'])
+        assert np.all(byte_list == histograms_file['byte_list'])
+
+        # Computing the t-test statistics vs. time.
+        log.info("Computing T-test Statistics")
+
+        num_jobs = multiprocessing.cpu_count()
+
+        # The number of samples processed by each parallel job at a time.
+        sample_step_ttest = num_samples // num_jobs
+
+        # By default, the first two moments are computed. This can be modified to any order.
+        num_orders = 2
+
+        x_axis = np.arange(trace_resolution)
+
+        # Compute statistics.
+        # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
+        ttest_trace = Parallel(n_jobs=num_jobs)(
+            delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+                                        histograms_in[:, :, :, i:i + sample_step_ttest, :],
+                                        x_axis)
+            for i in range(0, num_samples, sample_step_ttest))
+        ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
+        log.info("Saving T-test")
+        np.save('tmp/ttest.npy', ttest_trace)
 
     if (args.input_file is None or args.output_file is not None) and args.ttest_step_file is None:
         # Either don't have previously generated histograms or we need to append previously
@@ -773,7 +798,7 @@ def main():
             if args.output_file is not None:
                 log.info("Saving Histograms")
                 np.savez(args.output_file, histograms=histograms, rnd_list=rnd_list,
-                         byte_list=byte_list)
+                         byte_list=byte_list, single_trace = traces[1])
 
             # Computing the t-test statistics vs. time.
             log.info("Computing T-test Statistics")
@@ -810,7 +835,8 @@ def main():
                      ttest_step=ttest_step,
                      trace_end_vec=trace_end_vec,
                      rnd_list=rnd_list,
-                     byte_list=byte_list)
+                     byte_list=byte_list,
+                     single_trace=traces[1])
 
         rnd_ext = list(range(num_rnds))
         byte_ext = list(range(num_bytes))

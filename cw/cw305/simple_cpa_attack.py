@@ -21,8 +21,10 @@ update_interval = 25
 progress_bar = tqdm.tqdm(total=len(project.traces), ncols=80)
 progress_bar.set_description('Performing Attack')
 
+
 def cb():
-  progress_bar.update(update_interval)
+    progress_bar.update(update_interval)
+
 
 attack_results = attack.run(callback=cb, update_interval=update_interval)
 progress_bar.close()
@@ -42,15 +44,15 @@ print('key guess: {}'.format(key_guess))
 print(attack_results)
 
 if key_guess != known_key:
-  num_bytes_match = 0
-  for i in range(len(known_key_bytes)):
-    if known_key_bytes[i] == key_guess_bytes[i]:
-      num_bytes_match += 1
-  print('FAILED: key_guess != known_key')
-  print('        ' + str(num_bytes_match) + '/' + \
-    str(len(known_key_bytes)) + ' bytes guessed correctly.')
+    num_bytes_match = 0
+    for i in range(len(known_key_bytes)):
+        if known_key_bytes[i] == key_guess_bytes[i]:
+            num_bytes_match += 1
+    print('FAILED: key_guess != known_key')
+    print('        ' + str(num_bytes_match) + '/' +
+          str(len(known_key_bytes)) + ' bytes guessed correctly.')
 else:
-  print('SUCCESS!')
+    print('SUCCESS!')
 
 print('Saving results')
 pickle_file = project_file + ".results.pickle"

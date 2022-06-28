@@ -186,8 +186,8 @@ def compute_mean_and_std(workers):
             running_cnt += cnt
         else:
             running_sum_dev_prods += sum_dev_prods + (
-                (cnt * running_sum - running_cnt * sum_) ** 2
-                / (cnt * running_cnt * (cnt + running_cnt))
+                (cnt * running_sum - running_cnt * sum_) ** 2 /
+                (cnt * running_cnt * (cnt + running_cnt))
             )
             running_sum += sum_
             running_cnt += cnt

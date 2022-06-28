@@ -4,12 +4,9 @@
 
 """Support for capturing traces using ChipWhisperer-Lite/Husky in segmented mode."""
 
-import logging
-import re
 import time
 
 import chipwhisperer as cw
-import numpy as np
 from numpy.lib.stride_tricks import as_strided
 from packaging import version
 
@@ -87,7 +84,10 @@ class CwSegmented:
                 raise IOError("ChipWhisperer Version must be 5.6.1 or later for Husky Support")
         else:
             if version.parse(cw.__version__) != version.parse("5.5.0"):
-                raise IOError("ChipWhisperer Version must be 5.5.0 (from commit 099807207f3351d16e7988d8f0cccf6d570f306a) for CW-Lite with Segmenting")
+                raise IOError("""ChipWhisperer Version must be 5.5.0
+                              (from commit 099807207f3351d16e7988d8f0cccf6d570f306a)
+                              for CW-Lite with Segmenting
+                              """)
 
         if not self._is_husky:
             offset = offset // 2
@@ -116,7 +116,7 @@ class CwSegmented:
         if self._is_husky:
             return self._scope.adc.segments
         else:
-            # Must round-up to fill the entire buffer.        
+            # Must round-up to fill the entire buffer.
             return round(self._scope.adc.oa.hwMaxSamples / self._scope.adc.samples) + 1
 
     @property
@@ -155,7 +155,7 @@ class CwSegmented:
             )
         self._num_samples = num_samples
         if self._is_husky:
-            #Husky has simplified interface
+            # Husky has simplified interface
             self._scope.adc.samples = num_samples
             self._num_samples_actual = num_samples
         else:

@@ -41,8 +41,8 @@ if plot_debug:
 def get_okay_traces(traces, upper_trace, lower_trace):
     okay_traces = np.zeros(len(traces), np.int8)
     for i in range(len(traces)):
-        if (np.all(traces[i] <= upper_trace)
-                and np.all(traces[i] >= lower_trace)):
+        if (np.all(traces[i] <= upper_trace) and
+                np.all(traces[i] >= lower_trace)):
             okay_traces[i] = 1
     return okay_traces
 

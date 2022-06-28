@@ -579,7 +579,7 @@ def main():
             trace_end = trace_end_vec[i_step]
 
             log.info("Processing Step %i/%i: Trace %i - %i",
-                     i_step+1, num_steps, trace_start, trace_end)
+                     i_step + 1, num_steps, trace_start, trace_end)
 
             if args.trace_file is None:
 
@@ -633,8 +633,8 @@ def main():
                     np.savez('tmp/traces.npy', traces=traces, traces_to_use=traces_to_use,
                              trace_start=trace_start, trace_end=trace_end)
 
-                if ((save_to_disk_trace is True or save_to_disk_ttest is True)
-                   and general_test is True and i_step == 0):
+                if ((save_to_disk_trace is True or save_to_disk_ttest is True) and
+                        general_test is True and i_step == 0):
                     np.save('tmp/single_trace.npy', single_trace)
 
             else:
@@ -741,9 +741,9 @@ def main():
                 # > 0 (random set, x = 1).
                 # The computation is parallelized over the samples.
                 histograms = Parallel(n_jobs=num_jobs)(
-                        delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
-                                                        traces[:, i:i + sample_step_hist], leakage)
-                        for i in range(0, num_samples, sample_step_hist))
+                    delayed(compute_histograms_aes)(trace_resolution, rnd_list, byte_list,
+                                                    traces[:, i:i + sample_step_hist], leakage)
+                    for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
             else:
                 # For every time sample we make 2 histograms, one for the fixed set and one for the
@@ -754,10 +754,10 @@ def main():
                 # v and w indices are not used but we keep them for code compatiblitly with
                 # non-general AES TVLA.
                 histograms = Parallel(n_jobs=num_jobs)(
-                        delayed(compute_histograms_general)(trace_resolution,
-                                                            traces[:, i:i + sample_step_hist],
-                                                            leakage)
-                        for i in range(0, num_samples, sample_step_hist))
+                    delayed(compute_histograms_general)(trace_resolution,
+                                                        traces[:, i:i + sample_step_hist],
+                                                        leakage)
+                    for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
 
             # Add up new data to potential, previously generated histograms.
@@ -788,10 +788,10 @@ def main():
             # Compute statistics.
             # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
             ttest_trace = Parallel(n_jobs=num_jobs)(
-                    delayed(compute_statistics)(num_orders, rnd_list, byte_list,
-                                                histograms[:, :, :, i:i + sample_step_ttest, :],
-                                                x_axis)
-                    for i in range(0, num_samples, sample_step_ttest))
+                delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+                                            histograms[:, :, :, i:i + sample_step_ttest, :],
+                                            x_axis)
+                for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
             # Building the t-test statistics vs. number of traces used. ttest_step has dimensions
@@ -835,7 +835,7 @@ def main():
             byte_ext[i_byte] = np.where(ttest_step_file['byte_list'] == byte_list[i_byte])[0][0]
 
         # Plot the t-test vs. time figures for the maximum number of traces.
-        ttest_trace = ttest_step[:, :, :, :, num_steps-1]
+        ttest_trace = ttest_step[:, :, :, :, num_steps - 1]
 
         if general_test is True:
             single_trace_file = os.path.dirname(args.ttest_step_file)
@@ -1001,8 +1001,9 @@ def main():
                             axs[i_order].set_xlabel('number of traces [100k]')
                             axs[i_order].set_xticks(range(num_steps))
                             axs[i_order].set_xticklabels(xticklabels)
-                            axs[i_order].set_ylabel('t-test ' + str(i_order+1) + "\nfor samples " +
-                                                    str(samples[0]) + ' to ' + str(samples[-1]))
+                            axs[i_order].set_ylabel('t-test ' + str(i_order + 1) +
+                                                    "\nfor samples " + str(samples[0]) +
+                                                    ' to ' + str(samples[-1]))
 
                 filename = args.mode + "_t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
                 plt.savefig("tmp/figures/" + filename)

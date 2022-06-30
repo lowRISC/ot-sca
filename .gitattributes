@@ -7,3 +7,4 @@ cw/cw305/objs/aes_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text
 doc/img/cw310_cwhusky.jpg filter=lfs diff=lfs merge=lfs -text
 doc/img/sample_traces_aes.png filter=lfs diff=lfs merge=lfs -text
 doc/img/sample_traces_sha3.png filter=lfs diff=lfs merge=lfs -text
+test/data/tvla_general/* filter=lfs diff=lfs merge=lfs -text

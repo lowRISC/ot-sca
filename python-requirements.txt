@@ -31,3 +31,6 @@ joblib
 
 # Linters
 -r python-requirements-lint.txt
+
+# Test-only requirements
+pytest

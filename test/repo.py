@@ -4,11 +4,12 @@
 
 """Utilities to run tests in the context of this repository."""
 
-import pathlib
+from pathlib import Path
+from typing import Union
 
 from .cmd import Args, Cmd
 
-REPO_PATH = pathlib.Path(__file__).parent.parent.resolve()
+REPO_PATH = Path(__file__).parent.parent.resolve()
 
 
 class RepoCmd(Cmd):
@@ -16,3 +17,20 @@ class RepoCmd(Cmd):
         # Prepend absolute path to repository to the command.
         args[0] = str(REPO_PATH / args[0])
         super().__init__(args)
+
+
+class TestDataPath:
+    """Absolute path to a test data file"""
+
+    # This is not a test class.
+    __test__ = False
+
+    def __init__(self, subpath: Union[str, Path]):
+        """Create an absolute path to a test data file from a subpath.
+
+        The subpath argument is a string or a Path object, relative to the test data directory.
+        """
+        self._path = REPO_PATH / 'test' / 'data' / subpath
+
+    def __str__(self) -> str:
+        return str(self._path)

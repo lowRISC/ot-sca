@@ -14,6 +14,7 @@ import numpy as np
 import scared
 import typer
 import yaml
+from chipwhisperer.common.traces import Trace
 from Crypto.Cipher import AES
 from cw_segmented import CwSegmented
 from pyXKCP import pyxkcp
@@ -743,7 +744,349 @@ def sha3_fvsr_key_batch(ctx: typer.Context,
                         scope_type: ScopeType = opt_scope_type):
     """Capture SHA3 (KMAC) traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_sha3_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type)
+    capture_sha3_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
+                                ctx.obj.cfg["capture"], scope_type)
+    capture_end(ctx.obj.cfg)
+
+
+def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
+    """An example capture loop to capture OTBN-ECDSA-256/384 traces.
+
+    Does not use the streaming feature of CW-Husky. CW-Husky's stream mode
+    limits the sampling frequency to 25 MHz and bits_per_sample to 8 bits.
+
+    Allows a user to set the ephemeral secret scalar k, private key d,
+    and message msg. For the corresponding driver, check
+    <opentitan_repo_root>/sw/device/ecc384_serial.c
+
+    Args:
+      ot: Initialized OpenTitan target.
+      fw_bin: Key and plaintext generator.
+      pll_frequency: Output frequency of the FPGA PLL.
+                     To capture the long OTBN operations,
+                     we may need to use different frequency than 100MHz
+      capture_cfg: Capture configuration from the yaml file
+    """
+
+    # Currently, we need to reprogram the firmware before every sign operation
+    # TODO: Investigate the C code (ecc384_serial) to check if we can run multiple
+    #       signing operations without reloading the firmware.
+    reset_firmware = True
+
+    # Be sure we don't use the stream mode
+    if ot.scope._is_husky:
+        ot.scope.adc.stream_mode = False
+        ot.scope.adc.bits_per_sample = 12
+        ot.scope.adc.samples = 131070
+    else:
+        # TODO: Add cw-lite support
+        raise RuntimeError('Only CW-Husky is supported now')
+
+    # OTBN operations are long. CW-Husky can store only 131070 samples
+    # in the non-stream mode. In case we want to collect more samples,
+    # we can run the operation multiple times with different adc_offset
+    # values.
+    # The trace from each run is kept in a section, and all sections are
+    # concatenated to create the final trace.
+    num_sections = capture_cfg["num_samples"] // 131070
+    print(f"num_sections = {num_sections}")
+
+    # Create a cw project to keep the data and traces
+    project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # Loop to collect each power trace
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
+                  ncols=80):
+        # create a clean array to keep each section
+        waves = np.array([])
+        # Loop to collect each section of the power trace
+        for ii in range(num_sections):
+            # Currently, we have to reload the firmware to be able to send a
+            # new signing command
+            # TODO: Investigate how we can solve this
+            if reset_firmware:
+                ot.program_target(fw_bin, pll_frequency)
+
+            # For each section ii, set the adc_offset parameter accordingly
+            ot.scope.adc.offset = ii * 131070
+
+            # Optional commands to overwrite the default values of the private key d,
+            # and the message msg.
+            # The current values are set to the default values in the C code (ecc384_serial.c)
+            if capture_cfg["key_len_bytes"] == 48:
+                priv_key_d = bytearray([
+                    0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C, 0x05, 0xB1,
+                    0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D, 0xE2, 0x3C, 0x3B, 0x66,
+                    0x7B, 0xF2, 0x97, 0xBA, 0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71,
+                    0x37, 0xD8, 0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
+                    0xF8, 0x72, 0xC9, 0xEA, 0x60, 0xD2, 0xED, 0xF5
+                ])
+            elif capture_cfg["key_len_bytes"] == 32:
+                priv_key_d = bytearray([
+                    0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74, 0x02, 0x0c,
+                    0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28, 0x0c, 0xf0, 0x18, 0x0d,
+                    0xf4, 0x6c, 0x0b, 0xda, 0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0,
+                    0x45, 0x55
+                ])
+            else:
+                raise RuntimeError('priv_key_d must be either 32B or 48B')
+            ot.target.simpleserial_write('d', priv_key_d)
+            # Message to sign
+            ot.target.simpleserial_write('n', "Hello OTBN.".encode())
+
+            # Arm the scope
+            ot.scope.arm()
+
+            # Ephemeral secret scalar k
+            if capture_cfg["key_len_bytes"] == 48:
+                secret_k = bytearray([
+                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                ])
+            elif capture_cfg["key_len_bytes"] == 32:
+                secret_k = bytearray([
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+                    0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+                    0xFF, 0xFF
+                ])
+            else:
+                raise RuntimeError('secret_k must be either 32B or 48B')
+            # Send the ephemeral secret k and trigger the signature geneartion
+            ot.target.simpleserial_write('p', secret_k)
+
+            # Wait until operation is done
+            ret = ot.scope.capture(poll_done=True)
+            # If getting inconsistent results (e.g. variable number of cycles),
+            # adding a sufficient sleep below here appears to fix things
+            time.sleep(1)
+            if ret:
+                raise RuntimeError('Timeout during capture')
+            # Check the number of cycles, where the trigger signal was high
+            cycles = ot.scope.adc.trig_count
+            print("Observed number of cycles: %d" % cycles)
+
+            # Append the section into the waves array
+            waves = np.append(waves, ot.scope.get_last_trace(as_int=True))
+
+        # Read 32 bytes of signature_r and signature_s back from the device
+        sig_r = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
+        print(f"sig_r = {''.join('{:02x}'.format(x) for x in sig_r)}")
+        sig_s = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
+        print(f"sig_s = {''.join('{:02x}'.format(x) for x in sig_s)}")
+
+        # Create a chipwhisperer trace object and save it to the project
+        # Args/fields of Trace object: waves, textin, textout, key
+        # TODO: Change the assignments based on the requirements of the SCA
+        trace = Trace(waves, secret_k, sig_s, priv_key_d)
+        check_range(waves, ot.scope.adc.bits_per_sample)
+        project.traces.append(trace, dtype=np.uint16)
+        # Delete the objects before the next iteration
+        del waves
+        del trace
+    project.save()
+
+
+@app_capture.command()
+def ecdsa_simple(ctx: typer.Context,
+                 num_traces: int = opt_num_traces,
+                 plot_traces: int = opt_plot_traces):
+
+    # OTBN-specific settings
+    """Capture OTBN-ECDSA-256/384 traces from a target that runs the `ecc384_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+
+    # OTBN's public-key operations might not fit into the sample buffer of the scope
+    # These two parameters allows users to conrol the sampling frequency
+    #
+    # `adc_mul` affects the clock frequency (clock_freq = adc_mul * pll_freq)
+    #
+    # `decimate` is the ADC downsampling factor that allows us to sample at
+    #  every `decimate` cycles.
+    if "adc_mul" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.clock.adc_mul = ctx.obj.cfg["capture"]["adc_mul"]
+    if "decimate" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.adc.decimate = ctx.obj.cfg["capture"]["decimate"]
+    # Print the params
+    print(
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+    )
+    print(
+        f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'
+    )
+
+    # Call the capture loop
+    capture_ecdsa_simple(ctx.obj.ot, ctx.obj.cfg["device"]["fw_bin"],
+                         ctx.obj.cfg["device"]["pll_frequency"],
+                         ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
+    """An example capture loop to capture OTBN-ECDSA-256/384 traces.
+
+    Utilize the streaming feature of CW-Husky. CW-Husky's stream mode
+    limits the sampling frequency to 25 MHz and bits_per_sample to 8 bits.
+
+    Allows a user to set the ephemeral secret scalar k, private key d,
+    and message msg. For the corresponding driver, check
+    <opentitan_repo_root>/sw/device/ecc384_serial.c
+
+    Args:
+      ot: Initialized OpenTitan target.
+      fw_bin: Key and plaintext generator.
+      pll_frequency: Output frequency of the FPGA PLL.
+                     To capture the long OTBN operations,
+                     we may need to use different frequency than 100MHz
+      capture_cfg: Capture configuration from the yaml file
+    """
+
+    # Currently, we need to reprogram the firmware before every sign operation
+    # TODO: Investigate the C code (ecc384_serial) to check if we can run multiple
+    #       signing operations without reloading the firmware.
+    reset_firmware = True
+
+    project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # Enable the streaming mode
+    if ot.scope._is_husky:
+        ot.scope.adc.stream_mode = True
+        ot.scope.adc.bits_per_sample = 8
+    else:
+        # TODO: Add cw-lite support
+        raise RuntimeError('Only CW-Husky is supported now')
+
+    # Loop to collect traces
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
+                  ncols=80):
+        # Create an arrey to keep the traces
+        waves = np.array([])
+        # Currently, we have to reload the firmware to be able to send a
+        # new signing command
+        # TODO: Investigate how we can solve this
+        if reset_firmware:
+            ot.program_target(fw_bin, pll_frequency)
+
+        # Optional commands to overwrite the default values of the private key d,
+        # and the message msg
+        # The current values are set to the default values in the C code (ecc384_serial.c)
+        if capture_cfg["key_len_bytes"] == 48:
+            priv_key_d = bytearray([
+                0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C, 0x05, 0xB1,
+                0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D, 0xE2, 0x3C, 0x3B, 0x66,
+                0x7B, 0xF2, 0x97, 0xBA, 0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71,
+                0x37, 0xD8, 0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
+                0xF8, 0x72, 0xC9, 0xEA, 0x60, 0xD2, 0xED, 0xF5
+            ])
+        elif capture_cfg["key_len_bytes"] == 32:
+            priv_key_d = bytearray([
+                0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74, 0x02, 0x0c,
+                0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28, 0x0c, 0xf0, 0x18, 0x0d,
+                0xf4, 0x6c, 0x0b, 0xda, 0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0,
+                0x45, 0x55
+            ])
+        else:
+            raise RuntimeError('priv_key_d must be either 32B or 48B')
+        ot.target.simpleserial_write('d', priv_key_d)
+        # Message to sign
+        ot.target.simpleserial_write('n', "Hello OTBN.".encode())
+
+        # Arm the scope
+        ot.scope.arm()
+
+        # Ephemeral secret scalar k
+        if capture_cfg["key_len_bytes"] == 48:
+            secret_k = bytearray([
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+        elif capture_cfg["key_len_bytes"] == 32:
+            secret_k = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
+                0xFF, 0xFF
+            ])
+        else:
+            raise RuntimeError('secret_k must be either 32B or 48B')
+        # Send the ephemeral secret k and trigger the signature geneartion
+        ot.target.simpleserial_write('p', secret_k)
+
+        # Wait until operation is done
+        ret = ot.scope.capture(poll_done=True)
+        # If getting inconsistent results (e.g. variable number of cycles),
+        # adding a sufficient sleep below here appears to fix things
+        time.sleep(1)
+        if ret:
+            raise RuntimeError('Timeout during capture')
+        # Check the number of cycles, where the trigger signal was high
+        cycles = ot.scope.adc.trig_count
+        print("Observed number of cycles: %d" % cycles)
+
+        # Append the section into the waves array
+        waves = np.append(waves, ot.scope.get_last_trace(as_int=True))
+
+        # Read signature_r and signature_s back from the device
+        sig_r = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
+        print(f"sig_r = {''.join('{:02x}'.format(x) for x in sig_r)}")
+        sig_s = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
+        print(f"sig_s = {''.join('{:02x}'.format(x) for x in sig_s)}")
+
+        # Create a chipwhisperer trace object and save it to the project
+        # Args/fields of Trace object: waves, textin, textout, key
+        # TODO: Change the assignments based on the requirements of the SCA
+        trace = Trace(waves, secret_k, sig_s, priv_key_d)
+        check_range(waves, ot.scope.adc.bits_per_sample)
+        project.traces.append(trace, dtype=np.uint16)
+        # Delete the objects before the next iteration
+        del waves
+        del trace
+    project.save()
+
+
+@app_capture.command()
+def ecdsa_stream(ctx: typer.Context,
+                 num_traces: int = opt_num_traces,
+                 plot_traces: int = opt_plot_traces):
+    """Use cw-husky stream mode to capture OTBN-ECDSA-256/384 traces
+    from a target that runs the `ecc384_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+
+    # OTBN's public-key operations might not fit into the sample buffer of the scope
+    # These two parameters allows users to conrol the sampling frequency
+    #
+    # `adc_mul` affects the clock frequency (clock_freq = adc_mul * pll_freq)
+    #
+    # `decimate` is the ADC downsampling factor that allows us to sample at
+    #  every `decimate` cycles.
+    if "adc_mul" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.clock.adc_mul = ctx.obj.cfg["capture"]["adc_mul"]
+    if "decimate" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.adc.decimate = ctx.obj.cfg["capture"]["decimate"]
+    print(
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+    )
+    print(
+        f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'
+    )
+
+    capture_ecdsa_stream(ctx.obj.ot, ctx.obj.cfg["device"]["fw_bin"],
+                         ctx.obj.cfg["device"]["pll_frequency"],
+                         ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

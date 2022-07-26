@@ -1,0 +1,29 @@
+device:
+  fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
+  fw_bin: objs/ecc384_serial_fpga_cw310.bin
+  # Target operating frequency
+  pll_frequency: 22000000
+  baudrate: 115200
+capture:
+  # Only ECDSA-256 (32) and ECDSA-384 (48) are supported at this moment.
+  key_len_bytes: 48
+  plain_text_len_bytes: 48
+  output_len_bytes: 48
+  # Samples per trace
+  num_samples: 262140
+  # Offset in samples
+  offset: 0
+  # scope gain in db - 13 for non-stream mode, 32.5 for stream mode
+  scope_gain: 32.5
+  num_traces: 1
+  project_name: projects/opentitan_ecdsa_384
+  waverunner_ip: 192.168.1.228
+  batch_prng_seed: 0
+  # As OTBN operations are long, we may need to
+  # overwrite the folloing parameters
+  adc_mul: 1
+  decimate: 1
+plot_capture:
+  show: true
+  num_traces: 1
+  trace_image_filename: projects/sample_traces_ecdsa384.html

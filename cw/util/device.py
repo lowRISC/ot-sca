@@ -1,7 +1,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
 r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
 
 import inspect
@@ -19,6 +18,7 @@ class RuntimePatchFPGAProgram:
 
     This class can be used to detect if the FPGA was actually programmed or not.
     """
+
     def __init__(self, fpga, callback):
         """Inits a RuntimePatchFPGAProgram.
 
@@ -31,9 +31,11 @@ class RuntimePatchFPGAProgram:
         self._orig_fn = fpga.FPGAProgram
 
     def __enter__(self):
+
         def wrapped_fn(*args, **kwargs):
             self._callback()
             return self._orig_fn(*args, **kwargs)
+
         self._fpga.FPGAProgram = wrapped_fn
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -41,8 +43,9 @@ class RuntimePatchFPGAProgram:
 
 
 class OpenTitan(object):
-    def __init__(self, bitstream, firmware, pll_frequency, baudrate, scope_gain,
-                 num_samples, offset, output_len):
+
+    def __init__(self, bitstream, firmware, pll_frequency, baudrate,
+                 scope_gain, num_samples, offset, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -54,11 +57,17 @@ class OpenTitan(object):
                 fpga = cw.capture.targets.CW310()
             programmer = SpiProgrammer(fpga)
         else:
-            raise ValueError('Could not infer target board type from bistream name')
+            raise ValueError(
+                'Could not infer target board type from bistream name')
 
+        # Added `pll_frequency` to handle frequencies other than 100MHz.
+        # Needed this for OTBN ECDSA.
+        # TODO: Remove these comments after discussion
         self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
-        self.scope = self.initialize_scope(scope_gain, num_samples, offset)
-        self.target = self.initialize_target(programmer, firmware, baudrate, output_len)
+        self.scope = self.initialize_scope(scope_gain, num_samples, offset,
+                                           pll_frequency)
+        self.target = self.initialize_target(programmer, firmware, baudrate,
+                                             output_len, pll_frequency)
 
     def initialize_fpga(self, fpga, bitstream, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
@@ -97,6 +106,9 @@ class OpenTitan(object):
         fpga.pll.pll_outenable_set(False, 0)
         fpga.pll.pll_outenable_set(True, 1)
         fpga.pll.pll_outenable_set(False, 2)
+        # Added `pll_frequency` to handle frequencies other than 100MHz.
+        # Needed this for OTBN ECDSA.
+        # TODO: Remove these comments after discussion
         fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
         # Disable USB clock to reduce noise in power traces.
@@ -107,18 +119,23 @@ class OpenTitan(object):
 
         return fpga
 
-    def initialize_scope(self, scope_gain, num_samples, offset):
+    def initialize_scope(self, scope_gain, num_samples, offset, pll_frequency):
         """Initializes chipwhisperer scope."""
         scope = cw.scope()
         scope.gain.db = scope_gain
         scope.adc.basic_mode = "rising_edge"
         if hasattr(scope, '_is_husky') and scope._is_husky:
             # We sample using the target clock * 2 (200 MHz).
-            scope.clock.adc_mul = 2
-            scope.clock.clkgen_freq = 100000000
-            scope.adc.samples = num_samples
             scope.clock.clkgen_src = 'extclk'
+            # To fully capture the long OTBN applications,
+            # we may need to use pll_frequencies other than 100 MHz.
+            scope.clock.clkgen_freq = pll_frequency
+            scope.clock.adc_mul = 2
+            scope.clock.extclk_monitor_enabled = False
+            scope.adc.samples = num_samples
+
             husky = True
+            print(f"Husky? = {husky}")
         else:
             # We sample using the target clock (100 MHz).
             scope.clock.adc_mul = 1
@@ -144,12 +161,47 @@ class OpenTitan(object):
         assert (scope.clock.adc_locked), "ADC failed to lock"
         return scope
 
-    def initialize_target(self, programmer, firmware, baudrate, output_len):
+    def initialize_target(self, programmer, firmware, baudrate, output_len,
+                          pll_frequency):
         """Loads firmware image and initializes test target."""
+        # To fully capture the long OTBN applications,
+        # we may need to use pll_frequencies other than 100 MHz.
+        # As the programming works at 100MHz, we set pll_frequency to 100MHz
+        if pll_frequency != 100e6:
+            self.fpga.pll.pll_outfreq_set(100e6, 1)
+
         programmer.bootstrap(firmware)
+
+        # To handle the PLL frequencies other than 100e6,after programming is done,
+        # we switch the pll frequency back to its original value
+        if pll_frequency != 100e6:
+            self.fpga.pll.pll_outfreq_set(pll_frequency, 1)
+
         time.sleep(0.5)
         target = cw.target(self.scope)
         target.output_len = output_len
-        target.baud = baudrate
+        # Added `pll_frequency` to handle frequencies other than 100MHz.
+        # Needed this for OTBN ECDSA.
+        # TODO: Remove these comments after discussion
+        target.baud = int(baudrate * pll_frequency / 100e6)
         target.flush()
+
         return target
+
+    def program_target(self, fw, pll_frequency=100e6):
+        """Loads firmware image """
+        programmer1 = SpiProgrammer(self.fpga)
+        # To fully capture the long OTBN applications,
+        # we may need to use pll_frequencies other than 100 MHz.
+        # As the programming works at 100MHz, we set pll_frequency to 100MHz
+        if self.scope.clock.clkgen_freq != 100e6:
+            self.fpga.pll.pll_outfreq_set(100e6, 1)
+
+        programmer1.bootstrap(fw)
+
+        # To handle the PLL frequencies other than 100e6,after programming is done,
+        # we switch the pll frequency back to its original value
+        if self.scope.clock.clkgen_freq != 100e6:
+            self.fpga.pll.pll_outfreq_set(pll_frequency, 1)
+
+        time.sleep(0.5)

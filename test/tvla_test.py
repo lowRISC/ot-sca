@@ -18,7 +18,7 @@ class TvlaCmd(RepoCmd):
 def test_help():
     tvla = TvlaCmd(Args('--help')).run()
     # Assert that a message is printed on stdout or stderr.
-    assert(len(tvla.stdout()) != 0 or len(tvla.stderr()) != 0)
+    assert (len(tvla.stdout()) != 0 or len(tvla.stderr()) != 0)
 
 
 def ttest_significant(ttest_trace) -> bool:

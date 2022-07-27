@@ -577,6 +577,7 @@ def capture_sha3_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
     ot.target.simpleserial_write("t", key_fixed)
     key = key_fixed
     random.seed(capture_cfg["batch_prng_seed"])
+    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
     ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Create the ChipWhisperer project.
@@ -661,7 +662,7 @@ def sha3_random(ctx: typer.Context,
     capture_end(ctx.obj.cfg)
 
 
-def capture_sha3_fvsr_key(ot):
+def capture_sha3_fvsr_key(ot, capture_cfg):
     """A generator for capturing SHA3 (KMAC) traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -690,6 +691,7 @@ def capture_sha3_fvsr_key(ot):
     text_len = len(text_fixed)
 
     tqdm.write(f'Using fixed key: {binascii.b2a_hex(bytes(key_fixed))}')
+    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
 
     # Start sampling with the fixed key.
     sample_fixed = 1
@@ -729,7 +731,8 @@ def sha3_fvsr_key(ctx: typer.Context,
                   plot_traces: int = opt_plot_traces):
     """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot, ctx.obj.cfg["capture"]),
+                 ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

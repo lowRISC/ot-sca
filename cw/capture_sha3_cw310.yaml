@@ -21,6 +21,14 @@ capture:
   #offset: 860
   # w/ DOM
   offset: 2300
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # For unprotected implemetation, lfsr_seed should be set to 0. This will
+  # effectively switch off the masking. For masked implementation, any seed
+  # other than 0 should be used.
+  # w/o DOM
+  #lfsr_seed: 0
+  # w/ DOM
+  lfsr_seed: 0xdeadbeef
   scope_gain: 27
   num_traces: 5000
   project_name: projects/opentitan_simple_sha3

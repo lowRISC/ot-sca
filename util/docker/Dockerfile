@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-# Docker file for OpenTitan side channel analysis and fault injection.
+# Docker file for OpenTitan side channel analysis and fault injection setup.
 
 FROM ubuntu:18.04
 
@@ -18,6 +18,7 @@ ARG TIME_ZONE=America/New_York
 # support python 3.9 yet.
 ARG PYTHON=python3.8
 ARG VENV_PATH=/opt/venv
+ARG GCC_VERSION=9
 
 # Use bash as the default shell.
 SHELL ["/bin/bash", "-c"]
@@ -45,10 +46,19 @@ ENV LC_ALL=en_US.UTF-8
 RUN ln -fs /usr/share/zoneinfo/"${TIME_ZONE}" /etc/localtime
 RUN dpkg-reconfigure -f noninteractive tzdata
 
+# Install the CI version of gcc and g++
+RUN apt-get install --no-install-recommends -y software-properties-common
+RUN add-apt-repository ppa:ubuntu-toolchain-r/test \
+    && apt-get update \
+    && apt-get install -y gcc-${GCC_VERSION} g++-${GCC_VERSION} \
+    && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-${GCC_VERSION} 90 \
+    && update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-${GCC_VERSION} 90
+
 # Chipwhisperer dependencies.
-# https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html
+# https://chipwhisperer.readthedocs.io/en/latest/linux-install.html#required-packages
 RUN DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
     libusb-dev \
+    libusb-1.0-0-dev \
     make
 
 # Python virtual environment and dependencies.
@@ -62,6 +72,7 @@ RUN "${PYTHON}" -m venv "${VENV_PATH}"
 ENV PATH="${VENV_PATH}"/bin:"${PATH}"
 ENV VIRTUAL_ENV="${VENV_PATH}"
 COPY python-requirements.txt /tmp/python-requirements.txt
+COPY python-requirements-lint.txt /tmp/python-requirements-lint.txt
 RUN pip install --upgrade pip && \
     pip install -r /tmp/python-requirements.txt && \
     chmod -R o=u "${VENV_PATH}";

@@ -54,8 +54,6 @@ The following, alternative hardware equipment is partially supported:
 Software required by this repository can either be directly installed on a
 machine or obtained using the provided [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile).
 
-**Note**: The Dockerfile may need updating. For details, see https://github.com/lowRISC/ot-sca/issues/58.
-
 
 #### Installing on a Machine
 
@@ -153,7 +151,7 @@ dependencies installed. To build the image:
 1. If not already installed, install the Docker Engine following the instructions
 [here](https://docs.docker.com/engine/install/), and
 2. Build the container image using
-[build\_image.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/run_container.sh)
+[build\_image.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/build_image.sh):
 (you may have to use `sudo` to be able to run docker commands depending on your setup):
 ```console
 $ util/docker/build_image.sh

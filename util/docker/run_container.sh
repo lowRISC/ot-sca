@@ -10,7 +10,7 @@ CONTAINER_NAME=${IMAGE_NAME}
 function usage() {
   cat <<USAGE
 
-Run OpenTitan SCA/FI image.
+Run OpenTitan SCA/FI container.
 
 Usage: $0 -d DEVICE [-d DEVICE] -m SHM_SIZE -w HOST_WORK_DIR [-n CONTAINER_NAME] [-h]
  

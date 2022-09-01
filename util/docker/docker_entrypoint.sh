@@ -36,8 +36,13 @@ useradd -u "${HOST_UID}" -g "${HOST_GID}" -m -s "${SHELL}" "${USER_NAME}"
 # Install git lfs
 runuser "${USER_NAME}" -c 'git lfs install' > /dev/null
 
+# Workaround for setpriv: libcap-ng is too old for "-all" caps argument.
+# Instead, create a list of all capabilities supported by the kernel.
+CAP_PREFIX="-cap_"
+CAPS="${CAP_PREFIX}$(seq -s ",${CAP_PREFIX}" 0 $(cat /proc/sys/kernel/cap_last_cap))"
+
 # Cleanup, drop privileges, and replace the current process with a new shell.
 rm /docker_entrypoint.sh /docker_entrypoint_wrapper.sh
 HOME_DIR="$(getent passwd "${USER_NAME}" | cut -d : -f 6)"
 readonly HOME_DIR
-HOME="${HOME_DIR}" exec setpriv --reuid="${HOST_UID}" --regid="${HOST_GID}" --inh-caps -all --init-group "${SHELL}"
+HOME="${HOME_DIR}" exec setpriv --reuid="${HOST_UID}" --regid="${HOST_GID}" --inh-caps=${CAPS} --init-group "${SHELL}"

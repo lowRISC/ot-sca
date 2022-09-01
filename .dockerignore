@@ -1,3 +1,4 @@
 *
 !python-requirements.txt
+!python-requirements-lint.txt
 !util/docker

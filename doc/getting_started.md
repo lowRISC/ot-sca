@@ -142,17 +142,20 @@ Alternatively, you can rebuild those binaries yourself from the
 
 #### Using the Docker Image
 
-**Note**: This is a WIP and currently supports only Linux hosts.
+**Notes**:
+- While the provided container image can be run using the Docker Engine, this
+  getting started guide relies on Podman instead to avoid requiring root
+  permissions on the host.
+- This is a WIP and currently supports Linux hosts only.
 
 The
 [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile)
 in this repository can be used to build a ready-to-use image with all the
 dependencies installed. To build the image:
-1. If not already installed, install the Docker Engine following the instructions
-[here](https://docs.docker.com/engine/install/), and
+1. If not already installed, install Podman following the instructions
+[here](https://podman.io/getting-started/installation), and
 2. Build the container image using
 [build\_image.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/build_image.sh):
-(you may have to use `sudo` to be able to run docker commands depending on your setup):
 ```console
 $ util/docker/build_image.sh
 ```

@@ -57,7 +57,7 @@ if [[ -z "${HOST_WORK_DIR}" ]] || [[ -z "${SHM_SIZE}" ]] || [[ ${#DEVICES[@]} -e
   error "Missing options: '-m SHM_SIZE', '-w HOST_WORK_DIR', and '-d DEVICE' are required."
 fi
 
-docker run --rm -it \
+podman run --rm -it \
     --shm-size "${SHM_SIZE}" \
     -v "${HOST_WORK_DIR}":"${CONTAINER_WORK_DIR}" \
     -w "${CONTAINER_WORK_DIR}" \

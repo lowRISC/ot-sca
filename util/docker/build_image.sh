@@ -6,4 +6,4 @@
 readonly IMAGE_NAME='ot-sca'
 readonly DOCKERFILE='util/docker/Dockerfile'
 
-docker build -t ${IMAGE_NAME} -f ${DOCKERFILE} .
+podman build -t ${IMAGE_NAME} -f ${DOCKERFILE} . --format docker

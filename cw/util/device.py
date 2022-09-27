@@ -158,7 +158,16 @@ class OpenTitan(object):
         if not husky:
             scope.clock.reset_adc()
             time.sleep(0.5)
-        assert (scope.clock.adc_locked), "ADC failed to lock"
+
+        # Wait for ADC to lock.
+        ping_cnt = 0
+        while not scope.clock.adc_locked:
+            if ping_cnt == 3:
+                raise RuntimeError(
+                    f'ADC failed to lock (attempts: {ping_cnt}).')
+            ping_cnt += 1
+            time.sleep(0.5)
+
         return scope
 
     def initialize_target(self, programmer, firmware, baudrate, output_len,

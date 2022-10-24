@@ -336,15 +336,15 @@ def run_tvla(ctx: typer.Context):
                     level=log.INFO,
                     force=True,)
 
-    if cfg["mode"] != "kmac" and cfg["mode"] != "aes":
+    if cfg["mode"] != "kmac" and cfg["mode"] != "aes" and cfg["mode"] != "sha3":
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    if cfg["mode"] == "kmac" or cfg["general_test"] is True:
+    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or cfg["general_test"] is True:
         general_test = True
     else:
         general_test = False
 
-    if cfg["mode"] == "kmac" or general_test is True:
+    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or general_test is True:
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.
         rnd_list = [0]
     elif cfg["round_select"] is None:
@@ -355,7 +355,7 @@ def run_tvla(ctx: typer.Context):
 
     num_rnds = len(rnd_list)
 
-    if cfg["mode"] == "kmac" or general_test is True:
+    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or general_test is True:
         # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
     elif cfg["byte_select"] is None:
@@ -432,8 +432,13 @@ def run_tvla(ctx: typer.Context):
             adc_bits = 12
             trace_resolution = 2**adc_bits
 
+        # Treat plaintext as key for sha3 as there is no key.
+        # Actually we are doning fixed vs random DATA and
+        # the first trace is using the fixed data
+        if cfg["mode"] == "sha3":
+            fixed_key = np.copy(project.textins[0])
         # When doing general fixed-vs-random TVLA, the first trace is using the fixed key.
-        if general_test is True:
+        elif general_test is True:
             fixed_key = np.copy(project.keys[0])
 
         # Amount of tolerable deviation from average during filtering.
@@ -585,7 +590,11 @@ def run_tvla(ctx: typer.Context):
                         # Convert all keys from the project file to numpy arrays once.
                         keys_nparrays = []
                         for i in range(num_traces_tot):
-                            keys_nparrays.append(np.frombuffer(project.keys[i], dtype=np.uint8))
+                            if cfg["mode"] == "sha3":
+                                keys_nparrays.append(np.frombuffer(project.textins[i],
+                                                                   dtype=np.uint8))
+                            else:
+                                keys_nparrays.append(np.frombuffer(project.keys[i], dtype=np.uint8))
 
                         # In addition, for some existing trace sets the fixed key is used for the
                         # second instead of the first trace. For compatibility, compare a couple of
@@ -983,7 +992,7 @@ help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Defa
 help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
     model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
     Default: """ + str(default_general_test))
-help_mode = inspect.cleandoc("""Select mode: can be either "aes" or "kmac". Default:
+help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", or "sha3". Default:
     """ + str(default_mode))
 help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
     isn't any configuration file. Default: """ + str(default_update_cfg_file))

@@ -16,6 +16,7 @@ import typer
 import yaml
 from chipwhisperer.common.traces import Trace
 from Crypto.Cipher import AES
+from Crypto.Hash import SHA3_256
 from cw_segmented import CwSegmented
 from pyXKCP import pyxkcp
 from tqdm import tqdm
@@ -530,6 +531,207 @@ def aes_mix_column(ctx: typer.Context,
 
     capture_end(ctx.obj.cfg)
 
+def capture_sha3_random(ot, ktp):
+    """A generator for capturing sha3 traces.
+    Fixed key, Random texts.
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+    """
+    tqdm.write(f'No key used, as we are doing sha3 hashing')
+    while True:
+        _, text = ktp.next()
+        ret = cw.capture_trace(ot.scope, ot.target, text, key=None, ack=False, as_int=True)
+        if not ret:
+            raise RuntimeError('Capture failed.')
+        sha3 = SHA3_256.new(text)
+        expected = binascii.b2a_hex(sha3.digest())
+        got = binascii.b2a_hex(ret.textout)
+        if got != expected:
+            raise RuntimeError(f'Bad digest: {got} != {expected}.')
+        yield ret
+
+
+def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
+    """A generator for fast capturing sha3 traces.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected message.
+    In order to simplify the analysis, the first sample has to use fixed message.
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+      capture_cfg: Capture configuration.
+      scope_type: cw or waverunner as a scope for batch capture.
+    """
+
+    plaintext_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                                 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    ot.target.simpleserial_write("t", plaintext_fixed)
+
+    plaintext = plaintext_fixed
+    random.seed(capture_cfg["batch_prng_seed"])
+    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+
+    # Create the ChipWhisperer project.
+    project_file = capture_cfg["project_name"]
+    project = cw.create_project(project_file, overwrite=True)
+    # Capture traces.
+    rem_num_traces = capture_cfg["num_traces"]
+    num_segments_storage = 1
+    sample_fixed = False
+    # cw and waverunner scopes are supported fot batch capture.
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+        while rem_num_traces > 0:
+            # Determine the number of traces for this batch and arm the oscilloscope.
+            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+
+            scope.arm()
+            # Start batch encryption.
+            ot.target.simpleserial_write(
+                "b", scope.num_segments_actual.to_bytes(4, "little")
+            )
+            # This wait ist crucial to be in sync with the device
+            ack_ret = ot.target.simpleserial_wait_ack(5000)
+            if ack_ret == None:
+                raise Exception("Batch mode acknowledge error: Device and host not in sync")
+
+            plaintexts = []
+            ciphertexts = []
+
+            batch_digest = None
+            for i in range(scope.num_segments_actual):
+
+                if sample_fixed:
+                    plaintext = plaintext_fixed
+                else:
+                    random_plaintext = ktp.next()[1]
+                    plaintext = random_plaintext
+
+                # needed to be in sync with ot lfsr and for sample_fixed generation
+                dummy_plaintext = ktp.next()[1]
+
+                sha3 = SHA3_256.new(plaintext)
+                ciphertext = sha3.digest()
+
+                batch_digest = (ciphertext if batch_digest is None else
+                                bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest)))
+                plaintexts.append(plaintext)
+                ciphertexts.append(binascii.b2a_hex(ciphertext))
+                sample_fixed = dummy_plaintext[0] & 1
+
+            # Transfer traces
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == scope.num_segments
+
+            # Check the batch digest to make sure we are in sync.
+            check_ciphertext(ot, batch_digest, 32)
+
+            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+
+            # Add traces of this batch to the project.
+            for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
+                project.traces.append(
+                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), None),
+                    dtype=np.uint16
+                )
+            # Update the loop variable and the progress bar.
+            rem_num_traces -= scope.num_segments
+            pbar.update(scope.num_segments)
+    # Before saving the project, re-enable all trace storage segments.
+    for s in range(len(project.segments)):
+        project.traces.tm.setTraceSegmentStatus(s, True)
+    assert len(project.traces) == capture_cfg["num_traces"]
+    # Save the project to disk.
+    project.save()
+
+
+@app_capture.command()
+def sha3_random(ctx: typer.Context,
+                num_traces: int = opt_num_traces,
+                plot_traces: int = opt_plot_traces):
+    """Capture sha3 traces from a target that runs the `sha3_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+def capture_sha3_fvsr_data(ot, capture_cfg):
+    """A generator for capturing sha3 traces.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected message.
+    In order to simplify the analysis, the first sample has to use fixed message.
+
+    Args:
+      ot: Initialized OpenTitan target.
+    """
+
+    # we are using AES in ECB mode for generating random texts
+    key_generation = bytearray([0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF1,
+                                0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xE0, 0xF0])
+    cipher = AES.new(bytes(key_generation), AES.MODE_ECB)
+    text_fixed = bytearray([0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                            0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA])
+    text_random = bytearray([0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+                             0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC])
+
+    sha3 = SHA3_256.new(text_fixed)
+    digest_fixed = binascii.b2a_hex(sha3.digest())
+
+    tqdm.write(f'No key used, as we are doing sha3 hashing')
+    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+
+    # Start sampling with the fixed key.
+    sample_fixed = 1
+    while True:
+        if sample_fixed:
+            ret = cw.capture_trace(ot.scope, ot.target, text_fixed, key=None, ack=False,
+                                   as_int=True)
+            if not ret:
+                raise RuntimeError('Capture failed.')
+            expected = digest_fixed
+            got = binascii.b2a_hex(ret.textout)
+        else:
+            text_random = bytearray(cipher.encrypt(text_random))
+            ret = cw.capture_trace(ot.scope, ot.target, text_random, key=None, ack=False,
+                                   as_int=True)
+            if not ret:
+                raise RuntimeError('Capture failed.')
+            sha3 = SHA3_256.new(text_random)
+            expected = binascii.b2a_hex(sha3.digest())
+            got = binascii.b2a_hex(ret.textout)
+        sample_fixed = random.randint(0, 1)
+        if got != expected:
+            raise RuntimeError(f'Bad digest: {got} != {expected}.')
+        yield ret
+
+
+@app_capture.command()
+def sha3_fvsr_data(ctx: typer.Context,
+                  num_traces: int = opt_num_traces,
+                  plot_traces: int = opt_plot_traces):
+    """Capture sha3 traces from a target that runs the `sha3_serial` program."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_loop(capture_sha3_fvsr_data(ctx.obj.ot, ctx.obj.cfg["capture"]),
+                 ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_end(ctx.obj.cfg)
+
+
+@app_capture.command()
+def sha3_fvsr_data_batch(ctx: typer.Context,
+                        num_traces: int = opt_num_traces,
+                        plot_traces: int = opt_plot_traces,
+                        scope_type: ScopeType = opt_scope_type):
+    """Capture sha3 traces in batch mode. Fixed vs Random."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_sha3_fvsr_data_batch(ctx.obj.ot, ctx.obj.ktp,
+                                ctx.obj.cfg["capture"], scope_type)
+    capture_end(ctx.obj.cfg)
 
 def capture_kmac_random(ot, ktp):
     """A generator for capturing KMAC-128 traces.

@@ -3,6 +3,7 @@ cw/objs/aes_serial_fpga_nexysvideo.bin filter=lfs diff=lfs merge=lfs -text
 cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit filter=lfs diff=lfs merge=lfs -text
 cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit filter=lfs diff=lfs merge=lfs -text
 cw/objs/kmac_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text
+cw/objs/sha3_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text
 cw/objs/aes_serial_fpga_cw310.bin filter=lfs diff=lfs merge=lfs -text
 doc/img/cw310_cwhusky.jpg filter=lfs diff=lfs merge=lfs -text
 doc/img/sample_traces_aes.png filter=lfs diff=lfs merge=lfs -text

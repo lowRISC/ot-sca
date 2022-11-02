@@ -8,7 +8,7 @@ capture:
   key_len_bytes: 16
   plain_text_len_bytes: 16
   output_len_bytes: 32
-  masks_off: false
+  masks_off: true 
   # Samples per trace - We oversample by 20x and KMAC is doing 24 or 96 cycles
   # for the key absorb w/o or w/ DOM, respectively, as well as 23 cycles for
   # XORing the key into the state.
@@ -33,10 +33,10 @@ capture:
   lfsr_seed: 0xdeadbeef
   scope_gain: 27
   num_traces: 5000
-  project_name: projects/opentitan_simple_sha3
+  project_name: projects/opentitan_simple_sha3_masks_off
   waverunner_ip: 192.168.1.228
   batch_prng_seed: 0
 plot_capture:
   show: true
   num_traces: 100
-  trace_image_filename: projects/sample_traces_sha3.html
+  trace_image_filename: projects/sample_traces_sha3_masks_off.html

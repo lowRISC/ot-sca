@@ -531,7 +531,8 @@ def aes_mix_column(ctx: typer.Context,
 
     capture_end(ctx.obj.cfg)
 
-def capture_sha3_random(ot, ktp):
+
+def capture_sha3_random(ot, ktp, capture_cfg):
     """A generator for capturing sha3 traces.
     Fixed key, Random texts.
 
@@ -539,7 +540,20 @@ def capture_sha3_random(ot, ktp):
       ot: Initialized OpenTitan target.
       ktp: Key and plaintext generator.
     """
-    tqdm.write(f'No key used, as we are doing sha3 hashing')
+
+    # if masks_off is true:
+    # configure target to disable masking and reuse constant fast entropy
+    if capture_cfg["masks_off"] is True:
+        print("Warning: Configure device to use constant, fast entropy!")
+        ot.target.simpleserial_write("m", bytearray([0x01]))
+    else:
+        ot.target.simpleserial_write("m", bytearray([0x00]))
+
+    ack_ret = ot.target.simpleserial_wait_ack(5000)
+    if ack_ret is None:
+        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+
+    tqdm.write("No key used, as we are doing sha3 hashing")
     while True:
         _, text = ktp.next()
         ret = cw.capture_trace(ot.scope, ot.target, text, key=None, ack=False, as_int=True)
@@ -566,6 +580,18 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
       capture_cfg: Capture configuration.
       scope_type: cw or waverunner as a scope for batch capture.
     """
+
+    # if masks_off is true:
+    # configure target to disable masking and reuse constant fast entropy
+    if capture_cfg["masks_off"] is True:
+        print("Warning: Configure device to use constant, fast entropy!")
+        ot.target.simpleserial_write("m", bytearray([0x01]))
+    else:
+        ot.target.simpleserial_write("m", bytearray([0x00]))
+
+    ack_ret = ot.target.simpleserial_wait_ack(5000)
+    if ack_ret is None:
+        raise Exception("Batch mode acknowledge error: Device and host not in sync")
 
     plaintext_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
                                  0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
@@ -597,7 +623,7 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
             )
             # This wait ist crucial to be in sync with the device
             ack_ret = ot.target.simpleserial_wait_ack(5000)
-            if ack_ret == None:
+            if ack_ret is None:
                 raise Exception("Batch mode acknowledge error: Device and host not in sync")
 
             plaintexts = []
@@ -656,7 +682,8 @@ def sha3_random(ctx: typer.Context,
                 plot_traces: int = opt_plot_traces):
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"]),
+                 ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
@@ -683,7 +710,19 @@ def capture_sha3_fvsr_data(ot, capture_cfg):
     sha3 = SHA3_256.new(text_fixed)
     digest_fixed = binascii.b2a_hex(sha3.digest())
 
-    tqdm.write(f'No key used, as we are doing sha3 hashing')
+    # if masks_off is true:
+    # configure target to disable masking and reuse constant fast entropy
+    if capture_cfg["masks_off"] is True:
+        print("Warning: Configure device to use constant, fast entropy!")
+        ot.target.simpleserial_write("m", bytearray([0x01]))
+    else:
+        ot.target.simpleserial_write("m", bytearray([0x00]))
+
+    ack_ret = ot.target.simpleserial_wait_ack(5000)
+    if ack_ret is None:
+        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+
+    tqdm.write("No key used, as we are doing sha3 hashing")
     ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
 
     # Start sampling with the fixed key.
@@ -713,8 +752,8 @@ def capture_sha3_fvsr_data(ot, capture_cfg):
 
 @app_capture.command()
 def sha3_fvsr_data(ctx: typer.Context,
-                  num_traces: int = opt_num_traces,
-                  plot_traces: int = opt_plot_traces):
+                   num_traces: int = opt_num_traces,
+                   plot_traces: int = opt_plot_traces):
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_fvsr_data(ctx.obj.ot, ctx.obj.cfg["capture"]),
@@ -724,14 +763,15 @@ def sha3_fvsr_data(ctx: typer.Context,
 
 @app_capture.command()
 def sha3_fvsr_data_batch(ctx: typer.Context,
-                        num_traces: int = opt_num_traces,
-                        plot_traces: int = opt_plot_traces,
-                        scope_type: ScopeType = opt_scope_type):
+                         num_traces: int = opt_num_traces,
+                         plot_traces: int = opt_plot_traces,
+                         scope_type: ScopeType = opt_scope_type):
     """Capture sha3 traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
     capture_sha3_fvsr_data_batch(ctx.obj.ot, ctx.obj.ktp,
-                                ctx.obj.cfg["capture"], scope_type)
+                                 ctx.obj.cfg["capture"], scope_type)
     capture_end(ctx.obj.cfg)
+
 
 def capture_kmac_random(ot, ktp):
     """A generator for capturing KMAC-128 traces.

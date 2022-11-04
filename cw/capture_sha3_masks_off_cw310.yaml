@@ -1,7 +1,6 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
-  #fw_bin: objs/sha3_serial_fpga_cw310.bin
-  fw_bin: ../../opentitan/bazel-bin/sw/device/sca/sha3_serial_fpga_cw310.test_key_0.signed.bin
+  fw_bin: objs/sha3_serial_fpga_cw310.bin
   pll_frequency: 100000000
   baudrate: 115200
 capture:
@@ -9,20 +8,10 @@ capture:
   plain_text_len_bytes: 16
   output_len_bytes: 32
   masks_off: true 
-  # Samples per trace - We oversample by 20x and KMAC is doing 24 or 96 cycles
-  # for the key absorb w/o or w/ DOM, respectively, as well as 23 cycles for
-  # XORing the key into the state.
-  # w/o DOM
-  #num_samples: 1600
-  # w/ DOM
-  num_samples: 3200
-  # Offest in samples - During the first activity block, KMAC just absorbs the
-  # fixed prefix (23 cycles XORing + 24 or 96 cycles absorbing w/o or w/ DOM,
-  # respectively). This first activity block can be skipped.
-  # w/o DOM
-  #offset: 860
-  # w/ DOM
-  offset: 2300
+  # Samples per trace - We oversample by 20x 
+  num_samples: 5200
+  # Offest in samples
+  offset: 0
   # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
   # For unprotected implemetation, lfsr_seed should be set to 0. This will
   # effectively switch off the masking. For masked implementation, any seed

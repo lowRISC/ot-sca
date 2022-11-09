@@ -336,15 +336,15 @@ def run_tvla(ctx: typer.Context):
                     level=log.INFO,
                     force=True,)
 
-    if cfg["mode"] != "sha3" and cfg["mode"] != "aes":
+    if cfg["mode"] != "kmac" and cfg["mode"] != "aes":
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    if cfg["mode"] == "sha3" or cfg["general_test"] is True:
+    if cfg["mode"] == "kmac" or cfg["general_test"] is True:
         general_test = True
     else:
         general_test = False
 
-    if cfg["mode"] == "sha3" or general_test is True:
+    if cfg["mode"] == "kmac" or general_test is True:
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.
         rnd_list = [0]
     elif cfg["round_select"] is None:
@@ -355,7 +355,7 @@ def run_tvla(ctx: typer.Context):
 
     num_rnds = len(rnd_list)
 
-    if cfg["mode"] == "sha3" or general_test is True:
+    if cfg["mode"] == "kmac" or general_test is True:
         # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
     elif cfg["byte_select"] is None:
@@ -983,7 +983,7 @@ help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Defa
 help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
     model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
     Default: """ + str(default_general_test))
-help_mode = inspect.cleandoc("""Select mode: can be either "aes" or "sha3". Default:
+help_mode = inspect.cleandoc("""Select mode: can be either "aes" or "kmac". Default:
     """ + str(default_mode))
 help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
     isn't any configuration file. Default: """ + str(default_update_cfg_file))

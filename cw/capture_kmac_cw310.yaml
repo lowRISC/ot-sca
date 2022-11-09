@@ -1,6 +1,6 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
-  fw_bin: objs/sha3_serial_fpga_cw310.bin
+  fw_bin: objs/kmac_serial_fpga_cw310.bin
   pll_frequency: 100000000
   baudrate: 115200
 capture:
@@ -31,10 +31,10 @@ capture:
   lfsr_seed: 0xdeadbeef
   scope_gain: 27
   num_traces: 5000
-  project_name: projects/opentitan_simple_sha3
+  project_name: projects/opentitan_simple_kmac
   waverunner_ip: 192.168.1.228
   batch_prng_seed: 0
 plot_capture:
   show: true
   num_traces: 100
-  trace_image_filename: projects/sample_traces_sha3.html
+  trace_image_filename: projects/sample_traces_kmac.html

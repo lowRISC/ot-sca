@@ -429,9 +429,9 @@ in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instr
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```
 cw/capture_aes_cw310.yaml
-cw/capture_sha3_cw310.yaml
+cw/capture_kmac_cw310.yaml
 ```
-for AES and SHA3 (KMAC), respectively.
+for AES and KMAC-128, respectively.
 
 For example, these files allow to specify the FPGA bitstream to be loaded, the
 OpenTitan application binary to execute, the default number of traces to
@@ -452,7 +452,7 @@ the specified file paths.
 
 ## Capturing Power Traces
 
-`capture.py`: Supports capturing AES and SHA3 (KMAC) power traces using either 
+`capture.py`: Supports capturing AES and KMAC-128 power traces using either 
 a CW-Husky or CW-Lite capture board. When using a CW-Husky board, the script 
 also supports capturing AES power traces in batches to achieve substantially 
 higher capture rates (ca. 1300 traces/s).
@@ -559,27 +559,27 @@ in the `.yaml` configuration file. Note that boards have some natural
 variation, and changes such as the clock frequency, core voltage, and device
 utilization (FPGA build) will all affect the safe maximum gain setting.
 
-### SHA3 (KMAC) Capture
+### KMAC-128 Capture
 
-To perform a SHA3 (KMAC) capture, use this command:
+To perform a KMAC-128 capture, use this command:
 ```console
 $ cd cw
-$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-random --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_kmac_cw310.yaml capture kmac-random --num-traces 100 --plot-traces 10
 ```
 
-The above command will send SHA3 (KMAC) requests with a fixed key and random 
+The above command will send KMAC-128 requests with a fixed key and random 
 texts. In order to capture traces for DTR TVLA Section 5.3: "General Test: 
 Fixed-vs.-Random Key Datasets", following command may be used:
 ```console
 $ cd cw
-$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-key --num-traces 100 --plot-traces 10
+$ ./capture.py --cfg-file capture_kmac_cw310.yaml capture kmac-fvsr-key --num-traces 100 --plot-traces 10
 ```
 
 You should see similar output as in the AES example. Once the power traces have
 been collected, a picture similar to the following should be shown in your
 browser.
 
-![](img/sample_traces_sha3.png)
+![](img/sample_traces_kmac.png)
 
 ## Performing Example SCA Attack on AES with Masking Disabled
 

@@ -29,16 +29,16 @@ def ttest_significant(ttest_trace) -> bool:
 
 
 def test_general_leaking_histogram():
-    hist_path = TestDataPath('tvla_general/sha3_hist_leaking.npz')
+    hist_path = TestDataPath('tvla_general/kmac_hist_leaking.npz')
     tvla = TvlaCmd(Args(['--input-file', str(hist_path),
-                        '--mode', 'sha3', 'run-tvla'])).run()
+                        '--mode', 'kmac', 'run-tvla'])).run()
     assert ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did not find significant leakage, which is unexpected")
 
 
 def test_general_nonleaking_histogram():
-    hist_path = TestDataPath('tvla_general/sha3_hist_nonleaking.npz')
+    hist_path = TestDataPath('tvla_general/kmac_hist_nonleaking.npz')
     tvla = TvlaCmd(Args(['--input-file', str(hist_path),
-                        '--mode', 'sha3', 'run-tvla'])).run()
+                        '--mode', 'kmac', 'run-tvla'])).run()
     assert not ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did find significant leakage, which is unexpected")

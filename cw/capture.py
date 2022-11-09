@@ -33,7 +33,7 @@ app = typer.Typer(add_completion=False)
 # To be able to define subcommands for the "capture" command.
 app_capture = typer.Typer()
 app.add_typer(app_capture, name="capture", help="Capture traces for SCA")
-# Shared options for "capture aes" and "capture sha3".
+# Shared options for "capture aes" and "capture kmac".
 opt_num_traces = typer.Option(None, help="Number of traces to capture.")
 opt_plot_traces = typer.Option(None, help="Number of traces to plot.")
 opt_scope_type = typer.Option(ScopeType.cw, help=("Scope type"))
@@ -531,8 +531,8 @@ def aes_mix_column(ctx: typer.Context,
     capture_end(ctx.obj.cfg)
 
 
-def capture_sha3_random(ot, ktp):
-    """A generator for capturing SHA3 (KMAC) traces.
+def capture_kmac_random(ot, ktp):
+    """A generator for capturing KMAC-128 traces.
     Fixed key, Random texts.
 
     Args:
@@ -557,8 +557,8 @@ def capture_sha3_random(ot, ktp):
         yield ret
 
 
-def capture_sha3_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
-    """A generator for fast capturing SHA3 (KMAC) traces.
+def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
+    """A generator for fast capturing KMAC-128 traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
     The measurements are taken by using either fixed or randomly selected key.
@@ -654,17 +654,17 @@ def capture_sha3_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
 
 
 @app_capture.command()
-def sha3_random(ctx: typer.Context,
+def kmac_random(ctx: typer.Context,
                 num_traces: int = opt_num_traces,
                 plot_traces: int = opt_plot_traces):
-    """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
+    """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_kmac_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
-def capture_sha3_fvsr_key(ot, capture_cfg):
-    """A generator for capturing SHA3 (KMAC) traces.
+def capture_kmac_fvsr_key(ot, capture_cfg):
+    """A generator for capturing KMAC-128 traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
     The measurements are taken by using either fixed or randomly selected key.
@@ -727,24 +727,24 @@ def capture_sha3_fvsr_key(ot, capture_cfg):
 
 
 @app_capture.command()
-def sha3_fvsr_key(ctx: typer.Context,
+def kmac_fvsr_key(ctx: typer.Context,
                   num_traces: int = opt_num_traces,
                   plot_traces: int = opt_plot_traces):
-    """Capture SHA3 (KMAC) traces from a target that runs the `sha3_serial` program."""
+    """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_sha3_fvsr_key(ctx.obj.ot, ctx.obj.cfg["capture"]),
+    capture_loop(capture_kmac_fvsr_key(ctx.obj.ot, ctx.obj.cfg["capture"]),
                  ctx.obj.ot, ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 
 @app_capture.command()
-def sha3_fvsr_key_batch(ctx: typer.Context,
+def kmac_fvsr_key_batch(ctx: typer.Context,
                         num_traces: int = opt_num_traces,
                         plot_traces: int = opt_plot_traces,
                         scope_type: ScopeType = opt_scope_type):
-    """Capture SHA3 (KMAC) traces in batch mode. Fixed vs Random."""
+    """Capture KMAC-128 traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_sha3_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
+    capture_kmac_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
                                 ctx.obj.cfg["capture"], scope_type)
     capture_end(ctx.obj.cfg)
 

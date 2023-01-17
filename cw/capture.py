@@ -991,29 +991,92 @@ def kmac_fvsr_key_batch(ctx: typer.Context,
     capture_end(ctx.obj.cfg)
 
 
+def capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections, secret_k, priv_key_d, msg):
+    """ A utility function to collect the full OTBN trace section by section
+
+    ECDSA is a long operation (e.g, ECDSA-256 takes ~7M samples) that doesn't fit
+    into the 130k-sample trace buffer of CW-Husky. This function allows us
+    to collect the full ECDSA trace section by section.
+
+    Args:
+          ot: Initialized OpenTitan target.
+          fw_bin: ECDSA binary.
+          pll_frequency: Output frequency of the FPGA PLL.
+                         To capture the long OTBN operations,
+                         we need to use different frequency than 100MHz
+          num_sections: number of traces sections to collect
+                        ECDSA is executed num_sections times
+                        At each execution a different offset value is used
+          secret_k: ephemeral secret k
+          priv_key_d: private key d
+          msg: message to be signed
+
+    """
+
+    # This determines if we want to reprogram the firmware
+    # before every sign operation.The default value is false.
+    reset_firmware = False
+
+    # Create a temporary buffer to keep the collected sections
+    tmp_buffer = np.array([])
+    for ii in range(num_sections):
+        # Reflash the firmware and set the CW310 pll frequency
+        # if reset_firmware is true (default value: false, see above)
+        if reset_firmware:
+            ot.program_target(fw_bin, pll_frequency)
+
+        # For each section ii, set the adc_offset parameter accordingly
+        ot.scope.adc.offset = ii * 131070
+
+        # Optional commands to overwrite the default values declared in the C code.
+        ot.target.simpleserial_write('d', priv_key_d)
+        # Message to sign
+        ot.target.simpleserial_write('n', msg)
+        # Send the ephemeral secret k and trigger the signature geneartion
+        ot.target.simpleserial_write('k', secret_k)
+
+        # Arm the scope
+        ot.scope.arm()
+
+        # Start the ECDSA operation
+        ot.target.simpleserial_write('p', bytearray([0x01]))
+
+        # Wait until operation is done
+        ret = ot.scope.capture(poll_done=True)
+        # If getting inconsistent results (e.g. variable number of cycles),
+        # adding a sufficient sleep below here appears to fix things
+        time.sleep(1)
+        if ret:
+            raise RuntimeError('Timeout during capture')
+        # Check the number of cycles, where the trigger signal was high
+        cycles = ot.scope.adc.trig_count
+        print("Observed number of cycles: %d" % cycles)
+
+        # Append the section into the waves array
+        tmp_buffer = np.append(tmp_buffer, ot.scope.get_last_trace(as_int=True))
+    return tmp_buffer
+
+
 def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
     """An example capture loop to capture OTBN-ECDSA-256/384 traces.
 
-    Does not use the streaming feature of CW-Husky. CW-Husky's stream mode
-    limits the sampling frequency to 25 MHz and bits_per_sample to 8 bits.
+    Does not use the streaming feature of CW-Husky. he streaming mode puts
+    limits on the sampling frequency and bits_per_sample. see this link
+    for more details:
+    https://rtfm.newae.com/Capture/ChipWhisperer-Husky/#streaming-mode
 
     Allows a user to set the ephemeral secret scalar k, private key d,
     and message msg. For the corresponding driver, check
-    <opentitan_repo_root>/sw/device/ecc384_serial.c
+    <opentitan_repo_root>/sw/device/ecc_serial.c
 
     Args:
       ot: Initialized OpenTitan target.
-      fw_bin: Key and plaintext generator.
+      fw_bin: ECDSA binary.
       pll_frequency: Output frequency of the FPGA PLL.
                      To capture the long OTBN operations,
                      we may need to use different frequency than 100MHz
       capture_cfg: Capture configuration from the yaml file
     """
-
-    # Currently, we need to reprogram the firmware before every sign operation
-    # TODO: Investigate the C code (ecc384_serial) to check if we can run multiple
-    #       signing operations without reloading the firmware.
-    reset_firmware = True
 
     # Be sure we don't use the stream mode
     if ot.scope._is_husky:
@@ -1039,80 +1102,91 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
     # Loop to collect each power trace
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
                   ncols=80):
-        # create a clean array to keep each section
+
+        # This part can be modified to create a new command.
+        # For example, a random secret scalar can be set using the following
+        #   from numpy.random import default_rng
+        #   rng = default_rng()
+        #   secret_k0 = bytearray(rng.bytes(32))
+        #   secret_k1 = bytearray(rng.bytes(32))
+        msg = "Hello OTBN.".encode()
+        # ECDSA-384
+        if capture_cfg["key_len_bytes"] == 48:
+            # Set two shares of the private key d
+            priv_key_d0 = bytearray([
+                0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C,
+                0x05, 0xB1, 0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D,
+                0xE2, 0x3C, 0x3B, 0x66, 0x7B, 0xF2, 0x97, 0xBA,
+                0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71, 0x37, 0xD8,
+                0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
+                0xF8, 0x72, 0xC9, 0xEA, 0x60, 0xD2, 0xED, 0xF5
+            ])
+            priv_key_d1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            # Set two shares of the scalar secret_k
+            secret_k0 = bytearray([
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            secret_k1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+        # ECDSA-256
+        elif capture_cfg["key_len_bytes"] == 32:
+            # Set two shares of the private key d
+            priv_key_d0 = bytearray([
+                0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74,
+                0x02, 0x0c, 0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28,
+                0x0c, 0xf0, 0x18, 0x0d, 0xf4, 0x6c, 0x0b, 0xda,
+                0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0, 0x45, 0x55
+            ])
+            priv_key_d1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            # Set two shares of the scalar secret_k
+            secret_k0 = bytearray([
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            secret_k1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+        else:
+            raise RuntimeError('priv_key_d must be either 32B or 48B')
+
+        # Combine the two shares of d and k
+        priv_key_d = priv_key_d0 + priv_key_d1
+        secret_k = secret_k0 + secret_k1
+
+        # Create a clean array to keep the collected traces
         waves = np.array([])
-        # Loop to collect each section of the power trace
-        for ii in range(num_sections):
-            # Currently, we have to reload the firmware to be able to send a
-            # new signing command
-            # TODO: Investigate how we can solve this
-            if reset_firmware:
-                ot.program_target(fw_bin, pll_frequency)
-
-            # For each section ii, set the adc_offset parameter accordingly
-            ot.scope.adc.offset = ii * 131070
-
-            # Optional commands to overwrite the default values of the private key d,
-            # and the message msg.
-            # The current values are set to the default values in the C code (ecc384_serial.c)
-            if capture_cfg["key_len_bytes"] == 48:
-                priv_key_d = bytearray([
-                    0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C, 0x05, 0xB1,
-                    0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D, 0xE2, 0x3C, 0x3B, 0x66,
-                    0x7B, 0xF2, 0x97, 0xBA, 0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71,
-                    0x37, 0xD8, 0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
-                    0xF8, 0x72, 0xC9, 0xEA, 0x60, 0xD2, 0xED, 0xF5
-                ])
-            elif capture_cfg["key_len_bytes"] == 32:
-                priv_key_d = bytearray([
-                    0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74, 0x02, 0x0c,
-                    0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28, 0x0c, 0xf0, 0x18, 0x0d,
-                    0xf4, 0x6c, 0x0b, 0xda, 0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0,
-                    0x45, 0x55
-                ])
-            else:
-                raise RuntimeError('priv_key_d must be either 32B or 48B')
-            ot.target.simpleserial_write('d', priv_key_d)
-            # Message to sign
-            ot.target.simpleserial_write('n', "Hello OTBN.".encode())
-
-            # Arm the scope
-            ot.scope.arm()
-
-            # Ephemeral secret scalar k
-            if capture_cfg["key_len_bytes"] == 48:
-                secret_k = bytearray([
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-                ])
-            elif capture_cfg["key_len_bytes"] == 32:
-                secret_k = bytearray([
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
-                    0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-                    0xFF, 0xFF
-                ])
-            else:
-                raise RuntimeError('secret_k must be either 32B or 48B')
-            # Send the ephemeral secret k and trigger the signature geneartion
-            ot.target.simpleserial_write('p', secret_k)
-
-            # Wait until operation is done
-            ret = ot.scope.capture(poll_done=True)
-            # If getting inconsistent results (e.g. variable number of cycles),
-            # adding a sufficient sleep below here appears to fix things
-            time.sleep(1)
-            if ret:
-                raise RuntimeError('Timeout during capture')
-            # Check the number of cycles, where the trigger signal was high
-            cycles = ot.scope.adc.trig_count
-            print("Observed number of cycles: %d" % cycles)
-
-            # Append the section into the waves array
-            waves = np.append(waves, ot.scope.get_last_trace(as_int=True))
+        waves = capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections,
+                                       secret_k,
+                                       priv_key_d,
+                                       msg)
 
         # Read 32 bytes of signature_r and signature_s back from the device
         sig_r = ot.target.simpleserial_read("r",
@@ -1174,8 +1248,10 @@ def ecdsa_simple(ctx: typer.Context,
 def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
     """An example capture loop to capture OTBN-ECDSA-256/384 traces.
 
-    Utilize the streaming feature of CW-Husky. CW-Husky's stream mode
-    limits the sampling frequency to 25 MHz and bits_per_sample to 8 bits.
+    Utilizes the streaming feature of CW-Husky. The streaming mode puts
+    limits on the sampling frequency and bits_per_sample. see this link
+    for more details:
+    https://rtfm.newae.com/Capture/ChipWhisperer-Husky/#streaming-mode
 
     Allows a user to set the ephemeral secret scalar k, private key d,
     and message msg. For the corresponding driver, check
@@ -1190,79 +1266,125 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
       capture_cfg: Capture configuration from the yaml file
     """
 
-    # Currently, we need to reprogram the firmware before every sign operation
-    # TODO: Investigate the C code (ecc384_serial) to check if we can run multiple
-    #       signing operations without reloading the firmware.
-    reset_firmware = True
+    # This determines if we want to reprogram the firmware
+    # before every sign operation.The default value is false.
+    reset_firmware = False
 
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
 
     # Enable the streaming mode
     if ot.scope._is_husky:
         ot.scope.adc.stream_mode = True
-        ot.scope.adc.bits_per_sample = 8
+        # In the stream mode, there is a tradeoff between
+        # the adc-resolution (8/10/12 bits) and sampling-frequency (< 25MHz)
+        # https://rtfm.newae.com/Capture/ChipWhisperer-Husky/#streaming-mode
+        ot.scope.adc.bits_per_sample = 12
     else:
-        # TODO: Add cw-lite support
+        # We support only CW-Husky for now.
         raise RuntimeError('Only CW-Husky is supported now')
 
     # Loop to collect traces
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
                   ncols=80):
-        # Create an arrey to keep the traces
-        waves = np.array([])
-        # Currently, we have to reload the firmware to be able to send a
-        # new signing command
-        # TODO: Investigate how we can solve this
-        if reset_firmware:
-            ot.program_target(fw_bin, pll_frequency)
-
-        # Optional commands to overwrite the default values of the private key d,
-        # and the message msg
-        # The current values are set to the default values in the C code (ecc384_serial.c)
+        # This part can be modified to create a new command.
+        # For example, a random secret scalar can be set using the following
+        #   from numpy.random import default_rng
+        #   rng = default_rng()
+        #   secret_k0 = bytearray(rng.bytes(32))
+        #   secret_k1 = bytearray(rng.bytes(32))
+        msg = "Hello OTBN.".encode()
+        # ECDSA-384
         if capture_cfg["key_len_bytes"] == 48:
-            priv_key_d = bytearray([
-                0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C, 0x05, 0xB1,
-                0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D, 0xE2, 0x3C, 0x3B, 0x66,
-                0x7B, 0xF2, 0x97, 0xBA, 0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71,
-                0x37, 0xD8, 0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
+            # Set two shares of the private key d
+            priv_key_d0 = bytearray([
+                0x6B, 0x9D, 0x3D, 0xAD, 0x2E, 0x1B, 0x8C, 0x1C,
+                0x05, 0xB1, 0x98, 0x75, 0xB6, 0x65, 0x9F, 0x4D,
+                0xE2, 0x3C, 0x3B, 0x66, 0x7B, 0xF2, 0x97, 0xBA,
+                0x9A, 0xA4, 0x77, 0x40, 0x78, 0x71, 0x37, 0xD8,
+                0x96, 0xD5, 0x72, 0x4E, 0x4C, 0x70, 0xA8, 0x25,
                 0xF8, 0x72, 0xC9, 0xEA, 0x60, 0xD2, 0xED, 0xF5
             ])
+            priv_key_d1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            # Set two shares of the scalar secret_k
+            secret_k0 = bytearray([
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            secret_k1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+        # ECDSA-256
         elif capture_cfg["key_len_bytes"] == 32:
-            priv_key_d = bytearray([
-                0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74, 0x02, 0x0c,
-                0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28, 0x0c, 0xf0, 0x18, 0x0d,
-                0xf4, 0x6c, 0x0b, 0xda, 0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0,
-                0x45, 0x55
+            # Set two shares of the private key d
+            priv_key_d0 = bytearray([
+                0xcd, 0xb4, 0x57, 0xaf, 0x1c, 0x9f, 0x4c, 0x74,
+                0x02, 0x0c, 0x7e, 0x8b, 0xe9, 0x93, 0x3e, 0x28,
+                0x0c, 0xf0, 0x18, 0x0d, 0xf4, 0x6c, 0x0b, 0xda,
+                0x7a, 0xbb, 0xe6, 0x8f, 0xb7, 0xa0, 0x45, 0x55
+            ])
+            priv_key_d1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            # Set two shares of the scalar secret_k
+            secret_k0 = bytearray([
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            secret_k1 = bytearray([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
             ])
         else:
             raise RuntimeError('priv_key_d must be either 32B or 48B')
+
+        # Combine the two shares of d and k
+        priv_key_d = priv_key_d0 + priv_key_d1
+        secret_k = secret_k0 + secret_k1
+
+        # Create an arrey to keep the traces
+        waves = np.array([])
+        # Reflash the firmware and set the CW310 pll frequency
+        # if reset_firmware is true (default value: false, see above)
+        if reset_firmware:
+            ot.program_target(fw_bin, pll_frequency)
+
+        # Optional commands to overwrite the default values declared in the C code.
         ot.target.simpleserial_write('d', priv_key_d)
         # Message to sign
-        ot.target.simpleserial_write('n', "Hello OTBN.".encode())
+        ot.target.simpleserial_write('n', msg)
+        # Send the ephemeral secret k and trigger the signature geneartion
+        ot.target.simpleserial_write('k', secret_k)
+
+        time.sleep(0.2)
 
         # Arm the scope
         ot.scope.arm()
 
-        # Ephemeral secret scalar k
-        if capture_cfg["key_len_bytes"] == 48:
-            secret_k = bytearray([
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-            ])
-        elif capture_cfg["key_len_bytes"] == 32:
-            secret_k = bytearray([
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
-                0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-                0xFF, 0xFF
-            ])
-        else:
-            raise RuntimeError('secret_k must be either 32B or 48B')
-        # Send the ephemeral secret k and trigger the signature geneartion
-        ot.target.simpleserial_write('p', secret_k)
+        # Start the ECDSA operation
+        ot.target.simpleserial_write('p', bytearray([0x01]))
 
         # Wait until operation is done
         ret = ot.scope.capture(poll_done=True)

@@ -1,8 +1,13 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
   fw_bin: objs/ecc_serial_fpga_cw310.bin
-  # Target operating frequency
-  pll_frequency: 22000000
+  # Target operating frequency: 
+  # for ecdsa-simple: 25-50MHz (alignment issues above 66MHz)
+  # for ecdsa-stream: 15-20MHz (sampling_rate-adc_resolution tradeoff)
+  # More details on Husky stream mode can be found in the following links:
+  # https://github.com/lowRISC/ot-sca/issues/106#issuecomment-1359530023
+  # https://rtfm.newae.com/Capture/ChipWhisperer-Husky/#streaming-mode
+  pll_frequency: 15000000
   baudrate: 115200
 capture:
   # Only ECDSA-256 (32) and ECDSA-384 (48) are supported at this moment.
@@ -13,7 +18,8 @@ capture:
   num_samples: 262140
   # Offset in samples
   offset: 0
-  # scope gain in db - 13 for non-stream mode, 32.5 for stream mode
+  # scope gain in db - This may change for each setup,
+  # find a value for your setup
   scope_gain: 32.5
   num_traces: 1
   project_name: projects/opentitan_ecdsa_256

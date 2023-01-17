@@ -82,7 +82,7 @@ This repository has a couple of Python dependencies to be installed through
 `pip`. It is recommended to first install the latest version of `pip` and
 `setuptools` using
 ```console
-python3 -m pip install -U pip setuptools
+python3 -m pip install -U pip "setuptools<66.0.0"
 ```
 You can then run
 ```console

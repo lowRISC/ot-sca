@@ -73,7 +73,7 @@ ENV PATH="${VENV_PATH}"/bin:"${PATH}"
 ENV VIRTUAL_ENV="${VENV_PATH}"
 COPY python-requirements.txt /tmp/python-requirements.txt
 COPY python-requirements-lint.txt /tmp/python-requirements-lint.txt
-RUN pip install --upgrade pip && \
+RUN pip install --upgrade pip "setuptools<66.0.0" && \
     pip install -r /tmp/python-requirements.txt && \
     chmod -R o=u "${VENV_PATH}";
 

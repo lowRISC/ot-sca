@@ -567,8 +567,8 @@ $ cd cw
 $ ./capture.py --cfg-file capture_kmac_cw310.yaml capture kmac-random --num-traces 100 --plot-traces 10
 ```
 
-The above command will send KMAC-128 requests with a fixed key and random 
-texts. In order to capture traces for DTR TVLA Section 5.3: "General Test: 
+The above command will send KMAC-128 requests with a fixed key and random
+texts. In order to capture traces for DTR TVLA Section 5.3: "General Test:
 Fixed-vs.-Random Key Datasets", following command may be used:
 ```console
 $ cd cw
@@ -580,6 +580,58 @@ been collected, a picture similar to the following should be shown in your
 browser.
 
 ![](img/sample_traces_kmac.png)
+
+### SHA3 Capture
+
+To perform a SHA3 capture, use this command:
+```console
+$ cd cw
+$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-random --num-traces 100 --plot-traces 10
+```
+
+The above command will send SHA3 requests with random texts.
+In order to capture traces for Fixed-vs.-Random Datasets, the following command may be used:
+```console
+$ cd cw
+$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-data --num-traces 100 --plot-traces 10
+```
+
+You should see similar output as in the KMAC example. Once the power traces have
+been collected, a picture similar to the following should be shown in your
+browser.
+
+![](img/sample_traces_sha3.png)
+
+
+You can also use the batch mode with
+```console
+$ cd cw
+$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-data-batch --num-traces 100 --plot-traces 10
+```
+
+However, there might occur errors due to synchronization issues. In this case try to reset the board and
+try again.
+
+To disable masking use the ```capture_sha3_masks_off_cw310.yaml``` file. The capture commands stay the same.
+
+
+
+### SHA3 TVLA
+
+Currently, we only support the general (non-specific) TVLA, which should only be used on a Fixed-vs.-Random
+Dataset. To perform the analysis for the masked version, run:
+
+```console
+$ cd cw
+$ ./tvla.py --cfg-file tvla_cfg_sha3.yaml run-tvla
+```
+
+For disabled masking run:
+```console
+$ cd cw
+$ ./tvla.py --cfg-file tvla_cfg_sha3_masks_off.yaml run-tvla
+```
+
 
 ## Performing Example SCA Attack on AES with Masking Disabled
 

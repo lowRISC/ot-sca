@@ -10,6 +10,7 @@ capture:
   # These byte-lengths are passed to the chipwhisperer key/plaintext generator.
   # Since this is not encryption, they don't correspond to key/plaintext, but
   # rather seed/mask.
+  use_fixed_key_iter: False # See https://github.com/lowRISC/ot-sca/issues/116
   key_len_bytes: 40
   plain_text_len_bytes: 40
   # Output length (most likely unused).

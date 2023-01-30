@@ -135,8 +135,11 @@ def capture_init(ctx, num_traces, plot_traces):
 
     # Key and plaintext generator
     ctx.obj.ktp = cw.ktp.Basic()
-    ctx.obj.ktp.fixed_key = False  # if true, then key never updates and setting...
-    ctx.obj.ktp.key_len = cfg["capture"]["key_len_bytes"]  # ...key_len has no effect
+    # This is a workaroung for https://github.com/lowRISC/ot-sca/issues/116
+    if "use_fixed_key_iter" in cfg["capture"]:  # for backwarts compatibility
+        ctx.obj.ktp.fixed_key = cfg["capture"]["use_fixed_key_iter"]
+    # ktp.key_len is only evaluated if ktp.fixed_key is set to False
+    ctx.obj.ktp.key_len = cfg["capture"]["key_len_bytes"]
     ctx.obj.ktp.text_len = cfg["capture"]["plain_text_len_bytes"]
 
     ctx.obj.ot = initialize_capture(cfg["device"], cfg["capture"])
@@ -1010,6 +1013,14 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
       pll_frequency: Output frequency of the FPGA PLL.
       capture_cfg: Capture configuration from the yaml file
     """
+
+    # We need an intuitive, but non default behavior for the kpt.next() iterator.
+    # For backwards compatibility this must be set in the capture config file.
+    # This is a workaroung for https://github.com/lowRISC/ot-sca/issues/116
+    if "use_fixed_key_iter" not in capture_cfg:
+        raise RuntimeError('use_fixed_key_iter not set!')
+    if capture_cfg["use_fixed_key_iter"] is not False:
+        raise RuntimeError('use_fixed_key_iter must be set to false!')
 
     # This determines if we want to reprogram the firmware
     # before every sign operation.The default value is false.

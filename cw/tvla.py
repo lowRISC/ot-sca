@@ -488,6 +488,27 @@ def run_tvla(ctx: typer.Context):
         # Amount of tolerable deviation from average during filtering.
         num_sigmas = 3.5
 
+        # Slice of wave file
+        # these options are only tested for otbn
+        if ("sample_start" in cfg and cfg["sample_start"] is not None):
+            sample_start = cfg["sample_start"]
+        else:
+            sample_start = 0
+
+        assert sample_start < len(project.waves[0])
+
+        if ("num_samples" in cfg and cfg["num_samples"] is not None):
+            num_samples = cfg["num_samples"]
+        else:
+            num_samples = len(project.waves[0]) - sample_start
+
+        if (num_samples + sample_start > len(project.waves[0])):
+            log.warning(f"Selected sample window {sample_start} to " +
+                        f"{sample_start+num_samples} is out of range!")
+            num_samples = len(project.waves[0]) - sample_start
+            log.warning(f"Will use samples from {sample_start} " +
+                        f"to {sample_start+num_samples} instead!")
+
         # Overall number of traces, trace start and end indices.
         num_traces_max = len(project.waves)
         if cfg["trace_start"] is None:
@@ -548,8 +569,11 @@ def run_tvla(ctx: typer.Context):
                 log.info("Converting Traces")
                 if project.waves[0].dtype == 'uint16':
                     traces = np.empty((num_traces, num_samples), dtype=np.uint16)
+                    log.info(f"Will use samples from {sample_start} to {sample_start+num_samples}")
                     for i_trace in range(num_traces):
-                        traces[i_trace] = project.waves[i_trace + trace_start]
+                        traces[i_trace] = project.waves[i_trace +
+                                                        trace_start][sample_start:sample_start +
+                                                                     num_samples]
                 else:
                     traces = np.empty((num_traces, num_samples), dtype=np.double)
                     for i_trace in range(num_traces):

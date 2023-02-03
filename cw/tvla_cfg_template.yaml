@@ -13,3 +13,6 @@ ttest_step_file: null
 plot_figures: false
 general_test: true
 mode: aes
+# Only enabled for otbn mode.
+sample_start: null 
+num_samples : null

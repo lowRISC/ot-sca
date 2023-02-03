@@ -14,3 +14,5 @@ plot_figures: true
 general_test: true
 mode: otbn
 key_len_bytes: 40
+sample_start: null
+num_samples : 4000

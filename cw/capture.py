@@ -1180,7 +1180,7 @@ def otbn_vertical(ctx: typer.Context,
 
     # Print the params
     print(
-        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]/1000000} MHz'
     )
     print(
         f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'
@@ -1436,7 +1436,7 @@ def ecdsa_simple(ctx: typer.Context,
         ctx.obj.ot.scope.adc.decimate = ctx.obj.cfg["capture"]["decimate"]
     # Print the params
     print(
-        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]/1000000} MHz'
     )
     print(
         f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'
@@ -1646,7 +1646,7 @@ def ecdsa_stream(ctx: typer.Context,
     if "decimate" in ctx.obj.cfg["capture"]:
         ctx.obj.ot.scope.adc.decimate = ctx.obj.cfg["capture"]["decimate"]
     print(
-        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]/1000000} MHz'
     )
     print(
         f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'

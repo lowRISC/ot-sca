@@ -864,7 +864,15 @@ def run_tvla(ctx: typer.Context):
         if num_steps > 1:
 
             log.info("Plotting T-test Statistics vs. Number of Traces, this may take a while.")
-            xticks = [np.around(trace_end / 100000) for trace_end in trace_end_vec]
+            # Determine resolution.
+            xres_vec = [10e6, 1e6, 100e3, 10e3, 1e3]
+            for xres in xres_vec:
+                if int(np.around(trace_end_vec[0] / xres)) > 0:
+                    xres_label = str(int(xres / 1e6)) + 'M' if xres >= 1e6 else \
+                        str(int(xres / 1e3)) + 'k'
+                    break
+
+            xticks = [np.around(trace_end / xres) for trace_end in trace_end_vec]
             xticklabels = [str(int(tick)) for tick in xticks]
 
             # Empty every second label if we got more than 10 steps.
@@ -916,7 +924,7 @@ def run_tvla(ctx: typer.Context):
                                               'k')
                             axs[i_order].plot(c * threshold, 'r')
                             axs[i_order].plot(-threshold * c, 'r')
-                            axs[i_order].set_xlabel('number of traces [100k]')
+                            axs[i_order].set_xlabel(str('number of traces [' + xres_label + ']'))
                             axs[i_order].set_xticks(range(num_steps))
                             axs[i_order].set_xticklabels(xticklabels)
                             axs[i_order].set_ylabel('t-test ' + str(i_order + 1) +

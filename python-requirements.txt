@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Keep sorted.
-bokeh
+bokeh<3.0.0
 cffi
 codetiming
 libusb1

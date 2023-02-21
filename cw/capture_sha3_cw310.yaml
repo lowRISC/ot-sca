@@ -20,7 +20,7 @@ capture:
   #lfsr_seed: 0
   # w/ DOM
   lfsr_seed: 0xdeadbeef
-  scope_gain: 27
+  scope_gain: 26
   num_traces: 5000
   project_name: projects/opentitan_simple_sha3
   waverunner_ip: 192.168.1.228

@@ -653,6 +653,8 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
             # Transfer traces
             waves = scope.capture_and_transfer_waves()
             assert waves.shape[0] == scope.num_segments
+            # Check that the ADC didn't saturate when recording this batch.
+            check_range(waves, ot.scope.adc.bits_per_sample)
 
             # Check the batch digest to make sure we are in sync.
             check_ciphertext(ot, batch_digest, 32)
@@ -872,6 +874,8 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
             # Transfer traces
             waves = scope.capture_and_transfer_waves()
             assert waves.shape[0] == scope.num_segments
+            # Check that the ADC didn't saturate when recording this batch.
+            check_range(waves, ot.scope.adc.bits_per_sample)
 
             # Check the batch digest to make sure we are in sync.
             check_ciphertext(ot, batch_digest, 32)

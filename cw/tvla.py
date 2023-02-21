@@ -445,16 +445,16 @@ def run_tvla(ctx: typer.Context):
         num_sigmas = 3.5
 
         # Overall number of traces, trace start and end indices.
-        num_traces_tot = len(project.waves)
+        num_traces_max = len(project.waves)
         if cfg["trace_start"] is None:
             trace_start_tot = 0
         else:
             trace_start_tot = int(cfg["trace_start"])
         if cfg["trace_end"] is None:
-            trace_end_tot = num_traces_tot - 1
+            trace_end_tot = num_traces_max - 1
         else:
             trace_end_tot = int(cfg["trace_end"])
-        assert trace_end_tot - trace_start_tot < num_traces_tot
+        assert trace_end_tot - trace_start_tot < num_traces_max
         num_traces_tot = trace_end_tot - trace_start_tot + 1
 
         # Generate indices for step-wise processing.
@@ -467,10 +467,10 @@ def run_tvla(ctx: typer.Context):
             trace_start_vec.append(trace_start_tot + i_step * num_traces_step)
             if i_step < num_steps - 1 or num_traces_rem == 0:
                 num_traces_vec.append(num_traces_step)
-                trace_end_vec.append((i_step + 1) * num_traces_step - 1)
+                trace_end_vec.append(trace_start_vec[i_step] + num_traces_vec[i_step] - 1)
             else:
                 num_traces_vec.append(num_traces_step + num_traces_rem)
-                trace_end_vec.append(trace_end_tot)
+                trace_end_vec.append(trace_start_vec[i_step] + num_traces_vec[i_step] - 1)
 
         # The number of parallel jobs to use for the processing-heavy tasks.
         num_jobs = multiprocessing.cpu_count()
@@ -566,6 +566,7 @@ def run_tvla(ctx: typer.Context):
                 num_traces = trace_end - trace_start + 1
                 # The project file must match the trace file.
                 assert len(project.waves) == len(traces_to_use)
+                num_traces_max = len(project.waves)
 
             # Correct num_traces based on filtering.
             num_traces_orig = num_traces
@@ -589,7 +590,7 @@ def run_tvla(ctx: typer.Context):
                     if i_step == 0:
                         # Convert all keys from the project file to numpy arrays once.
                         keys_nparrays = []
-                        for i in range(num_traces_tot):
+                        for i in range(num_traces_max):
                             if cfg["mode"] == "sha3":
                                 keys_nparrays.append(np.frombuffer(project.textins[i],
                                                                    dtype=np.uint8))

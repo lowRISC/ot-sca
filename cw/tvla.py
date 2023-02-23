@@ -19,6 +19,8 @@ from chipwhisperer.analyzer import aes_funcs
 from joblib import Parallel, delayed
 from scipy.stats import ttest_ind_from_stats
 
+from util import plot
+
 app = typer.Typer(add_completion=False)
 
 
@@ -46,6 +48,38 @@ def bit_count(int_no):
         int_no &= int_no - 1
         c += 1
     return c
+
+
+def plot_fvsr_stats(traces, leakage):
+    """
+    Prints the average fixed and random traces and their difference.
+    Does the same for the variance traces.
+
+    This is useful for debugging e.g. when the resulting t-test results aren't centered around 0.
+    """
+    num_samples = traces.shape[1]
+
+    fixed = np.compress(np.equal(leakage, 1), traces, axis=0)
+    avg_fixed = np.average(fixed, axis=0)
+    var_fixed = np.var(fixed, axis=0)
+
+    random = np.compress(np.equal(leakage, 0), traces, axis=0)
+    avg_random = np.average(random, axis=0)
+    var_random = np.var(random, axis=0)
+
+    diff_avg = np.zeros((1, num_samples))
+    np.subtract(avg_fixed, avg_random, diff_avg)
+    diff_var = np.zeros((1, num_samples))
+    np.subtract(var_fixed, var_random, diff_var)
+
+    plot.save_plot_to_file(np.stack((avg_fixed, avg_random), axis=0), np.array((1, 0)), 2,
+                           "tmp/avg_fixed_random_traces.html")
+    plot.save_plot_to_file(diff_avg, None, 1,
+                           "tmp/diff_avg_trace.html")
+    plot.save_plot_to_file(np.stack((var_fixed, var_random), axis=0), np.array((1, 0)), 2,
+                           "tmp/var_fixed_random_traces.html")
+    plot.save_plot_to_file(diff_var, None, 1,
+                           "tmp/diff_var_trace.html")
 
 
 # A set of functions for working with histograms.
@@ -647,6 +681,10 @@ def run_tvla(ctx: typer.Context):
                 leakage = np.zeros((num_traces), dtype=np.uint8)
                 for i in range(num_traces):
                     leakage[i] = np.array_equal(fixed_key, keys[i])
+
+            # Uncomment the function call below for debugging e.g. when the t-test results aren't
+            # centered around 0.
+            # plot_fvsr_stats(traces, leakage)
 
             log.info("Building Histograms")
             if general_test is False:

@@ -109,7 +109,7 @@ def plot_results(plot_cfg, project_name):
         print('Project contains no traces. Did the capture fail?')
         return
 
-    plot.save_plot_to_file(project.waves, plot_cfg["num_traces"],
+    plot.save_plot_to_file(project.waves, None, plot_cfg["num_traces"],
                            plot_cfg["trace_image_filename"])
     print(
         f'Created plot with {plot_cfg["num_traces"]} traces: '

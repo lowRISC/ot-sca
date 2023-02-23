@@ -476,15 +476,6 @@ def run_tvla(ctx: typer.Context):
             adc_bits = 12
             trace_resolution = 2**adc_bits
 
-        # Treat plaintext as key for sha3 as there is no key.
-        # Actually we are doning fixed vs random DATA and
-        # the first trace is using the fixed data
-        if cfg["mode"] == "sha3":
-            fixed_key = np.copy(project.textins[0])
-        # When doing general fixed-vs-random TVLA, the first trace is using the fixed key.
-        elif general_test is True:
-            fixed_key = np.copy(project.keys[0])
-
         # Amount of tolerable deviation from average during filtering.
         num_sigmas = 3.5
 

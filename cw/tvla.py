@@ -970,23 +970,31 @@ def run_tvla(ctx: typer.Context):
                     # The widnow width is 100 samples + 40 samples extended on each side.
                     half_window = samples_per_rnd // 2 + 40
 
-                    samples = range(max(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) -
-                                        half_window, 0),
-                                    min(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) +
-                                        half_window, num_samples))
-
+                    samples = {"aes": range(max(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) -
+                                            half_window, 0),
+                                            min(rnd_offset + (rnd_list[i_rnd] * samples_per_rnd) +
+                                                half_window, num_samples))}
                 else:
-                    if cfg["mode"] == "aes":
-                        # Simply plot everything.
-                        samples = range(0, num_samples)
-                    else:
-                        # For now, let's focus on the key absorption only.
-                        samples = range(520, 2460)
-                        # Numbers for the eval branch:
+                    # Even if cfg["sample_start"] is specified and cfg["num_samples"] is not,
+                    # num_samples is set to a valid value and the code below has valid inputs.
+                    range_specified = True if \
+                        (("sample_start" in cfg and cfg["sample_start"] is not None) or
+                         ("num_samples" in cfg and cfg["num_samples"] is not None)) else False
+
+                    samples = {
+                        # Simply plot all samples within the selected range.
+                        "aes": range(0, num_samples),
+                        # Plot samples within key absorption phase, unless a range is specified.
+                        "kmac": range(0, num_samples) if range_specified else range(520, 2460),
+                        # Plot samples within actual SHA3 phase, unless a range is specified.
+                        "sha3": range(0, num_samples) if range_specified else range(1150, 3150),
+                        # Simply plot all samples within the selected range.
+                        "otbn": range(0, num_samples)
+                    }
 
                 for i_order in range(num_orders):
                     for i_byte in range(num_bytes):
-                        for i_sample in samples:
+                        for i_sample in samples[cfg["mode"]]:
                             axs[i_order].plot(ttest_step[i_order,
                                                          rnd_ext[i_rnd],
                                                          byte_ext[i_byte],
@@ -997,9 +1005,10 @@ def run_tvla(ctx: typer.Context):
                             axs[i_order].set_xlabel(str('number of traces [' + xres_label + ']'))
                             axs[i_order].set_xticks(range(num_steps))
                             axs[i_order].set_xticklabels(xticklabels)
-                            axs[i_order].set_ylabel('t-test ' + str(i_order + 1) +
-                                                    "\nfor samples " + str(samples[0]) +
-                                                    ' to ' + str(samples[-1]))
+                            axs[i_order].set_ylabel(
+                                't-test ' + str(i_order + 1) +
+                                "\nfor samples " + str(samples[cfg["mode"]][0]) +
+                                ' to ' + str(samples[cfg["mode"]][-1]))
 
                 filename = cfg["mode"] + "_t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
                 plt.savefig("tmp/figures/" + filename)

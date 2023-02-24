@@ -931,11 +931,15 @@ def run_tvla(ctx: typer.Context):
 
             log.info("Plotting T-test Statistics vs. Number of Traces, this may take a while.")
             # Determine resolution.
-            xres_vec = [10e6, 1e6, 100e3, 10e3, 1e3]
+            xres_vec = [10e6, 1e6, 100e3, 10e3, 1e3, 100, 10, 1]
             for xres in xres_vec:
-                if int(np.around(trace_end_vec[0] / xres)) > 0:
-                    xres_label = str(int(xres / 1e6)) + 'M' if xres >= 1e6 else \
-                        str(int(xres / 1e3)) + 'k'
+                if int(np.around((trace_end_vec[0] - trace_start_vec[0]) / xres)) > 0:
+                    if xres >= 1e6:
+                        xres_label = str(int(xres / 1e6)) + 'M'
+                    elif xres >= 1e3:
+                        xres_label = str(int(xres / 1e3)) + 'k'
+                    else:
+                        xres_label = str(int(xres))
                     break
 
             xticks = [np.around(trace_end / xres) for trace_end in trace_end_vec]

@@ -1082,10 +1082,15 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
 
         ot.scope.adc.offset = capture_cfg["offset"]
 
-        # Generate a new random mask for each trace.
-        mask = ktp.next_text()
-        tqdm.write(f'mask = {mask.hex()}')
+        if capture_cfg["masks_off"] is True:
+            # Use a constant mask for each trace
+            mask = bytearray(capture_cfg["plain_text_len_bytes"])  # all zeros
+        else:
+            # Generate a new random mask for each trace.
+            mask = ktp.next_text()
+
         tqdm.write("Starting new trace....")
+        tqdm.write(f'mask   = {mask.hex()}')
 
         if sample_fixed:
             # Use the fixed seed.

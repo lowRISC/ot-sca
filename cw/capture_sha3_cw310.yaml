@@ -9,7 +9,7 @@ capture:
   output_len_bytes: 32
   masks_off: false
   # Samples per trace - We oversample by 20x
-  num_samples: 5200
+  num_samples: 3500
   # Offest in samples
   offset: 0
   # 32-bit seed for SW key masking. Key masks are generated using an LFSR.

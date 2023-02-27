@@ -13,6 +13,7 @@ capture:
   use_fixed_key_iter: False # See https://github.com/lowRISC/ot-sca/issues/116
   key_len_bytes: 40
   plain_text_len_bytes: 40
+  masks_off: true
   # Output length (most likely unused).
   output_len_bytes: 40
   # Samples per trace

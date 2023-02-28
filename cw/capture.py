@@ -135,7 +135,8 @@ def capture_init(ctx, num_traces, plot_traces):
 
     # Key and plaintext generator
     ctx.obj.ktp = cw.ktp.Basic()
-    ctx.obj.ktp.key_len = cfg["capture"]["key_len_bytes"]
+    ctx.obj.ktp.fixed_key = False  # if true, then key never updates and setting...
+    ctx.obj.ktp.key_len = cfg["capture"]["key_len_bytes"]  # ...key_len has no effect
     ctx.obj.ktp.text_len = cfg["capture"]["plain_text_len_bytes"]
 
     ctx.obj.ot = initialize_capture(cfg["device"], cfg["capture"])
@@ -992,6 +993,173 @@ def kmac_fvsr_key_batch(ctx: typer.Context,
     capture_init(ctx, num_traces, plot_traces)
     capture_kmac_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
                                 ctx.obj.cfg["capture"], scope_type)
+    capture_end(ctx.obj.cfg)
+
+
+def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
+    """Capture traces for ECDSA P256/P384 secret key generation.
+
+    Uses a fixed seed and generates several random masks. For the corresponding
+    driver, check:
+    <opentitan_repo_root>/sw/device/sca/ecc256_keygen_serial.c
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+      fw_bin: Firmware binary.
+      pll_frequency: Output frequency of the FPGA PLL.
+      capture_cfg: Capture configuration from the yaml file
+    """
+
+    # This determines if we want to reprogram the firmware
+    # before every sign operation.The default value is false.
+    reset_firmware = False
+
+    # OTBN operations are long. CW-Husky can store only 131070 samples
+    # in the non-stream mode.
+    fifo_size = 131070
+    if capture_cfg["num_samples"] > fifo_size:
+        raise RuntimeError('Current setup only supports up to 130k samples')
+
+    # Be sure we don't use the stream mode
+    if ot.scope._is_husky:
+        ot.scope.adc.stream_mode = False
+        ot.scope.adc.bits_per_sample = 12
+        ot.scope.adc.samples = fifo_size
+    else:
+        raise RuntimeError('Only CW-Husky is supported now')
+
+    # Create a cw project to keep the data and traces
+    project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # Initialize some curve-dependent parameters.
+    if capture_cfg["curve"] == 'p256':
+        curve_order_n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+        # key_bytes = 256 // 8
+        seed_bytes = 320 // 8
+    else:
+        # TODO: add support for P384
+        raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
+
+    # Check the lengths in the key/plaintext generator. In this case, "key"
+    # means seed and "plaintext" means mask.
+    if ktp.keyLen() != seed_bytes:
+        raise ValueError(f'Unexpected seed length: {ktp.keyLen()}.\n'
+                         f'Hint: set key len={seed_bytes} in the configuration file.')
+    if ktp.textLen() != seed_bytes:
+        raise ValueError(f'Unexpected mask length: {ktp.textLen()}.\n'
+                         f'Hint: set plaintext len={seed_bytes} in the configuration file.')
+
+    # Seed the RNG and generate a random fixed seed for all traces of the
+    # keygen operation.
+    seed = ktp.next_key()
+    print(f'seed = {seed.hex()}')
+    if len(seed) != seed_bytes:
+        raise ValueError(f'Seed length is {len(seed)}, expected {seed_bytes}')
+
+    # Expected key is `seed mod n`, where n is the order of the curve and
+    # `seed` is interpreted as little-endian.
+    expected_key = int.from_bytes(seed, byteorder='little') % curve_order_n
+
+    # Loop to collect each power trace
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
+                  ncols=80):
+
+        if reset_firmware:
+            ot.program_target(fw_bin, pll_frequency)
+
+        ot.scope.adc.offset = capture_cfg["offset"]
+
+        # Generate a new random mask for each trace.
+        mask = ktp.next_text()
+        tqdm.write(f'mask = {mask.hex()}')
+
+        # Set the seed.
+        ot.target.simpleserial_write('x', seed)
+
+        # Check for errors.
+        err = ot.target.read()
+        if err:
+            raise RuntimeError(f'Error writing seed: {err}')
+
+        # Arm the scope
+        ot.scope.arm()
+
+        # Send the mask and start the keygen operation.
+        ot.target.simpleserial_write('k', mask)
+
+        # Wait until operation is done.
+        ret = ot.scope.capture(poll_done=True)
+        # TODO: change this
+        # If getting inconsistent results (e.g. variable number of cycles),
+        # adding a sufficient sleep below here appears to fix things
+        # time.sleep(1)  # we cannot afford 1 second per run.
+        if ret:
+            raise RuntimeError('Timeout during capture')
+
+        # Check the number of cycles where the trigger signal was high.
+        cycles = ot.scope.adc.trig_count
+        tqdm.write("Observed number of cycles: %d" % cycles)
+
+        waves = ot.scope.get_last_trace(as_int=True)
+        # Read the output, unmask the key, and check if it matches
+        # expectations.
+        share0 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
+        share1 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
+        if share0 is None or share1 is None:
+            raise RuntimeError('Did not receive expected output.')
+
+        d0 = int.from_bytes(share0, byteorder='little')
+        d1 = int.from_bytes(share1, byteorder='little')
+        actual_key = (d0 + d1) % curve_order_n
+        if actual_key != expected_key:
+            raise RuntimeError('Bad generated key:\n'
+                               f'Expected: {hex(expected_key)}\n'
+                               f'Actual:   {hex(actual_key)}')
+
+        # Create a chipwhisperer trace object and save it to the project
+        # Args/fields of Trace object: waves, textin, textout, key
+        textout = share0 + share1
+        trace = Trace(waves, mask, textout, seed)
+        check_range(waves, ot.scope.adc.bits_per_sample)
+        project.traces.append(trace, dtype=np.uint16)
+
+    project.save()
+
+
+@app_capture.command()
+def otbn_vertical(ctx: typer.Context,
+                  num_traces: int = opt_num_traces,
+                  plot_traces: int = opt_plot_traces):
+    """Capture ECDSA secret key generation traces."""
+    capture_init(ctx, num_traces, plot_traces)
+
+    # OTBN's public-key operations might not fit into the sample buffer of the scope
+    # These two parameters allows users to conrol the sampling frequency
+    #
+    # `adc_mul` affects the clock frequency (clock_freq = adc_mul * pll_freq)
+    #
+    # `decimate` is the ADC downsampling factor that allows us to sample at
+    #  every `decimate` cycles.
+    if "adc_mul" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.clock.adc_mul = ctx.obj.cfg["capture"]["adc_mul"]
+    if "decimate" in ctx.obj.cfg["capture"]:
+        ctx.obj.ot.scope.adc.decimate = ctx.obj.cfg["capture"]["decimate"]
+
+    # Print the params
+    print(
+        f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"]} MHz'
+    )
+    print(
+        f'Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s'
+    )
+
+    # Call the capture loop
+    capture_otbn_vertical(ctx.obj.ot,
+                          ctx.obj.ktp,
+                          ctx.obj.cfg["device"]["fw_bin"],
+                          ctx.obj.cfg["device"]["pll_frequency"],
+                          ctx.obj.cfg["capture"])
     capture_end(ctx.obj.cfg)
 
 

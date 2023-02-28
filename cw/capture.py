@@ -624,8 +624,28 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
     if ack_ret is None:
         raise Exception("Batch mode acknowledge error: Device and host not in sync")
 
-    plaintext_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
-                                 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    # Value defined under Section 5.3 in the derived test requirements (DTR) for TVLA.
+    plaintext_fixed = bytearray([0xDA, 0x39, 0xA3, 0xEE, 0x5E, 0x6B, 0x4B, 0x0D,
+                                 0x32, 0x55, 0xBF, 0xEF, 0x95, 0x60, 0x18, 0x90])
+
+    # Note that - at least on FPGA - the DTR value above may lead to "fake" leakage as for the
+    # fixed trace set, the number of bits set in the first (37) and second 64-bit word (31), as
+    # well as in the Hamming distance between the two (30) is different from the statistical
+    # mean (32). As a result, the loading of the fixed message into the SHA3 core on average
+    # discharges the power rails slightly less than loading a random message. Until the SHA3 core
+    # starts processing, the power rails will recharge but they might not be able to reach the same
+    # levels for the fixed and random trace set, potentially leading to a small vertical offset
+    # between the two trace sets. This offset is detectable by TVLA and covers actual leakage
+    # happening during the SHA3 processing. The effect is most easliy visible between loading the
+    # plaintext and appending the padding, i.e., when the target is completely idle and waiting for
+    # the 40 clock cycle timer delay between the RUN and PROCESS command to expire.
+    #
+    # Crafted plaintext value with 4 bits set per byte, and where the Hamming distance between the
+    # first and second 64-bit word is exatly 4 bits per byte. This can optionally be used for
+    # debugging such "fake" leakage issues.
+    # plaintext_fixed = bytearray([0xA5, 0xC3, 0x5A, 0x3C, 0x96, 0x0F, 0x69, 0xF0,
+    #                              0xC3, 0xA5, 0x3C, 0x5A, 0x0F, 0x96, 0xF0, 0x69])
+
     ot.target.simpleserial_write("t", plaintext_fixed)
 
     plaintext = plaintext_fixed

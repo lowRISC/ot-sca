@@ -2,7 +2,7 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
   fw_bin: objs/ecc256_keygen_serial_fpga_cw310.bin
   # Target operating frequency
-  pll_frequency: 22000000
+  pll_frequency: 91000000
   baudrate: 115200
 capture:
   # Currently, 'p256' is the only supported curve.
@@ -17,7 +17,7 @@ capture:
   output_len_bytes: 40
   # Samples per trace
   # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
-  num_samples: 120000 # 6000 cycles*20 sampling points
+  num_samples: 8000
   # Offset in samples
   offset: 0
   # scope gain in db

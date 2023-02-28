@@ -336,15 +336,18 @@ def run_tvla(ctx: typer.Context):
                     level=log.INFO,
                     force=True,)
 
-    if cfg["mode"] != "kmac" and cfg["mode"] != "aes" and cfg["mode"] != "sha3":
+    if (cfg["mode"] != "kmac" and cfg["mode"] != "aes" and cfg["mode"] != "sha3" and
+            cfg["mode"] != "otbn"):
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or cfg["general_test"] is True:
+    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
+            cfg["general_test"] is True):
         general_test = True
     else:
         general_test = False
 
-    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or general_test is True:
+    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
+            general_test is True):
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.
         rnd_list = [0]
     elif cfg["round_select"] is None:
@@ -355,7 +358,8 @@ def run_tvla(ctx: typer.Context):
 
     num_rnds = len(rnd_list)
 
-    if cfg["mode"] == "kmac" or cfg["mode"] == "sha3" or general_test is True:
+    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
+            general_test is True):
         # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
     elif cfg["byte_select"] is None:
@@ -365,6 +369,12 @@ def run_tvla(ctx: typer.Context):
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
     num_bytes = len(byte_list)
+
+    if cfg["mode"] == "otbn":
+        if "key_len_bytes" not in cfg:
+            raise RuntimeError('key_len_bytes must be set for otbn mode!')
+        else:
+            key_len_bytes = cfg["key_len_bytes"]
 
     num_steps = int(cfg["number_of_steps"])
     assert num_steps >= 1
@@ -579,7 +589,10 @@ def run_tvla(ctx: typer.Context):
             if cfg["leakage_file"] is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
-                keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                if cfg["mode"] == "otbn":
+                    keys = np.empty((num_traces_orig, key_len_bytes), dtype=np.uint8)
+                else:
+                    keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
 
                 if general_test is False:
                     keys[:] = project.keys[trace_start:trace_end + 1]
@@ -1001,8 +1014,8 @@ help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Defa
 help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
     model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
     Default: """ + str(default_general_test))
-help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", or "sha3". Default:
-    """ + str(default_mode))
+help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3", or "otbn".
+    Default: """ + str(default_mode))
 help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
     isn't any configuration file. Default: """ + str(default_update_cfg_file))
 

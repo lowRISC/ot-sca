@@ -74,8 +74,6 @@ class OpenTitan(object):
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
         # bitstream.
-        # Unfortunately, this doesn't seem to work for the CW310 yet,
-        # see https://github.com/lowRISC/ot-sca/issues/48.
         # TODO: We should have this in the CLI.
         force_programming = False
         print('Connecting and loading FPGA... ', end='')

@@ -1,0 +1,34 @@
+device:
+  fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
+  fw_bin: objs/ecc256_keygen_serial_fpga_cw310.bin
+  # Target operating frequency
+  pll_frequency: 22000000
+  baudrate: 115200
+capture:
+  # Currently, 'p256' is the only supported curve.
+  curve: p256
+  # These byte-lengths are passed to the chipwhisperer key/plaintext generator.
+  # Since this is not encryption, they don't correspond to key/plaintext, but
+  # rather seed/mask.
+  key_len_bytes: 40
+  plain_text_len_bytes: 40
+  # Output length (most likely unused).
+  output_len_bytes: 40
+  # Samples per trace
+  # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
+  num_samples: 120000 # 6000 cycles*20 sampling points
+  # Offset in samples
+  offset: 0
+  # scope gain in db
+  scope_gain: 24
+  num_traces: 1000
+  project_name: projects/opentitan_otbn_vertical_keygen
+  waverunner_ip: 192.168.1.228
+  # As OTBN operations are long, we may need to overwrite the following
+  # parameters.
+  adc_mul: 1
+  decimate: 1
+plot_capture:
+  show: true
+  num_traces: 1
+  trace_image_filename: projects/sample_traces_ecdsa_keygen.html

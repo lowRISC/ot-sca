@@ -1,0 +1,16 @@
+project_file: projects/opentitan_otbn_vertical_keygen.cwp
+trace_file: null
+trace_start: null
+trace_end: null
+leakage_file: null
+save_to_disk: null
+round_select: null
+byte_select: null
+input_file: null
+output_file: null
+number_of_steps: 1
+ttest_step_file: null
+plot_figures: true
+general_test: true
+mode: otbn
+key_len_bytes: 40

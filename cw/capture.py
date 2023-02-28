@@ -1036,7 +1036,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
     if ot.scope._is_husky:
         ot.scope.adc.stream_mode = False
         ot.scope.adc.bits_per_sample = 12
-        ot.scope.adc.samples = fifo_size
+        ot.scope.adc.samples = capture_cfg["num_samples"]
     else:
         raise RuntimeError('Only CW-Husky is supported now')
 
@@ -1063,15 +1063,16 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
 
     # Seed the RNG and generate a random fixed seed for all traces of the
     # keygen operation.
-    seed = ktp.next_key()
-    print(f'seed = {seed.hex()}')
-    if len(seed) != seed_bytes:
-        raise ValueError(f'Seed length is {len(seed)}, expected {seed_bytes}')
+    seed_fixed = ktp.next_key()
+    print(f'fixed seed = {seed_fixed.hex()}')
+    if len(seed_fixed) != seed_bytes:
+        raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
 
     # Expected key is `seed mod n`, where n is the order of the curve and
     # `seed` is interpreted as little-endian.
-    expected_key = int.from_bytes(seed, byteorder='little') % curve_order_n
+    expected_fixed_key = int.from_bytes(seed_fixed, byteorder='little') % curve_order_n
 
+    sample_fixed = 1
     # Loop to collect each power trace
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
                   ncols=80):
@@ -1084,9 +1085,22 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
         # Generate a new random mask for each trace.
         mask = ktp.next_text()
         tqdm.write(f'mask = {mask.hex()}')
+        tqdm.write("Starting new trace....")
 
-        # Set the seed.
-        ot.target.simpleserial_write('x', seed)
+        if sample_fixed:
+            # Use the fixed seed.
+            seed_used = seed_fixed
+            expected_key = expected_fixed_key
+        else:
+            # Use a random seed.
+            seed_used = ktp.next_key()
+            expected_key = int.from_bytes(seed_used, byteorder='little') % curve_order_n
+
+        # Decide for next round if we use the fixed or a random seed.
+        sample_fixed = random.randint(0, 1)
+
+        ot.target.simpleserial_write('x', seed_used)
+        tqdm.write(f'seed   = {seed_used.hex()}')
 
         # Check for errors.
         err = ot.target.read()
@@ -1101,10 +1115,6 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
 
         # Wait until operation is done.
         ret = ot.scope.capture(poll_done=True)
-        # TODO: change this
-        # If getting inconsistent results (e.g. variable number of cycles),
-        # adding a sufficient sleep below here appears to fix things
-        # time.sleep(1)  # we cannot afford 1 second per run.
         if ret:
             raise RuntimeError('Timeout during capture')
 
@@ -1117,12 +1127,18 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
         # expectations.
         share0 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
         share1 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
-        if share0 is None or share1 is None:
-            raise RuntimeError('Did not receive expected output.')
+        if share0 is None:
+            raise RuntimeError('Random share0 is none')
+        if share1 is None:
+            raise RuntimeError('Random share1 is none')
 
         d0 = int.from_bytes(share0, byteorder='little')
         d1 = int.from_bytes(share1, byteorder='little')
         actual_key = (d0 + d1) % curve_order_n
+
+        tqdm.write(f'share0 = {share0.hex()}')
+        tqdm.write(f'share1 = {share1.hex()}')
+
         if actual_key != expected_key:
             raise RuntimeError('Bad generated key:\n'
                                f'Expected: {hex(expected_key)}\n'
@@ -1130,8 +1146,8 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
 
         # Create a chipwhisperer trace object and save it to the project
         # Args/fields of Trace object: waves, textin, textout, key
-        textout = share0 + share1
-        trace = Trace(waves, mask, textout, seed)
+        textout = share0 + share1  # concatenate bytearrays
+        trace = Trace(waves, mask, textout, seed_used)
         check_range(waves, ot.scope.adc.bits_per_sample)
         project.traces.append(trace, dtype=np.uint16)
 

@@ -1233,6 +1233,199 @@ def otbn_vertical(ctx: typer.Context,
     capture_end(ctx.obj.cfg)
 
 
+def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type):
+    """A generator for fast capturing otbn vertical (ecc256 keygen) traces.
+    The data collection method is based on the derived test requirements (DTR) for TVLA:
+    https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
+    The measurements are taken by using either fixed or randomly selected seed.
+    In order to simplify the analysis, the first sample has to use fixed seed.
+
+    Args:
+      ot: Initialized OpenTitan target.
+      ktp: Key and plaintext generator.
+      capture_cfg: Capture configuration.
+      scope_type: cw or waverunner as a scope for batch capture.
+    """
+
+    # We need an intuitive, but non default behavor for the kpt.next() interrator.
+    # For backwards compatibility this must be set in the capture config file.
+    # This is a workaroung for https://github.com/lowRISC/ot-sca/issues/116
+    if "use_fixed_key_iter" not in capture_cfg:
+        raise RuntimeError('use_fixed_key_iter not se set!')
+    if capture_cfg["use_fixed_key_iter"] is not False:
+        raise RuntimeError('use_fixed_key_iter must be set to false!')
+
+    # OTBN operations are long. CW-Husky can store only 131070 samples
+    # in the non-stream mode.
+    fifo_size = 131070
+    if capture_cfg["num_samples"] > fifo_size:
+        raise RuntimeError('Current setup only supports up to 130k smaples')
+
+    # Create a cw project to keep the data and traces
+    project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # Initialize some curve-dependent parameters.
+    if capture_cfg["curve"] == 'p256':
+        curve_order_n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
+        key_bytes = 256 // 8
+        seed_bytes = 320 // 8
+    else:
+        # TODO: add support for P384
+        raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
+
+    # Check the lengths in the key/plaintext generator. In this case, "key"
+    # means seed and "plaintext" means mask.
+    if ktp.keyLen() != seed_bytes:
+        raise ValueError(f'Unexpected seed length: {ktp.keyLen()}.\n'
+                         f'Hint: set key len={seed_bytes} in the configuration file.')
+    if ktp.textLen() != seed_bytes:
+        raise ValueError(f'Unexpected mask length: {ktp.textLen()}.\n'
+                         f'Hint: set plaintext len={seed_bytes} in the configuration file.')
+
+    # set ecc256 fixed seed - for batch mode the "plaintext" of ktp is used for seed and mask
+    # this simplifies synchronization with the device PRNG
+    seed_fixed = ktp.next_key()
+    print("Fixed seed:")
+    print(binascii.b2a_hex(seed_fixed))
+    if len(seed_fixed) != seed_bytes:
+        raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
+    ot.target.simpleserial_write("x", seed_fixed)
+    time.sleep(0.3)
+
+    # set PRNG seed
+    random.seed(capture_cfg["batch_prng_seed"])
+    ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+    time.sleep(0.3)
+
+    # enable/disable masking
+    if capture_cfg["masks_off"] is True:
+        ot.target.simpleserial_write("m", bytearray([0x00]))
+    else:
+        ot.target.simpleserial_write("m", bytearray([0x01]))
+    time.sleep(0.3)
+
+    # Capture traces.
+    rem_num_traces = capture_cfg["num_traces"]
+    num_segments_storage = 1
+    sample_fixed = True
+
+    # cw and waverunner scopes are supported fot batch capture.
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+
+    # OTBN's public-key operations might not fit into the sample buffer of the scope
+    # These two parameters allows users to conrol the sampling frequency
+    # `adc_mul` affects the clock frequency (clock_freq = adc_mul * pll_freq)
+    # `decimate` is the ADC downsampling factor that allows us to sample at
+    #  every `decimate` cycles.
+    if "adc_mul" in capture_cfg:
+        scope._scope.clock.adc_mul = capture_cfg["adc_mul"]
+    if "decimate" in capture_cfg:
+        scope._scope.adc.decimate = capture_cfg["decimate"]
+
+    # Print final scope parameter
+    print(f'Scope setup with final sampling rate of {scope._scope.clock.adc_freq} S/s')
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+        while rem_num_traces > 0:
+            # Determine the number of traces for this batch and arm the oscilloscope.
+            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+
+            scope.arm()
+            # Start batch keygen
+            ot.target.simpleserial_write(
+                "b", scope.num_segments_actual.to_bytes(4, "little")
+            )
+            # Transfer traces
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == scope.num_segments
+
+            # Check the number of cycles where the trigger signal was high.
+            cycles = ot.scope.adc.trig_count // scope.num_segments_actual
+            if (rem_num_traces <= scope.num_segments_max):
+                tqdm.write("No. of cycles with trigger high: %d" % cycles)
+
+            seeds = []
+            masks = []
+            d0s = []
+            d1s = []
+
+            batch_digest = None
+            for i in range(scope.num_segments_actual):
+
+                if sample_fixed:
+                    seed_barray = seed_fixed
+                    seed = int.from_bytes(seed_barray, "little")
+                else:
+                    seed_barray = ktp.next_key()
+                    seed = int.from_bytes(seed_barray, "little")
+
+                if capture_cfg["masks_off"] is True:
+                    mask_barray = bytearray(capture_cfg["plain_text_len_bytes"])
+                    mask = int.from_bytes(mask_barray, "little")
+                else:
+                    mask_barray = ktp.next_text()
+                    mask = int.from_bytes(mask_barray, "little")
+
+                masks.append(mask_barray)
+                seed = seed ^ mask
+
+                # needed to be in sync with ot PRNG and for sample_fixed generation
+                dummy = ktp.next_key()
+
+                # calculate key shares
+                mod = curve_order_n << ((seed_bytes - key_bytes) * 8)
+                d0 = ((seed ^ mask) - mask) % mod
+                d1 = mask % mod
+
+                # calculate batch digest
+                batch_digest = (d0 if batch_digest is None else d0 ^ batch_digest)
+
+                seeds.append(seed_barray)
+                d0s.append(bytearray(d0.to_bytes(seed_bytes, "little")))
+                d1s.append(bytearray(d1.to_bytes(seed_bytes, "little")))
+                sample_fixed = dummy[0] & 1
+
+            # Check the batch digest to make sure we are in sync.
+            check_ciphertext(ot, bytearray(batch_digest.to_bytes(seed_bytes, "little")), seed_bytes)
+
+            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+
+            # Create a chipwhisperer trace object and save it to the project
+            # Args/fields of Trace object: waves, textin, textout, key
+            for wave, seed, mask, d0, d1 in zip(waves, seeds, masks, d0s, d1s):
+                d = d0 + d1
+                trace = cw.common.traces.Trace(wave, d, mask, seed)
+                project.traces.append(
+                    trace,
+                    dtype=np.uint16
+                )
+            # Update the loop variable and the progress bar.
+            rem_num_traces -= scope.num_segments
+            pbar.update(scope.num_segments)
+    # Before saving the project, re-enable all trace storage segments.
+    for s in range(len(project.segments)):
+        project.traces.tm.setTraceSegmentStatus(s, True)
+    assert len(project.traces) == capture_cfg["num_traces"]
+
+    # Save the project to disk.
+    project.save()
+
+
+@app_capture.command()
+def otbn_vertical_batch(ctx: typer.Context,
+                        num_traces: int = opt_num_traces,
+                        plot_traces: int = opt_plot_traces,
+                        scope_type: ScopeType = opt_scope_type):
+    """Capture vertical otbn (ecc256 keygen) traces in batch mode. Fixed vs Random."""
+    capture_init(ctx, num_traces, plot_traces)
+    capture_otbn_vertical_batch(ctx.obj.ot, ctx.obj.ktp,
+                                ctx.obj.cfg["capture"], scope_type)
+    capture_end(ctx.obj.cfg)
+
+
 def capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections, secret_k, priv_key_d, msg):
     """ A utility function to collect the full OTBN trace section by section
 

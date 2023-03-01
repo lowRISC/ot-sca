@@ -76,7 +76,7 @@ class OpenTitan(object):
         # bitstream.
         # TODO: We should have this in the CLI.
         force_programming = False
-        print('Connecting and loading FPGA... ', end='')
+        print('Connecting and loading FPGA... ', end='', flush = True)
 
         # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
         # Note: This is fragile and may break but it is easy to miss that the FPGA

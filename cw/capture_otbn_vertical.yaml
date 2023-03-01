@@ -2,7 +2,8 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
   fw_bin: objs/ecc256_keygen_serial_fpga_cw310.bin
   # Target operating frequency
-  pll_frequency: 91000000
+  # For non-batch mode max. 91 MHz, otherwise serial communication fails
+  pll_frequency: 100000000
   baudrate: 115200
 capture:
   # Currently, 'p256' is the only supported curve.
@@ -18,12 +19,13 @@ capture:
   output_len_bytes: 40
   # Samples per trace
   # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
-  num_samples: 8000
+  num_samples: 3500
   # Offset in samples
   offset: 0
   # scope gain in db
   scope_gain: 24
   num_traces: 1000
+  batch_prng_seed: 6
   project_name: projects/opentitan_otbn_vertical_keygen
   waverunner_ip: 192.168.1.228
   # As OTBN operations are long, we may need to overwrite the following

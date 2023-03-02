@@ -4,8 +4,11 @@
 # SPDX-License-Identifier: Apache-2.0
 import binascii
 import random
+import signal
+import sys
 import time
 from enum import Enum
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -58,6 +61,19 @@ SCOPE_FACTORY = {
     ScopeType.cw: create_cw_segmented,
     ScopeType.waverunner: create_waverunner,
 }
+
+
+def abort_handler(project, sig, frame):
+    """ Handler for ctrl-c keyboard interrupts:
+        Saves capture project before exiting, in case abort is intended.
+        Needs to be registered in every capture function before capture loop.
+        To register handler use:
+        signal.signal(signal.SIGINT, partial(abort_handler, project))
+        where 'project' is the variable for the capture project """
+    if project is not None:
+        print("\nCaught keyboard interrupt -> saving project (traces)...")
+        project.close(save=True)
+    sys.exit(0)
 
 
 # Note: initialize_capture and plot_results are also used by other scripts.
@@ -153,6 +169,10 @@ def capture_loop(trace_gen, ot, capture_cfg):
       capture_cfg: Capture configuration.
     """
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing', ncols=80):
         traces = next(trace_gen)
         check_range(traces.wave, ot.scope.adc.bits_per_sample)
@@ -258,6 +278,10 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type):
     num_segments_storage = 1
     # cw and waverunner scopes are supported fot batch capture.
     scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
@@ -413,6 +437,9 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     num_segments_storage = 1
     # cw and waverunner scopes are supported for batch capture.
     scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
 
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
@@ -615,6 +642,10 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
     sample_fixed = False
     # cw and waverunner scopes are supported fot batch capture.
     scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
@@ -838,6 +869,10 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
     sample_fixed = False
     # cw and waverunner scopes are supported fot batch capture.
     scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
@@ -1072,6 +1107,9 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
     # `seed` is interpreted as little-endian.
     expected_fixed_key = int.from_bytes(seed_fixed, byteorder='little') % curve_order_n
 
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     sample_fixed = 1
     # Loop to collect each power trace
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
@@ -1303,6 +1341,9 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
     # Create a cw project to keep the data and traces
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
 
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
+
     # Loop to collect each power trace
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
                   ncols=80):
@@ -1486,6 +1527,9 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
     else:
         # We support only CW-Husky for now.
         raise RuntimeError('Only CW-Husky is supported now')
+
+    # register ctrl-c handler to not lose already recorded traces if measurement is aborted
+    signal.signal(signal.SIGINT, partial(abort_handler, project))
 
     # Loop to collect traces
     for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',

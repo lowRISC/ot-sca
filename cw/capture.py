@@ -7,6 +7,7 @@ import random
 import signal
 import sys
 import time
+from datetime import datetime
 from enum import Enum
 from functools import partial
 from pathlib import Path
@@ -74,6 +75,22 @@ def abort_handler(project, sig, frame):
         print("\nCaught keyboard interrupt -> saving project (traces)...")
         project.close(save=True)
     sys.exit(0)
+
+
+def save_metadata(project, device_cfg, capture_cfg, trigger_cycles, sample_rate):
+    # Save metadata to project file
+    if sample_rate is not None:
+        project.settingsDict['sample_rate'] = sample_rate
+    if device_cfg is not None:
+        for entry in device_cfg:
+            project.settingsDict[entry] = device_cfg[entry]
+    if capture_cfg is not None:
+        for entry in capture_cfg:
+            project.settingsDict[entry] = capture_cfg[entry]
+    # store last number of cycles where the trigger signal was high to metadata
+    if trigger_cycles is not None:
+        project.settingsDict['samples_trigger_high'] = trigger_cycles
+    project.settingsDict['datetime'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 
 
 # Note: initialize_capture and plot_results are also used by other scripts.
@@ -161,7 +178,7 @@ def capture_init(ctx, num_traces, plot_traces):
     ctx.obj.ot = initialize_capture(cfg["device"], cfg["capture"])
 
 
-def capture_loop(trace_gen, ot, capture_cfg):
+def capture_loop(trace_gen, ot, capture_cfg, device_cfg):
     """Main capture loop.
 
     Args:
@@ -177,6 +194,9 @@ def capture_loop(trace_gen, ot, capture_cfg):
         traces = next(trace_gen)
         check_range(traces.wave, ot.scope.adc.bits_per_sample)
         project.traces.append(traces, dtype=np.uint16)
+
+    sample_rate = int(round(ot.scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, None, sample_rate)
     project.save()
 
 
@@ -214,7 +234,8 @@ def aes_random(ctx: typer.Context,
                plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot,
+                 ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -250,7 +271,7 @@ def check_ciphertext(ot, expected_last_ciphertext, ciphertext_len):
     )
 
 
-def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type):
+def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     """A generator for capturing AES traces in batch mode.
     Fixed key, Random texts.
 
@@ -328,6 +349,10 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type):
         project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
 
+    # Save metadata to project file
+    sample_rate = int(round(scope._scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, None, sample_rate)
+
     # Save the project to disk.
     project.save()
 
@@ -339,7 +364,8 @@ def aes_random_batch(ctx: typer.Context,
                      scope_type: ScopeType = opt_scope_type):
     """Capture AES traces in batch mode. Fixed key random texts."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_aes_random_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type)
+    capture_aes_random_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"],
+                             scope_type, ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -397,11 +423,12 @@ def aes_fvsr_key(ctx: typer.Context,
                  plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.ot,
+                 ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
-def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts):
+def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts, device_cfg):
     """A generator for capturing AES traces for fixed vs random key test in batch mode.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -516,6 +543,10 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
         project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
 
+    # Save metadata to project file
+    sample_rate = int(round(scope._scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, None, sample_rate)
+
     # Save the project to disk.
     project.save()
 
@@ -528,9 +559,9 @@ def aes_fvsr_key_batch(ctx: typer.Context,
                        gen_ciphertexts: bool = opt_ciphertexts_store):
     """Capture AES traces in batch mode. Fixed vs random keys, random texts."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_aes_fvsr_key_batch(
-        ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"], scope_type, gen_ciphertexts
-    )
+    capture_aes_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"],
+                               scope_type, gen_ciphertexts,
+                               ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -557,7 +588,7 @@ def aes_mix_column(ctx: typer.Context,
         ctx.obj.cfg['capture']['project_name'] = f'{project_name}_{var_vec}'
         ctx.obj.ktp.var_vec = var_vec
         capture_loop(capture_aes_random(
-            ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"]
+            ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"]
         )
 
     capture_end(ctx.obj.cfg)
@@ -598,7 +629,7 @@ def capture_sha3_random(ot, ktp, capture_cfg):
         yield ret
 
 
-def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
+def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     """A generator for fast capturing sha3 traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -709,6 +740,11 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type):
     for s in range(len(project.segments)):
         project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
+
+    # Save metadata to project file
+    sample_rate = int(round(scope._scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, None, sample_rate)
+
     # Save the project to disk.
     project.save()
 
@@ -720,7 +756,7 @@ def sha3_random(ctx: typer.Context,
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"]),
-                 ctx.obj.ot, ctx.obj.cfg["capture"])
+                 ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -794,7 +830,7 @@ def sha3_fvsr_data(ctx: typer.Context,
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_sha3_fvsr_data(ctx.obj.ot, ctx.obj.cfg["capture"]),
-                 ctx.obj.ot, ctx.obj.cfg["capture"])
+                 ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -806,7 +842,9 @@ def sha3_fvsr_data_batch(ctx: typer.Context,
     """Capture sha3 traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
     capture_sha3_fvsr_data_batch(ctx.obj.ot, ctx.obj.ktp,
-                                 ctx.obj.cfg["capture"], scope_type)
+                                 ctx.obj.cfg["capture"],
+                                 scope_type,
+                                 ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -836,7 +874,7 @@ def capture_kmac_random(ot, ktp):
         yield ret
 
 
-def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
+def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     """A generator for fast capturing KMAC-128 traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -934,6 +972,11 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type):
     for s in range(len(project.segments)):
         project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
+
+    # Save metadata to project file
+    sample_rate = int(round(scope._scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, None, sample_rate)
+
     # Save the project to disk.
     project.save()
 
@@ -944,7 +987,8 @@ def kmac_random(ctx: typer.Context,
                 plot_traces: int = opt_plot_traces):
     """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
-    capture_loop(capture_kmac_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot, ctx.obj.cfg["capture"])
+    capture_loop(capture_kmac_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot,
+                 ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -1018,7 +1062,7 @@ def kmac_fvsr_key(ctx: typer.Context,
     """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
     capture_init(ctx, num_traces, plot_traces)
     capture_loop(capture_kmac_fvsr_key(ctx.obj.ot, ctx.obj.cfg["capture"]),
-                 ctx.obj.ot, ctx.obj.cfg["capture"])
+                 ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
@@ -1030,11 +1074,13 @@ def kmac_fvsr_key_batch(ctx: typer.Context,
     """Capture KMAC-128 traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
     capture_kmac_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
-                                ctx.obj.cfg["capture"], scope_type)
+                                ctx.obj.cfg["capture"],
+                                scope_type,
+                                ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
-def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
+def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cfg):
     """Capture traces for ECDSA P256/P384 secret key generation.
 
     Uses a fixed seed and generates several random masks. For the corresponding
@@ -1194,6 +1240,10 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg):
         check_range(waves, ot.scope.adc.bits_per_sample)
         project.traces.append(trace, dtype=np.uint16)
 
+    # Save metadata to project file
+    sample_rate = int(round(ot.scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, cycles, sample_rate)
+
     project.save()
 
 
@@ -1229,11 +1279,12 @@ def otbn_vertical(ctx: typer.Context,
                           ctx.obj.ktp,
                           ctx.obj.cfg["device"]["fw_bin"],
                           ctx.obj.cfg["device"]["pll_frequency"],
-                          ctx.obj.cfg["capture"])
+                          ctx.obj.cfg["capture"],
+                          ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 
-def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type):
+def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     """A generator for fast capturing otbn vertical (ecc256 keygen) traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -1314,7 +1365,7 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type):
 
     # OTBN's public-key operations might not fit into the sample buffer of the scope
     # These two parameters allows users to conrol the sampling frequency
-    # `adc_mul` affects the clock frequency (clock_freq = adc_mul * pll_freq)
+    # `adc_mul` affects the sample frequency (clock_freq = adc_mul * pll_freq)
     # `decimate` is the ADC downsampling factor that allows us to sample at
     #  every `decimate` cycles.
     if "adc_mul" in capture_cfg:
@@ -1410,6 +1461,10 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type):
         project.traces.tm.setTraceSegmentStatus(s, True)
     assert len(project.traces) == capture_cfg["num_traces"]
 
+    # Save metadata to project file
+    sample_rate = int(round(scope._scope.clock.adc_freq, -6))
+    save_metadata(project, device_cfg, capture_cfg, cycles, sample_rate)
+
     # Save the project to disk.
     project.save()
 
@@ -1422,7 +1477,9 @@ def otbn_vertical_batch(ctx: typer.Context,
     """Capture vertical otbn (ecc256 keygen) traces in batch mode. Fixed vs Random."""
     capture_init(ctx, num_traces, plot_traces)
     capture_otbn_vertical_batch(ctx.obj.ot, ctx.obj.ktp,
-                                ctx.obj.cfg["capture"], scope_type)
+                                ctx.obj.cfg["capture"],
+                                scope_type,
+                                ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
 
 

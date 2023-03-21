@@ -1167,7 +1167,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
     # Initialize some curve-dependent parameters.
     if capture_cfg["curve"] == 'p256':
         curve_order_n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
-        # key_bytes = 256 // 8
+        key_bytes = 256 // 8
         seed_bytes = 320 // 8
     else:
         # TODO: add support for P384
@@ -1182,12 +1182,36 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         raise ValueError(f'Unexpected mask length: {ktp.textLen()}.\n'
                          f'Hint: set plaintext len={seed_bytes} in the configuration file.')
 
-    # Seed the RNG and generate a random fixed seed for all traces of the
-    # keygen operation.
-    seed_fixed = ktp.next_key()
-    print(f'fixed seed = {seed_fixed.hex()}')
-    if len(seed_fixed) != seed_bytes:
-        raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
+    # Generate fixed constants for all traces of the keygen operation.
+
+    if capture_cfg["test_type"] == 'KEY':
+        # In fixed-vs-random KEY mode we use two fixed constants:
+        #    1. C - a 320 bit constant redundancy
+        #    2. fixed_number - a 256 bit number used to derive the fixed key
+        #                      for the fixed set of measurements. Note that in
+        #                      this set, the fixed key is equal to
+        #                      (C + fixed_number) mod curve_order_n
+        C = ktp.next_key()
+        if len(C) != seed_bytes:
+            raise ValueError(f'Fixed seed length is {len(C)}, expected {seed_bytes}')
+        ktp.key_len = key_bytes
+        fixed_number = ktp.next_key()
+        if len(fixed_number) != key_bytes:
+            raise ValueError(f'Fixed key length is {len(fixed_number)}, expected {key_bytes}')
+        ktp.key_len = seed_bytes
+
+        seed_fixed_int = int.from_bytes(C, byteorder='little') + \
+            int.from_bytes(fixed_number, byteorder='little')
+        seed_fixed = seed_fixed_int.to_bytes(seed_bytes, byteorder='little')
+    else:
+        # In fixed-vs-random SEED mode we use only one fixed constant:
+        #    1. seed_fixed - A 320 bit constant used to derive the fixed key
+        #                    for the fixed set of measurements. Note that in
+        #                    this set, the fixed key is equal to:
+        #                    seed_fixed mod curve_order_n
+        seed_fixed = ktp.next_key()
+        if len(seed_fixed) != seed_bytes:
+            raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
 
     # Expected key is `seed mod n`, where n is the order of the curve and
     # `seed` is interpreted as little-endian.
@@ -1216,18 +1240,46 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         tqdm.write("Starting new trace....")
         tqdm.write(f'mask   = {mask.hex()}')
 
-        if sample_fixed:
-            # Use the fixed seed.
-            seed_used = seed_fixed
-            expected_key = expected_fixed_key
+        if capture_cfg["test_type"] == 'KEY':
+            # In fixed-vs-random KEY mode, the fixed set of measurements is
+            # generated using the fixed 320 bit seed. The random set of
+            # measurements is generated in two steps:
+            #    1. Choose a random 256 bit number r
+            #    2. Compute the seed as (C + r) where C is the fixed 320 bit
+            #       constant. Note that in this case the used key is equal to
+            #       (C + r) mod curve_order_n
+            if sample_fixed:
+                seed_used = seed_fixed
+                expected_key = expected_fixed_key
+            else:
+                ktp.key_len = key_bytes
+                random_number = ktp.next_key()
+                ktp.key_len = seed_bytes
+                seed_used_int = int.from_bytes(C, byteorder='little') + \
+                    int.from_bytes(random_number, byteorder='little')
+                seed_used = seed_used_int.to_bytes(seed_bytes, byteorder='little')
+                expected_key = int.from_bytes(seed_used, byteorder='little') % curve_order_n
         else:
-            # Use a random seed.
-            seed_used = ktp.next_key()
-            expected_key = int.from_bytes(seed_used, byteorder='little') % curve_order_n
+            # In fixed-vs-random SEED mode, the fixed set of measurements is
+            # generated using the fixed 320 bit seed. The random set of
+            # measurements is generated using a random 320 bit seed. In both
+            # cases, the used key is equal to:
+            #    seed mod curve_order_n
+            if sample_fixed:
+                seed_used = seed_fixed
+                expected_key = expected_fixed_key
+            else:
+                seed_used = ktp.next_key()
+                expected_key = int.from_bytes(seed_used, byteorder='little') % curve_order_n
 
         # Decide for next round if we use the fixed or a random seed.
         sample_fixed = random.randint(0, 1)
 
+        # Send the seed to ibex.
+        # Ibex receives the seed and the mask and computes the two shares as:
+        #     Share0 = seed XOR mask
+        #     Share1 = mask
+        # These shares are then forwarded to OTBN.
         ot.target.simpleserial_write('x', seed_used)
         tqdm.write(f'seed   = {seed_used.hex()}')
 

@@ -371,17 +371,17 @@ def run_tvla(ctx: typer.Context):
                     force=True,)
 
     if (cfg["mode"] != "kmac" and cfg["mode"] != "aes" and cfg["mode"] != "sha3" and
-            cfg["mode"] != "otbn"):
+            cfg["mode"] != "otbn" and cfg["mode"] != "otbn_modinv"):
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
     if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            cfg["general_test"] is True):
+            cfg["mode"] == "otbn_modinv" or cfg["general_test"] is True):
         general_test = True
     else:
         general_test = False
 
     if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            general_test is True):
+            cfg["mode"] == "otbn_modinv" or general_test is True):
         # We don't care about the round select in this mode. Set it to 0 for code compatibility.
         rnd_list = [0]
     elif cfg["round_select"] is None:
@@ -393,7 +393,7 @@ def run_tvla(ctx: typer.Context):
     num_rnds = len(rnd_list)
 
     if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            general_test is True):
+            cfg["mode"] == "otbn_modinv" or general_test is True):
         # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
     elif cfg["byte_select"] is None:
@@ -404,7 +404,7 @@ def run_tvla(ctx: typer.Context):
 
     num_bytes = len(byte_list)
 
-    if cfg["mode"] == "otbn":
+    if cfg["mode"] == "otbn" or cfg["mode"] == "otbn_modinv":
         if "key_len_bytes" not in cfg:
             raise RuntimeError('key_len_bytes must be set for otbn mode!')
         else:
@@ -638,7 +638,7 @@ def run_tvla(ctx: typer.Context):
             if cfg["leakage_file"] is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
-                if cfg["mode"] == "otbn":
+                if cfg["mode"] == "otbn" or cfg["mode"] == "otbn_modinv":
                     keys = np.empty((num_traces_orig, key_len_bytes), dtype=np.uint8)
                 else:
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
@@ -653,7 +653,7 @@ def run_tvla(ctx: typer.Context):
                         # Convert all keys from the project file to numpy arrays once.
                         keys_nparrays = []
                         for i in range(num_traces_max):
-                            if cfg["mode"] == "sha3":
+                            if cfg["mode"] == "sha3" or cfg["mode"] == "otbn_modinv":
                                 keys_nparrays.append(np.frombuffer(project.textins[i],
                                                                    dtype=np.uint8))
                             else:
@@ -1106,7 +1106,9 @@ def run_tvla(ctx: typer.Context):
                         # Plot samples within actual SHA3 phase, unless a range is specified.
                         "sha3": range(0, num_samples) if range_specified else range(1150, 3150),
                         # Simply plot all samples within the selected range.
-                        "otbn": range(0, num_samples)
+                        "otbn": range(0, num_samples),
+                        # Simply plot all samples within the selected range.
+                        "otbn_modinv": range(0, num_samples)
                     }
 
                 for i_order in range(num_orders):
@@ -1197,8 +1199,8 @@ help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Defa
 help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
     model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
     Default: """ + str(default_general_test))
-help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3", or "otbn".
-    Default: """ + str(default_mode))
+help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3", "otbn"
+    or "otbn_modinv". Default: """ + str(default_mode))
 help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
     isn't any configuration file. Default: """ + str(default_update_cfg_file))
 

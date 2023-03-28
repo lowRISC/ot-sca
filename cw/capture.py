@@ -1121,11 +1121,13 @@ def kmac_fvsr_key_batch(ctx: typer.Context,
 
 
 def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cfg):
-    """Capture traces for ECDSA P256/P384 secret key generation.
+    """Capture traces for ECDSA P256/P384 secret key generation
+    and modular inverse computation.
 
-    Uses a fixed seed and generates several random masks. For the corresponding
-    driver, check:
-    <opentitan_repo_root>/sw/device/sca/ecc256_keygen_serial.c
+    For keygen it uses a fixed seed and generates several random masks.
+    For modinv it uses two fixed or random key shares as input for the device.
+    For the corresponding driver, check:
+    <opentitan_repo_root>/sw/device/sca/otbn_vertical/otbn_vertical_serial.c
 
     Args:
       ot: Initialized OpenTitan target.
@@ -1169,6 +1171,8 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         curve_order_n = 0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551
         key_bytes = 256 // 8
         seed_bytes = 320 // 8
+        modinv_share_bytes = 320 // 8
+        modinv_mask_bytes = 128 // 8
     else:
         # TODO: add support for P384
         raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
@@ -1220,25 +1224,45 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    sample_fixed = 1
-    # Loop to collect each power trace
-    for _ in tqdm(range(capture_cfg["num_traces"]), desc='Capturing',
-                  ncols=80):
+    if capture_cfg["app"] == 'keygen':
+        # Check the lengths in the key/plaintext generator. In this case, "key"
+        # means seed and "plaintext" means mask.
+        if ktp.keyLen() != seed_bytes:
+            raise ValueError(
+                f'Unexpected seed length: {ktp.keyLen()}.\n'
+                f'Hint: set key len={seed_bytes} in the configuration file.')
+        if ktp.textLen() != seed_bytes:
+            raise ValueError(
+                f'Unexpected mask length: {ktp.textLen()}.\n'
+                f'Hint: set plaintext len={seed_bytes} in the configuration file.'
+            )
 
-        if reset_firmware:
-            ot.program_target(fw_bin, pll_frequency)
+        # select the otbn app on the device (0 -> keygen, 1 -> modinv)
+        ot.target.simpleserial_write("a", bytearray([0x00]))
+        time.sleep(0.3)
 
-        ot.scope.adc.offset = capture_cfg["offset"]
+        # Seed the RNG and generate a random fixed seed for all traces of the
+        # keygen operation.
+        seed_fixed = ktp.next_key()
+        print(f'fixed seed = {seed_fixed.hex()}')
+        if len(seed_fixed) != seed_bytes:
+            raise ValueError(
+                f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}'
+            )
 
-        if capture_cfg["masks_off"] is True:
-            # Use a constant mask for each trace
-            mask = bytearray(capture_cfg["plain_text_len_bytes"])  # all zeros
-        else:
-            # Generate a new random mask for each trace.
-            mask = ktp.next_text()
+        # Expected key is `seed mod n`, where n is the order of the curve and
+        # `seed` is interpreted as little-endian.
+        expected_fixed_key = int.from_bytes(seed_fixed,
+                                            byteorder='little') % curve_order_n
 
-        tqdm.write("Starting new trace....")
-        tqdm.write(f'mask   = {mask.hex()}')
+        sample_fixed = 1
+        # Loop to collect each power trace
+        for _ in tqdm(range(capture_cfg["num_traces"]),
+                      desc='Capturing',
+                      ncols=80):
+
+            if reset_firmware:
+                ot.program_target(fw_bin, pll_frequency)
 
         if capture_cfg["test_type"] == 'KEY':
             # In fixed-vs-random KEY mode, the fixed set of measurements is
@@ -1272,8 +1296,13 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                 seed_used = ktp.next_key()
                 expected_key = int.from_bytes(seed_used, byteorder='little') % curve_order_n
 
-        # Decide for next round if we use the fixed or a random seed.
-        sample_fixed = random.randint(0, 1)
+            if capture_cfg["masks_off"] is True:
+                # Use a constant mask for each trace
+                mask = bytearray(
+                    capture_cfg["plain_text_len_bytes"])  # all zeros
+            else:
+                # Generate a new random mask for each trace.
+                mask = ktp.next_text()
 
         # Send the seed to ibex.
         # Ibex receives the seed and the mask and computes the two shares as:
@@ -1283,54 +1312,201 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         ot.target.simpleserial_write('x', seed_used)
         tqdm.write(f'seed   = {seed_used.hex()}')
 
-        # Check for errors.
-        err = ot.target.read()
-        if err:
-            raise RuntimeError(f'Error writing seed: {err}')
+            if sample_fixed:
+                # Use the fixed seed.
+                seed_used = seed_fixed
+                expected_key = expected_fixed_key
+            else:
+                # Use a random seed.
+                seed_used = ktp.next_key()
+                expected_key = int.from_bytes(
+                    seed_used, byteorder='little') % curve_order_n
 
-        # Arm the scope
-        ot.scope.arm()
+            # Decide for next round if we use the fixed or a random seed.
+            sample_fixed = random.randint(0, 1)
 
-        # Send the mask and start the keygen operation.
-        ot.target.simpleserial_write('k', mask)
+            ot.target.simpleserial_write('x', seed_used)
+            tqdm.write(f'seed   = {seed_used.hex()}')
 
-        # Wait until operation is done.
-        ret = ot.scope.capture(poll_done=True)
-        if ret:
-            raise RuntimeError('Timeout during capture')
+            # Check for errors.
+            err = ot.target.read()
+            if err:
+                raise RuntimeError(f'Error writing seed: {err}')
 
-        # Check the number of cycles where the trigger signal was high.
-        cycles = ot.scope.adc.trig_count
-        tqdm.write("Observed number of cycles: %d" % cycles)
+            # Arm the scope
+            ot.scope.arm()
 
-        waves = ot.scope.get_last_trace(as_int=True)
-        # Read the output, unmask the key, and check if it matches
-        # expectations.
-        share0 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
-        share1 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
-        if share0 is None:
-            raise RuntimeError('Random share0 is none')
-        if share1 is None:
-            raise RuntimeError('Random share1 is none')
+            # Send the mask and start the keygen operation.
+            ot.target.simpleserial_write('k', mask)
 
-        d0 = int.from_bytes(share0, byteorder='little')
-        d1 = int.from_bytes(share1, byteorder='little')
-        actual_key = (d0 + d1) % curve_order_n
+            # Wait until operation is done.
+            ret = ot.scope.capture(poll_done=True)
+            if ret:
+                raise RuntimeError('Timeout during capture')
 
-        tqdm.write(f'share0 = {share0.hex()}')
-        tqdm.write(f'share1 = {share1.hex()}')
+            # Check the number of cycles where the trigger signal was high.
+            cycles = ot.scope.adc.trig_count
+            tqdm.write("Observed number of cycles: %d" % cycles)
 
-        if actual_key != expected_key:
-            raise RuntimeError('Bad generated key:\n'
-                               f'Expected: {hex(expected_key)}\n'
-                               f'Actual:   {hex(actual_key)}')
+            waves = ot.scope.get_last_trace(as_int=True)
+            # Read the output, unmask the key, and check if it matches
+            # expectations.
+            share0 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
+            share1 = ot.target.simpleserial_read("r", seed_bytes, ack=False)
+            if share0 is None:
+                raise RuntimeError('Random share0 is none')
+            if share1 is None:
+                raise RuntimeError('Random share1 is none')
 
-        # Create a chipwhisperer trace object and save it to the project
-        # Args/fields of Trace object: waves, textin, textout, key
-        textout = share0 + share1  # concatenate bytearrays
-        trace = Trace(waves, mask, textout, seed_used)
-        check_range(waves, ot.scope.adc.bits_per_sample)
-        project.traces.append(trace, dtype=np.uint16)
+            d0 = int.from_bytes(share0, byteorder='little')
+            d1 = int.from_bytes(share1, byteorder='little')
+            actual_key = (d0 + d1) % curve_order_n
+
+            tqdm.write(f'share0 = {share0.hex()}')
+            tqdm.write(f'share1 = {share1.hex()}')
+
+            if actual_key != expected_key:
+                raise RuntimeError('Bad generated key:\n'
+                                   f'Expected: {hex(expected_key)}\n'
+                                   f'Actual:   {hex(actual_key)}')
+
+            # Create a chipwhisperer trace object and save it to the project
+            # Args/fields of Trace object: waves, textin, textout, key
+            textout = share0 + share1  # concatenate bytearrays
+            trace = Trace(waves, mask, textout, seed_used)
+            check_range(waves, ot.scope.adc.bits_per_sample)
+            project.traces.append(trace, dtype=np.uint16)
+    elif capture_cfg["app"] == 'modinv':
+        # Check the lengths in the key/plaintext generator. In this case, "key"
+        # is the input to the modinv app. We only use the key part of the ktp
+        # to generate the key share inputs to the modinv app.
+        if ktp.keyLen() != modinv_share_bytes:
+            raise ValueError(
+                f'Unexpected input (share) length: {ktp.keyLen()}.\n'
+                f'Hint: set key len={modinv_share_bytes} in the configuration file.'
+            )
+
+        # select the otbn app on the device (0 -> keygen, 1 -> modinv)
+        ot.target.simpleserial_write("a", bytearray([0x01]))
+        time.sleep(0.3)
+
+        # set PRNG seed to ensure same sequence of randoms for split up measurements
+        random.seed(capture_cfg["batch_prng_seed"])
+
+        # set ecc256 fixed key and share inputs
+        # (uncomment the desired fixed shares depending on whether
+        # you want a random fixed key or a hardcoded fixed key)
+        # k_fixed_barray = ktp.next_key()[:256]
+        k_fixed_barray = bytearray(
+            (0x2648d0d248b70944dfd84c2f85ea5793729112e7cafa50abdf7ef8b7594fa2a1
+             ).to_bytes(key_bytes, 'little'))
+        k_fixed = int.from_bytes(k_fixed_barray, byteorder='little')
+
+        print("Fixed input:")
+        print("k:  " + hex(k_fixed) + "\n")
+
+        # Expected fixed output is `(k)^(-1) mod n`, where n is the curve order n
+        expected_fixed_output = pow(k_fixed, -1, curve_order_n)
+
+        sample_fixed = 1
+        # Loop to collect each power trace
+        for _ in tqdm(range(capture_cfg["num_traces"]),
+                      desc='Capturing',
+                      ncols=80):
+
+            if reset_firmware:
+                ot.program_target(fw_bin, pll_frequency)
+
+            ot.scope.adc.offset = capture_cfg["offset"]
+
+            if sample_fixed:
+                # Compute the fixed input shares:
+                # generate two random 320-bit shares
+                input_k0_fixed = ktp.next_key()
+                input_k1_fixed = ktp.next_key()
+                k0_fixed = int.from_bytes(input_k0_fixed, byteorder='little')
+                k1_fixed = int.from_bytes(input_k1_fixed, byteorder='little')
+                # adapt share k1 so that k = (k0 + k1) mod n
+                k_tmp = (k0_fixed + k1_fixed) % curve_order_n
+                k_tmp_diff = (k_fixed - k_tmp) % curve_order_n
+                k1_fixed += k_tmp_diff
+                if k1_fixed >= pow(2, 320):
+                    k1_fixed -= curve_order_n
+                input_k1_fixed = bytearray((k1_fixed).to_bytes(modinv_share_bytes,
+                                                               'little'))
+                # Use the fixed input.
+                input_k0_used = input_k0_fixed
+                input_k1_used = input_k1_fixed
+                k_used = k_fixed
+                expected_output = expected_fixed_output
+            else:
+                # Use a random input.
+                input_k0_used = ktp.next_key()
+                input_k1_used = ktp.next_key()
+                # calculate the key from the shares
+                k_used = (int.from_bytes(input_k0_used, byteorder='little') +
+                          int.from_bytes(input_k1_used,
+                                         byteorder='little')) % curve_order_n
+                expected_output = pow(k_used, -1, curve_order_n)
+
+            tqdm.write(
+                f'k0 = {hex(int.from_bytes(input_k0_used, byteorder="little"))}'
+            )
+            tqdm.write(
+                f'k1 = {hex(int.from_bytes(input_k1_used, byteorder="little"))}'
+            )
+
+            # Decide for next round if we use the fixed or a random seed.
+            sample_fixed = random.randint(0, 1)
+
+            # Arm the scope
+            ot.scope.arm()
+
+            # Start modinv device computation
+            ot.target.simpleserial_write('q', input_k0_used + input_k1_used)
+
+            # Wait until operation is done.
+            ret = ot.scope.capture(poll_done=True)
+            if ret:
+                raise RuntimeError('Timeout during capture')
+
+            # Check the number of cycles where the trigger signal was high.
+            cycles = ot.scope.adc.trig_count
+            tqdm.write("Observed number of cycles: %d" % cycles)
+
+            waves = ot.scope.get_last_trace(as_int=True)
+            # Read the output, unmask the key, and check if it matches
+            # expectations.
+            kalpha_inv = ot.target.simpleserial_read("r", key_bytes, ack=False)
+            if kalpha_inv is None:
+                raise RuntimeError('Modinv device output (k*alpha)^-1 is none')
+            alpha = ot.target.simpleserial_read("r",
+                                                modinv_mask_bytes,
+                                                ack=False)
+            if alpha is None:
+                raise RuntimeError('Modinv device output alpha is none')
+
+            # Actual result (kalpha_inv*alpha) mod n:
+            actual_output = int.from_bytes(
+                kalpha_inv, byteorder='little') * int.from_bytes(
+                    alpha, byteorder='little') % curve_order_n
+
+            tqdm.write(f'k^-1  = {hex(actual_output)}\n')
+
+            if actual_output != expected_output:
+                raise RuntimeError('Bad computed modinv output:\n'
+                                   f'Expected: {hex(expected_output)}\n'
+                                   f'Actual:   {hex(actual_output)}')
+
+            # Create a chipwhisperer trace object and save it to the project
+            # Args/fields of Trace object: waves, textin, textout, key
+            trace = cw.common.traces.Trace(
+                waves, bytearray(k_used.to_bytes(key_bytes, 'little')),
+                bytearray(actual_output.to_bytes(key_bytes, 'little')), None)
+            check_range(waves, ot.scope.adc.bits_per_sample)
+            project.traces.append(trace, dtype=np.uint16)
+    else:
+        print("Invalid app configured in config file.")
 
     # Save metadata to project file
     sample_rate = int(round(ot.scope.clock.adc_freq, -6))
@@ -1378,7 +1554,7 @@ def otbn_vertical(ctx: typer.Context,
 
 
 def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
-    """A generator for fast capturing otbn vertical (ecc256 keygen) traces.
+    """A generator for fast capturing otbn vertical (ecc256 keygen + modinv) traces.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
     The measurements are taken by using either fixed or randomly selected seed.
@@ -1415,38 +1591,8 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         seed_bytes = 320 // 8
     else:
         # TODO: add support for P384
-        raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
-
-    # Check the lengths in the key/plaintext generator. In this case, "key"
-    # means seed and "plaintext" means mask.
-    if ktp.keyLen() != seed_bytes:
-        raise ValueError(f'Unexpected seed length: {ktp.keyLen()}.\n'
-                         f'Hint: set key len={seed_bytes} in the configuration file.')
-    if ktp.textLen() != seed_bytes:
-        raise ValueError(f'Unexpected mask length: {ktp.textLen()}.\n'
-                         f'Hint: set plaintext len={seed_bytes} in the configuration file.')
-
-    # set ecc256 fixed seed - for batch mode the "plaintext" of ktp is used for seed and mask
-    # this simplifies synchronization with the device PRNG
-    seed_fixed = ktp.next_key()
-    print("Fixed seed:")
-    print(binascii.b2a_hex(seed_fixed))
-    if len(seed_fixed) != seed_bytes:
-        raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
-    ot.target.simpleserial_write("x", seed_fixed)
-    time.sleep(0.3)
-
-    # set PRNG seed
-    random.seed(capture_cfg["batch_prng_seed"])
-    ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
-    time.sleep(0.3)
-
-    # enable/disable masking
-    if capture_cfg["masks_off"] is True:
-        ot.target.simpleserial_write("m", bytearray([0x00]))
-    else:
-        ot.target.simpleserial_write("m", bytearray([0x01]))
-    time.sleep(0.3)
+        raise NotImplementedError(
+            f'Curve {capture_cfg["curve"]} is not supported')
 
     # Capture traces.
     rem_num_traces = capture_cfg["num_traces"]
@@ -1467,88 +1613,142 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         scope._scope.adc.decimate = capture_cfg["decimate"]
 
     # Print final scope parameter
-    print(f'Scope setup with final sampling rate of {scope._scope.clock.adc_freq} S/s')
+    print(
+        f'Scope setup with final sampling rate of {scope._scope.clock.adc_freq} S/s'
+    )
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
-        while rem_num_traces > 0:
-            # Determine the number of traces for this batch and arm the oscilloscope.
-            scope.num_segments = min(rem_num_traces, scope.num_segments_max)
-
-            scope.arm()
-            # Start batch keygen
-            ot.target.simpleserial_write(
-                "b", scope.num_segments_actual.to_bytes(4, "little")
+    if capture_cfg["app"] == 'keygen':
+        # Check the lengths in the key/plaintext generator. In this case, "key"
+        # means seed and "plaintext" means mask.
+        if ktp.keyLen() != seed_bytes:
+            raise ValueError(
+                f'Unexpected seed length: {ktp.keyLen()}.\n'
+                f'Hint: set key len={seed_bytes} in the configuration file.')
+        if ktp.textLen() != seed_bytes:
+            raise ValueError(
+                f'Unexpected mask length: {ktp.textLen()}.\n'
+                f'Hint: set plaintext len={seed_bytes} in the configuration file.'
             )
-            # Transfer traces
-            waves = scope.capture_and_transfer_waves()
-            assert waves.shape[0] == scope.num_segments
 
-            # Check the number of cycles where the trigger signal was high.
-            cycles = ot.scope.adc.trig_count // scope.num_segments_actual
-            if (rem_num_traces <= scope.num_segments_max):
-                tqdm.write("No. of cycles with trigger high: %d" % cycles)
+        # select the otbn app on the device (0 -> keygen, 1 -> modinv)
+        ot.target.simpleserial_write("a", bytearray([0x00]))
+        time.sleep(0.3)
 
-            seeds = []
-            masks = []
-            d0s = []
-            d1s = []
+        # set ecc256 fixed seed
+        seed_fixed = ktp.next_key()
+        print("Fixed seed:")
+        print(binascii.b2a_hex(seed_fixed))
+        if len(seed_fixed) != seed_bytes:
+            raise ValueError(
+                f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}'
+            )
+        ot.target.simpleserial_write("x", seed_fixed)
+        time.sleep(0.3)
 
-            batch_digest = None
-            for i in range(scope.num_segments_actual):
+        # set PRNG seed
+        random.seed(capture_cfg["batch_prng_seed"])
+        ot.target.simpleserial_write(
+            "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+        time.sleep(0.3)
 
-                if sample_fixed:
-                    seed_barray = seed_fixed
-                    seed = int.from_bytes(seed_barray, "little")
-                else:
-                    seed_barray = ktp.next_key()
-                    seed = int.from_bytes(seed_barray, "little")
+        # enable/disable masking
+        if capture_cfg["masks_off"] is True:
+            ot.target.simpleserial_write("m", bytearray([0x00]))
+        else:
+            ot.target.simpleserial_write("m", bytearray([0x01]))
+        time.sleep(0.3)
 
-                if capture_cfg["masks_off"] is True:
-                    mask_barray = bytearray(capture_cfg["plain_text_len_bytes"])
-                    mask = int.from_bytes(mask_barray, "little")
-                else:
-                    mask_barray = ktp.next_text()
-                    mask = int.from_bytes(mask_barray, "little")
+        with tqdm(total=rem_num_traces,
+                  desc="Capturing",
+                  ncols=80,
+                  unit=" traces") as pbar:
+            while rem_num_traces > 0:
+                # Determine the number of traces for this batch and arm the oscilloscope.
+                scope.num_segments = min(rem_num_traces,
+                                         scope.num_segments_max)
 
-                masks.append(mask_barray)
-                seed = seed ^ mask
+                scope.arm()
+                # Start batch keygen
+                ot.target.simpleserial_write(
+                    "b", scope.num_segments_actual.to_bytes(4, "little"))
+                # Transfer traces
+                waves = scope.capture_and_transfer_waves()
+                assert waves.shape[0] == scope.num_segments
 
-                # needed to be in sync with ot PRNG and for sample_fixed generation
-                dummy = ktp.next_key()
+                # Check the number of cycles where the trigger signal was high.
+                cycles = ot.scope.adc.trig_count // scope.num_segments_actual
+                if (rem_num_traces <= scope.num_segments_max):
+                    tqdm.write("No. of cycles with trigger high: %d" % cycles)
 
-                # calculate key shares
-                mod = curve_order_n << ((seed_bytes - key_bytes) * 8)
-                d0 = ((seed ^ mask) - mask) % mod
-                d1 = mask % mod
+                seeds = []
+                masks = []
+                d0s = []
+                d1s = []
 
-                # calculate batch digest
-                batch_digest = (d0 if batch_digest is None else d0 ^ batch_digest)
+                batch_digest = None
+                for i in range(scope.num_segments_actual):
 
-                seeds.append(seed_barray)
-                d0s.append(bytearray(d0.to_bytes(seed_bytes, "little")))
-                d1s.append(bytearray(d1.to_bytes(seed_bytes, "little")))
-                sample_fixed = dummy[0] & 1
+                    if sample_fixed:
+                        seed_barray = seed_fixed
+                        seed = int.from_bytes(seed_barray, "little")
+                    else:
+                        seed_barray = ktp.next_key()
+                        seed = int.from_bytes(seed_barray, "little")
 
-            # Check the batch digest to make sure we are in sync.
-            check_ciphertext(ot, bytearray(batch_digest.to_bytes(seed_bytes, "little")), seed_bytes)
+                    if capture_cfg["masks_off"] is True:
+                        mask_barray = bytearray(
+                            capture_cfg["plain_text_len_bytes"])
+                        mask = int.from_bytes(mask_barray, "little")
+                    else:
+                        mask_barray = ktp.next_text()
+                        mask = int.from_bytes(mask_barray, "little")
 
-            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+                    masks.append(mask_barray)
+                    seed = seed ^ mask
 
-            # Create a chipwhisperer trace object and save it to the project
-            # Args/fields of Trace object: waves, textin, textout, key
-            for wave, seed, mask, d0, d1 in zip(waves, seeds, masks, d0s, d1s):
-                d = d0 + d1
-                trace = cw.common.traces.Trace(wave, d, mask, seed)
-                project.traces.append(
-                    trace,
-                    dtype=np.uint16
-                )
-            # Update the loop variable and the progress bar.
-            rem_num_traces -= scope.num_segments
-            pbar.update(scope.num_segments)
+                    # needed to be in sync with ot PRNG and for sample_fixed generation
+                    dummy = ktp.next_key()
+
+                    # calculate key shares
+                    mod = curve_order_n << ((seed_bytes - key_bytes) * 8)
+                    d0 = ((seed ^ mask) - mask) % mod
+                    d1 = mask % mod
+
+                    # calculate batch digest
+                    batch_digest = (d0 if batch_digest is None else d0 ^
+                                    batch_digest)
+
+                    seeds.append(seed_barray)
+                    d0s.append(bytearray(d0.to_bytes(seed_bytes, "little")))
+                    d1s.append(bytearray(d1.to_bytes(seed_bytes, "little")))
+                    sample_fixed = dummy[0] & 1
+
+                # Check the batch digest to make sure we are in sync.
+                check_ciphertext(
+                    ot, bytearray(batch_digest.to_bytes(seed_bytes, "little")),
+                    seed_bytes)
+
+                num_segments_storage = optimize_cw_capture(
+                    project, num_segments_storage)
+
+                # Create a chipwhisperer trace object and save it to the project
+                # Args/fields of Trace object: waves, textin, textout, key
+                for wave, seed, mask, d0, d1 in zip(waves, seeds, masks, d0s,
+                                                    d1s):
+                    d = d0 + d1
+                    trace = cw.common.traces.Trace(wave, d, mask, seed)
+                    project.traces.append(trace, dtype=np.uint16)
+                # Update the loop variable and the progress bar.
+                rem_num_traces -= scope.num_segments
+                pbar.update(scope.num_segments)
+    elif capture_cfg["app"] == 'modinv':
+        print("Batch mode capture is not implemented for 'modinv' app.")
+    else:
+        print("Invalid app configured in config file.")
+
     # Before saving the project, re-enable all trace storage segments.
     for s in range(len(project.segments)):
         project.traces.tm.setTraceSegmentStatus(s, True)

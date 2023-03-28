@@ -1,0 +1,43 @@
+device:
+  fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
+  force_program_bitstream: False
+  fw_bin: objs/otbn_vertical_serial_fpga_cw310.bin
+  # Target operating frequency
+  # For non-batch mode max. 91 MHz, otherwise serial communication fails
+  pll_frequency: 100000000
+  baudrate: 115200
+capture:
+  # Currently, 'p256' is the only supported curve.
+  curve: p256
+  # Select the OTBN app to analyze. Currently available: 'keygen', 'modinv'
+  app: keygen
+  # These byte-lengths are passed to the chipwhisperer key/plaintext generator.
+  # Since this is not encryption, they don't correspond to key/plaintext, but
+  # rather seed/mask.
+  use_fixed_key_iter: False # See https://github.com/lowRISC/ot-sca/issues/116
+  # There are two fixed-vs-random test types, KEY and SEED
+  test_type: KEY
+  key_len_bytes: 40
+  plain_text_len_bytes: 40
+  masks_off: true
+  # Output length (most likely unused).
+  output_len_bytes: 40
+  # Samples per trace
+  # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
+  num_samples: 3500
+  # Offset in samples
+  offset: 0
+  # scope gain in db
+  scope_gain: 24
+  num_traces: 1000
+  batch_prng_seed: 6
+  project_name: projects/opentitan_otbn_vertical_keygen
+  waverunner_ip: 192.168.1.228
+  # As OTBN operations are long, we may need to overwrite the following
+  # parameters.
+  adc_mul: 1
+  decimate: 1
+plot_capture:
+  show: true
+  num_traces: 1
+  trace_image_filename: projects/sample_traces_ecdsa_keygen.html

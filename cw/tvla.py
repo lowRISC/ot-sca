@@ -979,7 +979,9 @@ def run_tvla(ctx: typer.Context):
                 trigger_samples = int(
                     project.config['ChipWhisperer']['General Settings']
                     ['samples_trigger_high'])
-                trigger_high = trigger_samples - sample_start
+                offset = int(project.config['ChipWhisperer']
+                             ['General Settings']['offset'])
+                trigger_high = trigger_samples - (sample_start + offset)
                 if trigger_high < 0:
                     trigger_high = 0
                 axs[0].set_ylabel("trace")

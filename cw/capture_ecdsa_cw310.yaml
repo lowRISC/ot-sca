@@ -1,5 +1,6 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
+  force_program_bitstream: False
   fw_bin: objs/ecc_serial_fpga_cw310.bin
   # Target operating frequency: 
   # for ecdsa-simple: 25-50MHz (alignment issues above 66MHz)

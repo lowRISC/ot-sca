@@ -38,7 +38,8 @@ app = typer.Typer(add_completion=False)
 # To be able to define subcommands for the "capture" command.
 app_capture = typer.Typer()
 app.add_typer(app_capture, name="capture", help="Capture traces for SCA")
-# Shared options for "capture aes" and "capture kmac".
+# Shared options for capture commands
+opt_force_program_bitstream = typer.Option(None, help=("Force program FPGA with the bitstream."))
 opt_num_traces = typer.Option(None, help="Number of traces to capture.")
 opt_plot_traces = typer.Option(None, help="Number of traces to plot.")
 opt_scope_type = typer.Option(ScopeType.cw, help=("Scope type"))
@@ -97,6 +98,7 @@ def save_metadata(project, device_cfg, capture_cfg, trigger_cycles, sample_rate)
 def initialize_capture(device_cfg, capture_cfg):
     """Initialize capture."""
     ot = device.OpenTitan(device_cfg["fpga_bitstream"],
+                          device_cfg["force_program_bitstream"],
                           device_cfg["fw_bin"],
                           device_cfg["pll_frequency"],
                           device_cfg["baudrate"],
@@ -156,9 +158,12 @@ def init(ctx: typer.Context):
     initialize_capture(ctx.obj.cfg["device"], ctx.obj.cfg["capture"])
 
 
-def capture_init(ctx, num_traces, plot_traces):
+def capture_init(ctx, force_program_bitstream, num_traces, plot_traces):
     """Initializes the user data stored in the context and programs the target."""
     cfg = ctx.obj.cfg
+    if force_program_bitstream is not None:
+        cfg["device"]["force_program_bitstream"] = force_program_bitstream
+
     if num_traces:
         cfg["capture"]["num_traces"] = num_traces
 
@@ -230,10 +235,11 @@ def capture_aes_random(ot, ktp):
 
 @app_capture.command()
 def aes_random(ctx: typer.Context,
+               force_program_bitstream: bool = opt_force_program_bitstream,
                num_traces: int = opt_num_traces,
                plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_aes_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot,
                  ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -359,11 +365,12 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
 @app_capture.command()
 def aes_random_batch(ctx: typer.Context,
+                     force_program_bitstream: bool = opt_force_program_bitstream,
                      num_traces: int = opt_num_traces,
                      plot_traces: int = opt_plot_traces,
                      scope_type: ScopeType = opt_scope_type):
     """Capture AES traces in batch mode. Fixed key random texts."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_aes_random_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"],
                              scope_type, ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -419,10 +426,11 @@ def capture_aes_fvsr_key(ot):
 
 @app_capture.command()
 def aes_fvsr_key(ctx: typer.Context,
+                 force_program_bitstream: bool = opt_force_program_bitstream,
                  num_traces: int = opt_num_traces,
                  plot_traces: int = opt_plot_traces):
     """Capture AES traces from a target that runs the `aes_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_aes_fvsr_key(ctx.obj.ot), ctx.obj.ot,
                  ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -557,12 +565,13 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
 
 @app_capture.command()
 def aes_fvsr_key_batch(ctx: typer.Context,
+                       force_program_bitstream: bool = opt_force_program_bitstream,
                        num_traces: int = opt_num_traces,
                        plot_traces: int = opt_plot_traces,
                        scope_type: ScopeType = opt_scope_type,
                        gen_ciphertexts: bool = opt_ciphertexts_store):
     """Capture AES traces in batch mode. Fixed vs random keys, random texts."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_aes_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"],
                                scope_type, gen_ciphertexts,
                                ctx.obj.cfg["device"])
@@ -571,6 +580,7 @@ def aes_fvsr_key_batch(ctx: typer.Context,
 
 @app_capture.command()
 def aes_mix_column(ctx: typer.Context,
+                   force_program_bitstream: bool = opt_force_program_bitstream,
                    num_traces: int = opt_num_traces,
                    plot_traces: int = opt_plot_traces):
     """Capture AES traces. Fixed key, Random texts. 4 sets of traces. Mix Column HD CPA Attack.
@@ -579,7 +589,7 @@ def aes_mix_column(ctx: typer.Context,
     Reference: https://eprint.iacr.org/2019/343.pdf
     See mix_columns_cpa_attack.py for attack portion.
     """
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
 
     ctx.obj.ktp = cw.ktp.VarVec()
     ctx.obj.ktp.key_len = ctx.obj.cfg['capture']['key_len_bytes']
@@ -755,10 +765,11 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
 @app_capture.command()
 def sha3_random(ctx: typer.Context,
+                force_program_bitstream: bool = opt_force_program_bitstream,
                 num_traces: int = opt_num_traces,
                 plot_traces: int = opt_plot_traces):
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_sha3_random(ctx.obj.ot, ctx.obj.ktp, ctx.obj.cfg["capture"]),
                  ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -829,10 +840,11 @@ def capture_sha3_fvsr_data(ot, capture_cfg):
 
 @app_capture.command()
 def sha3_fvsr_data(ctx: typer.Context,
+                   force_program_bitstream: bool = opt_force_program_bitstream,
                    num_traces: int = opt_num_traces,
                    plot_traces: int = opt_plot_traces):
     """Capture sha3 traces from a target that runs the `sha3_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_sha3_fvsr_data(ctx.obj.ot, ctx.obj.cfg["capture"]),
                  ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -840,11 +852,12 @@ def sha3_fvsr_data(ctx: typer.Context,
 
 @app_capture.command()
 def sha3_fvsr_data_batch(ctx: typer.Context,
+                         force_program_bitstream: bool = opt_force_program_bitstream,
                          num_traces: int = opt_num_traces,
                          plot_traces: int = opt_plot_traces,
                          scope_type: ScopeType = opt_scope_type):
     """Capture sha3 traces in batch mode. Fixed vs Random."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_sha3_fvsr_data_batch(ctx.obj.ot, ctx.obj.ktp,
                                  ctx.obj.cfg["capture"],
                                  scope_type,
@@ -987,10 +1000,11 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
 @app_capture.command()
 def kmac_random(ctx: typer.Context,
+                force_program_bitstream: bool = opt_force_program_bitstream,
                 num_traces: int = opt_num_traces,
                 plot_traces: int = opt_plot_traces):
     """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_kmac_random(ctx.obj.ot, ctx.obj.ktp), ctx.obj.ot,
                  ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -1061,10 +1075,11 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
 
 @app_capture.command()
 def kmac_fvsr_key(ctx: typer.Context,
+                  force_program_bitstream: bool = opt_force_program_bitstream,
                   num_traces: int = opt_num_traces,
                   plot_traces: int = opt_plot_traces):
     """Capture KMAC-128 traces from a target that runs the `kmac_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_loop(capture_kmac_fvsr_key(ctx.obj.ot, ctx.obj.cfg["capture"]),
                  ctx.obj.ot, ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
     capture_end(ctx.obj.cfg)
@@ -1072,11 +1087,12 @@ def kmac_fvsr_key(ctx: typer.Context,
 
 @app_capture.command()
 def kmac_fvsr_key_batch(ctx: typer.Context,
+                        force_program_bitstream: bool = opt_force_program_bitstream,
                         num_traces: int = opt_num_traces,
                         plot_traces: int = opt_plot_traces,
                         scope_type: ScopeType = opt_scope_type):
     """Capture KMAC-128 traces in batch mode. Fixed vs Random."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_kmac_fvsr_key_batch(ctx.obj.ot, ctx.obj.ktp,
                                 ctx.obj.cfg["capture"],
                                 scope_type,
@@ -1253,10 +1269,11 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
 
 @app_capture.command()
 def otbn_vertical(ctx: typer.Context,
+                  force_program_bitstream: bool = opt_force_program_bitstream,
                   num_traces: int = opt_num_traces,
                   plot_traces: int = opt_plot_traces):
     """Capture ECDSA secret key generation traces."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
 
     # OTBN's public-key operations might not fit into the sample buffer of the scope
     # These two parameters allows users to conrol the sampling frequency
@@ -1475,11 +1492,12 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
 @app_capture.command()
 def otbn_vertical_batch(ctx: typer.Context,
+                        force_program_bitstream: bool = opt_force_program_bitstream,
                         num_traces: int = opt_num_traces,
                         plot_traces: int = opt_plot_traces,
                         scope_type: ScopeType = opt_scope_type):
     """Capture vertical otbn (ecc256 keygen) traces in batch mode. Fixed vs Random."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
     capture_otbn_vertical_batch(ctx.obj.ot, ctx.obj.ktp,
                                 ctx.obj.cfg["capture"],
                                 scope_type,
@@ -1711,12 +1729,13 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
 
 @app_capture.command()
 def ecdsa_simple(ctx: typer.Context,
+                 force_program_bitstream: bool = opt_force_program_bitstream,
                  num_traces: int = opt_num_traces,
                  plot_traces: int = opt_plot_traces):
 
     # OTBN-specific settings
     """Capture OTBN-ECDSA-256/384 traces from a target that runs the `ecc384_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
 
     # OTBN's public-key operations might not fit into the sample buffer of the scope
     # These two parameters allows users to conrol the sampling frequency
@@ -1926,11 +1945,12 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
 
 @app_capture.command()
 def ecdsa_stream(ctx: typer.Context,
+                 force_program_bitstream: bool = opt_force_program_bitstream,
                  num_traces: int = opt_num_traces,
                  plot_traces: int = opt_plot_traces):
     """Use cw-husky stream mode to capture OTBN-ECDSA-256/384 traces
     from a target that runs the `ecc384_serial` program."""
-    capture_init(ctx, num_traces, plot_traces)
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
 
     # OTBN's public-key operations might not fit into the sample buffer of the scope
     # These two parameters allows users to conrol the sampling frequency

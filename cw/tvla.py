@@ -595,9 +595,9 @@ def run_tvla(ctx: typer.Context):
                     traces_to_use = np.zeros(len(project.waves), dtype=bool)
                     traces_to_use[trace_start:trace_end + 1] = True
 
-                    if i_step == 0:
-                        # Keep a single trace to create the figures.
-                        single_trace = traces[1]
+                if i_step == 0:
+                    # Keep a single trace to create the figures.
+                    single_trace = traces[1]
 
                 if save_to_disk_trace:
                     log.info("Saving Traces")
@@ -931,25 +931,27 @@ def run_tvla(ctx: typer.Context):
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
+        xaxs = range(sample_start, sample_start + num_samples)
         if cfg["mode"] == "aes" and general_test is False:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
 
                     c = np.ones(num_samples)
-                    fig, axs = plt.subplots(1,
-                                            num_orders,
-                                            figsize=(16, 5),
-                                            sharey=True)
+                    fig, axs = plt.subplots(num_orders + 1,
+                                            1,
+                                            sharex=True)
 
+                    axs[0].plot(xaxs, single_trace, "k")
+                    axs[0].set_ylabel("trace")
                     for i_order in range(num_orders):
-                        axs[i_order].plot(
+                        axs[i_order + 1].plot(
                             ttest_trace[i_order, rnd_ext[i_rnd],
                                         byte_ext[i_byte]], 'k')
-                        axs[i_order].plot(c * threshold, 'r')
-                        axs[i_order].plot(-threshold * c, 'r')
-                        axs[i_order].set_xlabel('time')
-                        axs[i_order].set_ylabel('t-test ' + str(i_order + 1))
+                        axs[i_order + 1].plot(c * threshold, 'r')
+                        axs[i_order + 1].plot(-threshold * c, 'r')
+                        axs[i_order + 1].set_ylabel('t-test ' + str(i_order + 1))
+                    plt.xlabel("time [samples]")
 
                     filename = "aes_t_test_round_" + str(rnd_list[i_rnd])
                     filename += "_byte_" + str(byte_list[i_byte]) + ".png"
@@ -958,9 +960,9 @@ def run_tvla(ctx: typer.Context):
                         plt.show()
                     else:
                         plt.close()
+
         else:
             c = np.ones(num_samples)
-            xaxs = range(sample_start, sample_start + num_samples)
             fig, axs = plt.subplots(3, sharex=True)
 
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
@@ -1070,7 +1072,7 @@ def run_tvla(ctx: typer.Context):
             for i_rnd in range(num_rnds):
 
                 c = np.ones(num_steps)
-                fig, axs = plt.subplots(1, num_orders, figsize=(16, 5), sharey=True)
+                fig, axs = plt.subplots(num_orders, 1, sharex=True)
 
                 # To reduce the number of lines in the plot, we only plot those samples where
                 # leakage is expected in the first place. This might need tuning if the design

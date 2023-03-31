@@ -44,8 +44,8 @@ class RuntimePatchFPGAProgram:
 
 class OpenTitan(object):
 
-    def __init__(self, bitstream, firmware, pll_frequency, baudrate,
-                 scope_gain, num_samples, offset, output_len):
+    def __init__(self, bitstream, force_programming, firmware, pll_frequency,
+                 baudrate, scope_gain, num_samples, offset, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -63,19 +63,19 @@ class OpenTitan(object):
         # Added `pll_frequency` to handle frequencies other than 100MHz.
         # Needed this for OTBN ECDSA.
         # TODO: Remove these comments after discussion
-        self.fpga = self.initialize_fpga(fpga, bitstream, pll_frequency)
+        self.fpga = self.initialize_fpga(fpga, bitstream, force_programming,
+                                         pll_frequency)
         self.scope = self.initialize_scope(scope_gain, num_samples, offset,
                                            pll_frequency)
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
 
-    def initialize_fpga(self, fpga, bitstream, pll_frequency):
+    def initialize_fpga(self, fpga, bitstream, force_programming,
+                        pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
         # bitstream.
-        # TODO: We should have this in the CLI.
-        force_programming = False
         print('Connecting and loading FPGA... ', end='', flush = True)
 
         # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.

@@ -449,6 +449,10 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     # Seed the target's PRNG
     ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
+    # Set and transfer the fixed key.
+    # Without the sleep statement, the CW305 seems to fail to configure the batch PRNG
+    # seed and/or the fixed key and then gets completely out of sync.
+    time.sleep(0.5)
     key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
                            0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
     tqdm.write(f'Fixed key: {binascii.b2a_hex(bytes(key_fixed))}')

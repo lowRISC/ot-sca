@@ -16,11 +16,14 @@ capture:
   # cycle later (20 samples) and there are 2 synchronization stages at 100 MHz
   # at the top level (4 samples).
   offset: -40
-  scope_gain: 26.5
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # To switch off the masking, 0 must be used as LFSR seed.
+  lfsr_seed: 0xdeadbeef
+  batch_prng_seed: 0
+  scope_gain: 31.5
   num_traces: 5000
   project_name: projects/opentitan_simple_aes
   waverunner_ip: 192.168.1.228
-  batch_prng_seed: 0
 plot_capture:
   show: true
   num_traces: 100

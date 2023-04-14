@@ -455,7 +455,8 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     # Seed host's PRNG.
     # TODO: Replace this with a dedicated PRNG to avoid other packages breaking our code.
     random.seed(capture_cfg["batch_prng_seed"])
-    # Seed the target's PRNG
+    # Seed the target's PRNGs
+    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
     ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Set and transfer the fixed key.
@@ -521,10 +522,6 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
                 expected_last_ciphertext = ciphertexts[-1]
             else:
                 expected_last_ciphertext = np.asarray(scared.aes.base.encrypt(plaintext, key))
-
-            # dummy operation for synching PRNGs with the firmware when using key sharing
-            for ii in range(scope.num_segments_actual):
-                _ = np.asarray(ktp.next()[1])
 
             check_ciphertext(ot, expected_last_ciphertext, 4)
 

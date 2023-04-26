@@ -12,7 +12,7 @@ number_of_steps: 1
 ttest_step_file: null
 plot_figures: true
 general_test: true
-mode: otbn_modinv
+mode: otbn
 key_len_bytes: 32
 sample_start: null
 num_samples : 10000

@@ -1610,6 +1610,12 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         ot.target.simpleserial_write("a", bytearray([0x00]))
         time.sleep(0.3)
 
+        # set PRNG seed prior to setting fixed seed to have the same input sequence every time
+        # running this function with the same batch_prng_seed
+        random.seed(capture_cfg["batch_prng_seed"])
+        ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+        time.sleep(0.3)
+
         # set ecc256 fixed seed
         seed_fixed = ktp.next_key()
         print("Fixed seed:")
@@ -1619,12 +1625,6 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}'
             )
         ot.target.simpleserial_write("x", seed_fixed)
-        time.sleep(0.3)
-
-        # set PRNG seed
-        random.seed(capture_cfg["batch_prng_seed"])
-        ot.target.simpleserial_write(
-            "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
         time.sleep(0.3)
 
         # enable/disable masking

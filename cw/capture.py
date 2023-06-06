@@ -1607,14 +1607,43 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
         time.sleep(0.3)
 
-        # set ecc256 fixed seed
-        seed_fixed = ktp.next_key()
+        # Generate fixed constants for all traces of the keygen operation.
+
+        if capture_cfg["test_type"] == 'KEY':
+            # In fixed-vs-random KEY mode we use two fixed constants:
+            #    1. C - a 320 bit constant redundancy
+            #    2. fixed_number - a 256 bit number used to derive the fixed key
+            #                      for the fixed set of measurements. Note that in
+            #                      this set, the fixed key is equal to
+            #                      (C + fixed_number) mod curve_order_n
+            C = ktp.next_key()
+            if len(C) != seed_bytes:
+                raise ValueError(f'Fixed seed length is {len(C)}, expected {seed_bytes}')
+            ktp.key_len = key_bytes
+            fixed_number = ktp.next_key()
+            if len(fixed_number) != key_bytes:
+                raise ValueError(f'Fixed key length is {len(fixed_number)}, expected {key_bytes}')
+            ktp.key_len = seed_bytes
+            C_int = int.from_bytes(C, byteorder='little')
+            seed_fixed_int = C_int + int.from_bytes(fixed_number, byteorder='little')
+            seed_fixed = seed_fixed_int.to_bytes(seed_bytes, byteorder='little')
+
+            print("Constant redundancy:")
+            print(binascii.b2a_hex(C))
+            ot.target.simpleserial_write("c", C_int.to_bytes(40, "little"))
+            time.sleep(0.3)
+        else:
+            # In fixed-vs-random SEED mode we use only one fixed constant:
+            #    1. seed_fixed - A 320 bit constant used to derive the fixed key
+            #                    for the fixed set of measurements. Note that in
+            #                    this set, the fixed key is equal to:
+            #                    seed_fixed mod curve_order_n
+            seed_fixed = ktp.next_key()
+            if len(seed_fixed) != seed_bytes:
+                raise ValueError(f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}')
+
         print("Fixed seed:")
         print(binascii.b2a_hex(seed_fixed))
-        if len(seed_fixed) != seed_bytes:
-            raise ValueError(
-                f'Fixed seed length is {len(seed_fixed)}, expected {seed_bytes}'
-            )
         ot.target.simpleserial_write("x", seed_fixed)
         time.sleep(0.3)
 
@@ -1624,6 +1653,14 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         else:
             ot.target.simpleserial_write("m", bytearray([0x01]))
         time.sleep(0.3)
+
+        # Re-seeding the PRNG in the KEY mode. In this mode, the PRNG produces additional 32 bytes
+        # to set up the fixed_number.
+        # This is a necessary step to sync with the PRNG on the capture side.
+        if capture_cfg["test_type"] == 'KEY':
+            random.seed(capture_cfg["batch_prng_seed"])
+            ot.target.simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+            time.sleep(0.3)
 
         with tqdm(total=rem_num_traces,
                   desc="Capturing",
@@ -1636,8 +1673,13 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
                 scope.arm()
                 # Start batch keygen
-                ot.target.simpleserial_write(
-                    "b", scope.num_segments_actual.to_bytes(4, "little"))
+                if capture_cfg["test_type"] == 'KEY':
+                    ot.target.simpleserial_write(
+                        "e", scope.num_segments_actual.to_bytes(4, "little"))
+                else:
+                    ot.target.simpleserial_write(
+                        "b", scope.num_segments_actual.to_bytes(4, "little"))
+
                 # Transfer traces
                 waves = scope.capture_and_transfer_waves()
                 assert waves.shape[0] == scope.num_segments
@@ -1655,12 +1697,25 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 batch_digest = None
                 for i in range(scope.num_segments_actual):
 
-                    if sample_fixed:
-                        seed_barray = seed_fixed
-                        seed = int.from_bytes(seed_barray, "little")
+                    if capture_cfg["test_type"] == 'KEY':
+                        if sample_fixed:
+                            seed_barray = seed_fixed
+                            seed = int.from_bytes(seed_barray, "little")
+                        else:
+                            ktp.key_len = key_bytes
+                            random_number = ktp.next_key()
+                            ktp.key_len = seed_bytes
+                            seed_barray_int = C_int + \
+                                int.from_bytes(random_number, byteorder='little')
+                            seed_barray = seed_barray_int.to_bytes(seed_bytes, byteorder='little')
+                            seed = seed_barray_int
                     else:
-                        seed_barray = ktp.next_key()
-                        seed = int.from_bytes(seed_barray, "little")
+                        if sample_fixed:
+                            seed_barray = seed_fixed
+                            seed = int.from_bytes(seed_barray, "little")
+                        else:
+                            seed_barray = ktp.next_key()
+                            seed = int.from_bytes(seed_barray, "little")
 
                     if capture_cfg["masks_off"] is True:
                         mask_barray = bytearray(

@@ -62,7 +62,8 @@ class CwSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=1200, offset=0, scope_gain=23, scope=None):
+    def __init__(self, num_samples=1200, offset=0, scope_gain=23, scope=None,
+                 pll_frequency=100000000):
         """Inits a CwSegmented.
 
         Args:
@@ -91,7 +92,7 @@ class CwSegmented:
 
         if not self._is_husky:
             offset = offset // 2
-        self._configure_scope(scope_gain, offset)
+        self._configure_scope(scope_gain, offset, pll_frequency)
 
         self.num_segments = 1
         if self._is_husky:
@@ -172,7 +173,7 @@ class CwSegmented:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
             self.num_segments = self.num_segments_max
 
-    def _configure_scope(self, scope_gain, offset):
+    def _configure_scope(self, scope_gain, offset, pll_frequency):
         self._scope.gain.db = scope_gain
         if offset >= 0:
             self._scope.adc.offset = offset
@@ -183,12 +184,12 @@ class CwSegmented:
         if self._is_husky:
             # We sample using the target clock * 2 (200 MHz).
             self._scope.clock.adc_mul = 2
-            self._scope.clock.clkgen_freq = 100000000
+            self._scope.clock.clkgen_freq = pll_frequency
             self._scope.clock.clkgen_src = 'extclk'
         else:
             # We sample using the target clock (100 MHz).
             self._scope.clock.adc_mul = 1
-            self._scope.clock.clkgen_freq = 100000000
+            self._scope.clock.clkgen_freq = pll_frequency
             self._scope.clock.adc_src = "extclk_dir"
             self._scope.adc.fifo_fill_mode = "segment"
 

@@ -51,12 +51,13 @@ def create_waverunner(ot, capture_cfg):
     return WaveRunner(capture_cfg["waverunner_ip"])
 
 
-def create_cw_segmented(ot, capture_cfg):
+def create_cw_segmented(ot, capture_cfg, device_cfg):
     """Create CwSegmented object to be used for batch capture."""
     return CwSegmented(num_samples=capture_cfg["num_samples"],
                        offset=capture_cfg["offset"],
                        scope_gain=capture_cfg["scope_gain"],
-                       scope=ot.scope)
+                       scope=ot.scope,
+                       pll_frequency=device_cfg["pll_frequency"])
 
 
 SCOPE_FACTORY = {
@@ -304,7 +305,7 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     rem_num_traces = capture_cfg["num_traces"]
     num_segments_storage = 1
     # cw and waverunner scopes are supported fot batch capture.
-    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg, device_cfg)
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -475,7 +476,7 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     rem_num_traces = capture_cfg["num_traces"]
     num_segments_storage = 1
     # cw and waverunner scopes are supported for batch capture.
-    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg, device_cfg)
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -706,7 +707,7 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     num_segments_storage = 1
     sample_fixed = False
     # cw and waverunner scopes are supported fot batch capture.
-    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg, device_cfg)
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -943,7 +944,7 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     num_segments_storage = 1
     sample_fixed = False
     # cw and waverunner scopes are supported fot batch capture.
-    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg, device_cfg)
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -1573,7 +1574,7 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     sample_fixed = True
 
     # cw and waverunner scopes are supported fot batch capture.
-    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg)
+    scope = SCOPE_FACTORY[scope_type](ot, capture_cfg, device_cfg)
 
     # OTBN's public-key operations might not fit into the sample buffer of the scope
     # These two parameters allows users to conrol the sampling frequency

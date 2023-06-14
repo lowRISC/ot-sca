@@ -1146,10 +1146,6 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
     if capture_cfg["use_fixed_key_iter"] is not False:
         raise RuntimeError('use_fixed_key_iter must be set to false!')
 
-    # This determines if we want to reprogram the firmware
-    # before every sign operation.The default value is false.
-    reset_firmware = False
-
     # OTBN operations are long. CW-Husky can store only 131070 samples
     # in the non-stream mode.
     fifo_size = 131070
@@ -1241,9 +1237,6 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         for _ in tqdm(range(capture_cfg["num_traces"]),
                       desc='Capturing',
                       ncols=80):
-
-            if reset_firmware:
-                ot.program_target(fw_bin, pll_frequency)
 
             ot.scope.adc.offset = capture_cfg["offset"]
 
@@ -1386,9 +1379,6 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         for _ in tqdm(range(capture_cfg["num_traces"]),
                       desc='Capturing',
                       ncols=80):
-
-            if reset_firmware:
-                ot.program_target(fw_bin, pll_frequency)
 
             ot.scope.adc.offset = capture_cfg["offset"]
 
@@ -1773,17 +1763,9 @@ def capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections, secret_k, pr
 
     """
 
-    # This determines if we want to reprogram the firmware
-    # before every sign operation.The default value is false.
-    reset_firmware = False
-
     # Create a temporary buffer to keep the collected sections
     tmp_buffer = np.array([])
     for ii in range(num_sections):
-        # Reflash the firmware and set the CW310 pll frequency
-        # if reset_firmware is true (default value: false, see above)
-        if reset_firmware:
-            ot.program_target(fw_bin, pll_frequency)
 
         # For each section ii, set the adc_offset parameter accordingly
         ot.scope.adc.offset = ii * 131070
@@ -2030,10 +2012,6 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
       capture_cfg: Capture configuration from the yaml file
     """
 
-    # This determines if we want to reprogram the firmware
-    # before every sign operation.The default value is false.
-    reset_firmware = False
-
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
 
     # Enable the streaming mode
@@ -2133,10 +2111,6 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
 
         # Create an arrey to keep the traces
         waves = np.array([])
-        # Reflash the firmware and set the CW310 pll frequency
-        # if reset_firmware is true (default value: false, see above)
-        if reset_firmware:
-            ot.program_target(fw_bin, pll_frequency)
 
         # Optional commands to overwrite the default values declared in the C code.
         ot.target.simpleserial_write('d', priv_key_d)

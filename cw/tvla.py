@@ -638,7 +638,7 @@ def run_tvla(ctx: typer.Context):
             if cfg["leakage_file"] is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
-                if cfg["mode"] == "otbn" or cfg["mode"]:
+                if cfg["mode"] == "otbn":
                     keys = np.empty((num_traces_orig, key_len_bytes), dtype=np.uint8)
                 else:
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)

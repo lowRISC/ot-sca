@@ -776,6 +776,8 @@ def run_tvla(ctx: typer.Context):
                                             x_axis)
                 for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
+            log.info("Saving T-test")
+            np.save('tmp/ttest.npy', ttest_trace)
 
             # Building the t-test statistics vs. number of traces used. ttest_step has dimensions
             # [num_orders, num_rnds, num_bytes, num_samples, num_steps], i.e., for every order,

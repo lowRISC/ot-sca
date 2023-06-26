@@ -28,6 +28,14 @@ def ttest_significant(ttest_trace) -> bool:
     return np.any(abs_max > threshold)
 
 
+def test_general_nonleaking_project():
+    project_path = TestDataPath('tvla_general/ci_opentitan_simple_kmac.cwp')
+    tvla = TvlaCmd(Args(['--project-file', str(project_path),
+                        '--mode', 'kmac', 'run-tvla'])).run()
+    assert not ttest_significant(np.load('tmp/ttest.npy')), (
+           f"{tvla} did find significant leakage, which is unexpected")
+
+
 def test_general_leaking_histogram():
     hist_path = TestDataPath('tvla_general/kmac_hist_leaking.npz')
     tvla = TvlaCmd(Args(['--input-file', str(hist_path),

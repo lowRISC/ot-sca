@@ -10,7 +10,7 @@ libusb1
 matplotlib
 more-itertools
 networkx
-pycryptodome
+pycryptodome >= 3.12.0
 # TODO: Use pyvisa instead after switching to a dedicated PRNG
 python-vxi11
 pyyaml

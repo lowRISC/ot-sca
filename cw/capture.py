@@ -20,9 +20,8 @@ import typer
 import yaml
 from chipwhisperer.common.traces import Trace
 from Crypto.Cipher import AES
-from Crypto.Hash import SHA3_256
+from Crypto.Hash import KMAC128, SHA3_256
 from cw_segmented import CwSegmented
-from pyXKCP import pyxkcp
 from tqdm import tqdm
 from waverunner import WaveRunner
 
@@ -899,10 +898,10 @@ def capture_kmac_random(ot, ktp):
         ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
         if not ret:
             raise RuntimeError('Capture failed.')
-        expected = binascii.b2a_hex(pyxkcp.kmac128(key, ktp.key_len,
-                                                   text, ktp.text_len,
-                                                   ot.target.output_len,
-                                                   b'\x00', 0))
+        mac = KMAC128.new(key=key, mac_len=32)
+        mac.update(text)
+        expected = mac.hexdigest()
+        expected = expected.encode('ascii')
         got = binascii.b2a_hex(ret.textout)
         if got != expected:
             raise RuntimeError(f'Bad digest: {got} != {expected}.')
@@ -972,10 +971,9 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
                 plaintext = ktp.next()[1]
 
-                ciphertext = pyxkcp.kmac128(key, ktp.key_len,
-                                            plaintext, ktp.text_len,
-                                            ot.target.output_len,
-                                            b'\x00', 0)
+                mac = KMAC128.new(key=key, mac_len=32)
+                mac.update(plaintext)
+                ciphertext = bytearray.fromhex(mac.hexdigest())
                 batch_digest = (ciphertext if batch_digest is None else
                                 bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest)))
                 plaintexts.append(plaintext)
@@ -1053,9 +1051,6 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
     key_random = bytearray([0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53,
                             0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53])
 
-    key_len = len(key_fixed)
-    text_len = len(text_fixed)
-
     tqdm.write(f'Using fixed key: {binascii.b2a_hex(bytes(key_fixed))}')
     ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
 
@@ -1068,10 +1063,10 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
                                    as_int=True)
             if not ret:
                 raise RuntimeError('Capture failed.')
-            expected = binascii.b2a_hex(pyxkcp.kmac128(key_fixed, key_len,
-                                                       text_fixed, text_len,
-                                                       ot.target.output_len,
-                                                       b'\x00', 0))
+            mac = KMAC128.new(key=key_fixed, mac_len=32)
+            mac.update(text_fixed)
+            expected = mac.hexdigest()
+            expected = expected.encode('ascii')
             got = binascii.b2a_hex(ret.textout)
         else:
             text_random = bytearray(cipher.encrypt(text_random))
@@ -1080,10 +1075,10 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
                                    as_int=True)
             if not ret:
                 raise RuntimeError('Capture failed.')
-            expected = binascii.b2a_hex(pyxkcp.kmac128(key_random, key_len,
-                                                       text_random, text_len,
-                                                       ot.target.output_len,
-                                                       b'\x00', 0))
+            mac = KMAC128.new(key=key_random, mac_len=32)
+            mac.update(text_random)
+            expected = mac.hexdigest()
+            expected = expected.encode('ascii')
             got = binascii.b2a_hex(ret.textout)
         sample_fixed = random.randint(0, 1)
         if got != expected:

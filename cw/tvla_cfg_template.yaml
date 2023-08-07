@@ -6,13 +6,13 @@ leakage_file: null
 save_to_disk: null
 round_select: null
 byte_select: null
-input_file: null
-output_file: null
+input_histogram_file: null
+output_histogram_file: null
 number_of_steps: 1
 ttest_step_file: null
 plot_figures: false
 general_test: true
 mode: aes
 # Only enabled for otbn mode.
-sample_start: null 
+sample_start: null
 num_samples : null

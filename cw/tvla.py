@@ -424,9 +424,9 @@ def run_tvla(ctx: typer.Context):
         save_to_disk_trace = False
         save_to_disk_leakage = False
 
-    if cfg["input_file"] is not None:
+    if cfg["input_histogram_file"] is not None:
         # Load previously generated histograms.
-        histograms_file = np.load(cfg["input_file"])
+        histograms_file = np.load(cfg["input_histogram_file"])
         histograms_in = histograms_file['histograms']
         single_trace = histograms_file['single_trace']
         num_samples = histograms_in.shape[3]
@@ -460,19 +460,19 @@ def run_tvla(ctx: typer.Context):
         log.info("Saving T-test")
         np.save('tmp/ttest.npy', ttest_trace)
 
-    if (cfg["input_file"] is None or cfg["output_file"] is not None) \
+    if (cfg["input_histogram_file"] is None or cfg["output_histogram_file"] is not None) \
             and cfg["ttest_step_file"] is None:
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
 
         # Make sure the project file is compatible with the previously generated histograms.
         project = cw.open_project(cfg["project_file"])
-        if cfg["input_file"] is None:
+        if cfg["input_histogram_file"] is None:
             num_samples = len(project.waves[0])
         else:
             assert num_samples == len(project.waves[0])
 
-        if cfg["input_file"] is None:
+        if cfg["input_histogram_file"] is None:
             adc_bits = 12
             trace_resolution = 2**adc_bits
 
@@ -744,7 +744,7 @@ def run_tvla(ctx: typer.Context):
                 histograms = np.concatenate((histograms[:]), axis=3)
 
             # Add up new data to potential, previously generated histograms.
-            if cfg["input_file"] is not None or i_step > 0:
+            if cfg["input_histogram_file"] is not None or i_step > 0:
                 histograms = histograms + histograms_in
 
             # Move current histograms to temp variable for next step.
@@ -752,9 +752,9 @@ def run_tvla(ctx: typer.Context):
                 histograms_in = histograms
 
             # Histograms can be saved for later use if output file name is passed.
-            if cfg["output_file"] is not None:
+            if cfg["output_histogram_file"] is not None:
                 log.info("Saving Histograms")
-                np.savez(cfg["output_file"], histograms=histograms, rnd_list=rnd_list,
+                np.savez(cfg["output_histogram_file"], histograms=histograms, rnd_list=rnd_list,
                          byte_list=byte_list, single_trace = traces[1])
 
             # Computing the t-test statistics vs. time.
@@ -1149,8 +1149,8 @@ default_leakage_file = None
 default_save_to_disk = None
 default_round_select = None
 default_byte_select = None
-default_input_file = None
-default_output_file = None
+default_input_histogram_file = None
+default_output_histogram_file = None
 default_number_of_steps = 1
 default_ttest_step_file = None
 default_plot_figures = False
@@ -1182,12 +1182,14 @@ help_round_select = inspect.cleandoc("""Index of the AES round for which the his
 help_byte_select = inspect.cleandoc("""Index of the AES state byte for which the histograms are to
     be computed: 0-15. If not provided, the histograms for all AES state bytes are computed.
     Default: """ + str(default_byte_select))
-help_input_file = inspect.cleandoc("""Name of the input file containing the histograms. Not
-    required. If both -input_file and -output_file are provided, the input file is appended with
-    more data to produce the output file. Default: """ + str(default_input_file))
-help_output_file = inspect.cleandoc("""Name of the output file to store generated histograms. Not
-    required. If both -input_file and -output_file are provided, the input file is appended with
-    more data to produce the output file. Default: """ + str(default_output_file))
+help_input_histogram_file = inspect.cleandoc("""Name of the input file containing the histograms.
+    Not required. If both -input_histogram_file and -output_histogram_file are provided, the input
+    file is appended with more data to produce the output file.
+    Default: """ + str(default_input_histogram_file))
+help_output_histogram_file = inspect.cleandoc("""Name of the output file to store generated
+    histograms. Not required. If both -input_histogram_file and -output_histogram_file are
+    provided, the input file is appended with more data to produce the output file.
+    Default: """ + str(default_output_histogram_file))
 help_number_of_steps = inspect.cleandoc("""Number of steps to breakdown the analysis into. For
     every step, traces are separately filtered and the leakage is computed. The histograms are
     appended to the ones of the previous step. This is useful when operating on very large trace
@@ -1218,8 +1220,8 @@ def main(ctx: typer.Context,
          save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
          round_select: int = typer.Option(None, help=help_round_select),
          byte_select: int = typer.Option(None, help=help_byte_select),
-         input_file: str = typer.Option(None, help=help_input_file),
-         output_file: str = typer.Option(None, help=help_output_file),
+         input_histogram_file: str = typer.Option(None, help=help_input_histogram_file),
+         output_histogram_file: str = typer.Option(None, help=help_output_histogram_file),
          number_of_steps: int = typer.Option(None, help=help_number_of_steps),
          ttest_step_file: str = typer.Option(None, help=help_ttest_step_file),
          plot_figures: bool = typer.Option(None, help=help_plot_figures),
@@ -1233,8 +1235,9 @@ def main(ctx: typer.Context,
 
     # Assign default values to the options.
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
-              'save_to_disk', 'round_select', 'byte_select', 'input_file', 'output_file',
-              'number_of_steps', 'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+              'save_to_disk', 'round_select', 'byte_select', 'input_histogram_file',
+              'output_histogram_file', 'number_of_steps', 'ttest_step_file', 'plot_figures',
+              'general_test', 'mode']:
         run_cmd = f'''cfg[v] = default_{v}'''
         exec(run_cmd)
 
@@ -1246,8 +1249,9 @@ def main(ctx: typer.Context,
 
     # Overwrite options from CLI, if provided.
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
-              'save_to_disk', 'round_select', 'byte_select', 'input_file', 'output_file',
-              'number_of_steps', 'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+              'save_to_disk', 'round_select', 'byte_select', 'input_histogram_file',
+              'output_histogram_file', 'number_of_steps', 'ttest_step_file', 'plot_figures',
+              'general_test', 'mode']:
         run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
         exec(run_cmd)
 

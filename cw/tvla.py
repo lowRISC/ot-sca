@@ -415,7 +415,7 @@ def run_tvla(ctx: typer.Context):
 
     save_to_disk_trace = cfg["save_to_disk"]
     save_to_disk_leakage = cfg["save_to_disk"]
-    save_to_disk_ttest = cfg["save_to_disk"]
+    save_to_disk_ttest = cfg["save_to_disk_ttest"] and (cfg["ttest_step_file"] is None)
 
     # Step-wise processing isn't compatible with a couple of other arguments.
     if num_steps > 1:
@@ -457,8 +457,6 @@ def run_tvla(ctx: typer.Context):
                                         x_axis)
             for i in range(0, num_samples, sample_step_ttest))
         ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
-        log.info("Saving T-test")
-        np.save('tmp/ttest.npy', ttest_trace)
 
     if (cfg["input_histogram_file"] is None or cfg["output_histogram_file"] is not None) \
             and cfg["ttest_step_file"] is None:
@@ -773,8 +771,6 @@ def run_tvla(ctx: typer.Context):
                                             x_axis)
                 for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
-            log.info("Saving T-test")
-            np.save('tmp/ttest.npy', ttest_trace)
 
             # Building the t-test statistics vs. number of traces used. ttest_step has dimensions
             # [num_orders, num_rnds, num_bytes, num_samples, num_steps], i.e., for every order,
@@ -784,15 +780,6 @@ def run_tvla(ctx: typer.Context):
                 ttest_step = np.empty((num_orders, num_rnds, num_bytes, num_samples,
                                        num_steps))
             ttest_step[:, :, :, :, i_step] = ttest_trace
-
-        if save_to_disk_ttest:
-            log.info("Saving T-test Step")
-            np.savez('tmp/ttest-step.npy',
-                     ttest_step=ttest_step,
-                     trace_end_vec=trace_end_vec,
-                     rnd_list=rnd_list,
-                     byte_list=byte_list,
-                     single_trace=traces[1])
 
         rnd_ext = list(range(num_rnds))
         byte_ext = list(range(num_bytes))
@@ -826,6 +813,19 @@ def run_tvla(ctx: typer.Context):
             single_trace_file += "single_trace.npy"
             single_trace = np.load(single_trace_file)
             assert num_samples == single_trace.shape[0]
+
+    if save_to_disk_ttest:
+        if num_steps > 1:
+            log.info("Saving T-test Step")
+            np.savez('tmp/ttest-step.npy',
+                     ttest_step=ttest_step,
+                     trace_end_vec=trace_end_vec,
+                     rnd_list=rnd_list,
+                     byte_list=byte_list,
+                     single_trace=traces[1])
+        else:
+            log.info("Saving T-test")
+            np.save('tmp/ttest.npy', ttest_trace)
 
     # Check ttest results.
     threshold = 4.5
@@ -1144,6 +1144,7 @@ default_trace_start = None
 default_trace_end = None
 default_leakage_file = None
 default_save_to_disk = None
+default_save_to_disk_ttest = None
 default_round_select = None
 default_byte_select = None
 default_input_histogram_file = None
@@ -1171,8 +1172,10 @@ help_leakage_file = inspect.cleandoc("""Name of the leakage file containing the 
     leakage model for all rounds, all bytes, and all traces. If not provided, the leakage is
     computed from the data in the ChipWhisperer project file. Ignored for number-of-steps > 1.
     Default: """ + str(default_leakage_file))
-help_save_to_disk = inspect.cleandoc("""Save trace, leakage and t-test files to disk. Ignored for
-    trace and leakage files when number-of-steps > 1. Default: """ + str(default_save_to_disk))
+help_save_to_disk = inspect.cleandoc("""Save trace and leakage files to disk. Ignored when
+     number-of-steps > 1. Default: """ + str(default_save_to_disk))
+help_save_to_disk_ttest = inspect.cleandoc("""Save t-test files to disk. Ignored when
+    ttset-step-file is not None. Default: """ + str(default_save_to_disk_ttest))
 help_round_select = inspect.cleandoc("""Index of the AES round for which the histograms are to be
     computed: 0-10. If not provided, the histograms for all AES rounds are computed. Default:
     """ + str(default_round_select))
@@ -1215,6 +1218,7 @@ def main(ctx: typer.Context,
          trace_end: int = typer.Option(None, help=help_trace_end),
          leakage_file: str = typer.Option(None, help=help_leakage_file),
          save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
+         save_to_disk_ttest: bool = typer.Option(None, help=help_save_to_disk_ttest),
          round_select: int = typer.Option(None, help=help_round_select),
          byte_select: int = typer.Option(None, help=help_byte_select),
          input_histogram_file: str = typer.Option(None, help=help_input_histogram_file),
@@ -1232,9 +1236,9 @@ def main(ctx: typer.Context,
 
     # Assign default values to the options.
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
-              'save_to_disk', 'round_select', 'byte_select', 'input_histogram_file',
-              'output_histogram_file', 'number_of_steps', 'ttest_step_file', 'plot_figures',
-              'general_test', 'mode']:
+              'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
+              'input_histogram_file', 'output_histogram_file', 'number_of_steps',
+              'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
         run_cmd = f'''cfg[v] = default_{v}'''
         exec(run_cmd)
 
@@ -1246,9 +1250,9 @@ def main(ctx: typer.Context,
 
     # Overwrite options from CLI, if provided.
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
-              'save_to_disk', 'round_select', 'byte_select', 'input_histogram_file',
-              'output_histogram_file', 'number_of_steps', 'ttest_step_file', 'plot_figures',
-              'general_test', 'mode']:
+              'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
+              'input_histogram_file', 'output_histogram_file', 'number_of_steps',
+              'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
         run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
         exec(run_cmd)
 

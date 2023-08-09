@@ -31,7 +31,7 @@ def ttest_significant(ttest_trace) -> bool:
 def test_general_nonleaking_project():
     project_path = TestDataPath('tvla_general/ci_opentitan_simple_kmac.cwp')
     tvla = TvlaCmd(Args(['--project-file', str(project_path),
-                        '--mode', 'kmac', 'run-tvla'])).run()
+                        '--mode', 'kmac', '--save-to-disk-ttest', 'run-tvla'])).run()
     assert not ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did find significant leakage, which is unexpected")
 
@@ -39,7 +39,7 @@ def test_general_nonleaking_project():
 def test_general_leaking_histogram():
     hist_path = TestDataPath('tvla_general/kmac_hist_leaking.npz')
     tvla = TvlaCmd(Args(['--input-histogram-file', str(hist_path),
-                        '--mode', 'kmac', 'run-tvla'])).run()
+                        '--mode', 'kmac', '--save-to-disk-ttest', 'run-tvla'])).run()
     assert ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did not find significant leakage, which is unexpected")
 
@@ -47,6 +47,6 @@ def test_general_leaking_histogram():
 def test_general_nonleaking_histogram():
     hist_path = TestDataPath('tvla_general/kmac_hist_nonleaking.npz')
     tvla = TvlaCmd(Args(['--input-histogram-file', str(hist_path),
-                        '--mode', 'kmac', 'run-tvla'])).run()
+                        '--mode', 'kmac', '--save-to-disk-ttest', 'run-tvla'])).run()
     assert not ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did find significant leakage, which is unexpected")

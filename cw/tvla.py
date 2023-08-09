@@ -424,6 +424,9 @@ def run_tvla(ctx: typer.Context):
         save_to_disk_trace = False
         save_to_disk_leakage = False
 
+    # By default, the first two moments are computed. This can be modified to any order.
+    num_orders = 2
+
     if cfg["input_histogram_file"] is not None:
         # Load previously generated histograms.
         histograms_file = np.load(cfg["input_histogram_file"])
@@ -443,9 +446,6 @@ def run_tvla(ctx: typer.Context):
 
         # The number of samples processed by each parallel job at a time.
         sample_step_ttest = num_samples // num_jobs
-
-        # By default, the first two moments are computed. This can be modified to any order.
-        num_orders = 2
 
         x_axis = np.arange(trace_resolution)
 
@@ -686,7 +686,7 @@ def run_tvla(ctx: typer.Context):
             project.close(save=False)
 
             if general_test is False:
-                # Compute or load prevsiously computed leakage model.
+                # Compute or load previously computed leakage model.
                 if cfg["leakage_file"] is None:
                     # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
                     log.info("Computing Leakage")
@@ -763,9 +763,6 @@ def run_tvla(ctx: typer.Context):
             # The number of samples processed by each parallel job at a time.
             sample_step_ttest = num_samples // num_jobs
 
-            # By default, the first two moments are computed. This can be modified to any order.
-            num_orders = 2
-
             x_axis = np.arange(trace_resolution)
 
             # Compute statistics.
@@ -808,7 +805,7 @@ def run_tvla(ctx: typer.Context):
         num_samples = ttest_step.shape[3]
         num_steps = ttest_step.shape[4]
         trace_end_vec = ttest_step_file['trace_end_vec']
-        # The rounds and bytes of interests must be available in the previously generated t-test
+        # The rounds and bytes of interest must be available in the previously generated t-test
         # results. In addition, we may need to translate indices to extract the right portion of
         # of the loaded results.
         rnd_ext = np.zeros((num_rnds), dtype=np.uint8)

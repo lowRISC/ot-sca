@@ -28,12 +28,34 @@ def ttest_significant(ttest_trace) -> bool:
     return np.any(abs_max > threshold)
 
 
+def ttest_compare_results(expected, received, delta) -> bool:
+    """
+    Determine if the numerical values of two ttest traces match.
+
+    Checks if all nan values are in the same positions in both arrays.
+    Checks if all numerical values match within precision delta.
+    """
+    nan_match = np.all(np.isnan(expected) == np.isnan(received))
+    numbers_match = np.all(np.logical_or(np.isnan(expected), np.abs(expected - received) < delta))
+    return nan_match and numbers_match
+
+
 def test_general_nonleaking_project():
     project_path = TestDataPath('tvla_general/ci_opentitan_simple_kmac.cwp')
     tvla = TvlaCmd(Args(['--project-file', str(project_path),
-                        '--mode', 'kmac', '--save-to-disk-ttest', 'run-tvla'])).run()
-    assert not ttest_significant(np.load('tmp/ttest.npy')), (
-           f"{tvla} did find significant leakage, which is unexpected")
+                         '--mode', 'kmac', '--save-to-disk-ttest',
+                         '--number-of-steps', '10', 'run-tvla'])).run()
+    expected_path = TestDataPath('tvla_general/ttest-step-golden.npy.npz')
+    expected_file = np.load(str(expected_path))
+    expected_trace = expected_file['ttest_step']
+    received_file = np.load('tmp/ttest-step.npy.npz')
+    received_trace = received_file['ttest_step']
+    # Expected and received traces should be equal within precision delta.
+    # Small mismatch is possible due to the differences in floating point operations
+    # on different machines.
+    delta = 0.001
+    assert ttest_compare_results(expected_trace, received_trace, delta), (
+           f"{tvla} generated ttest_step values that don't match the expected ones")
 
 
 def test_general_leaking_histogram():

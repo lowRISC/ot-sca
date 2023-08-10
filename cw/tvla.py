@@ -817,12 +817,12 @@ def run_tvla(ctx: typer.Context):
     if save_to_disk_ttest:
         if num_steps > 1:
             log.info("Saving T-test Step")
-            np.savez('tmp/ttest-step.npy',
-                     ttest_step=ttest_step,
-                     trace_end_vec=trace_end_vec,
-                     rnd_list=rnd_list,
-                     byte_list=byte_list,
-                     single_trace=traces[1])
+            np.savez_compressed('tmp/ttest-step.npy',
+                                ttest_step=ttest_step,
+                                trace_end_vec=trace_end_vec,
+                                rnd_list=rnd_list,
+                                byte_list=byte_list,
+                                single_trace=traces[1])
         else:
             log.info("Saving T-test")
             np.save('tmp/ttest.npy', ttest_trace)

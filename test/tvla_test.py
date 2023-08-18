@@ -40,12 +40,12 @@ def ttest_compare_results(expected, received, delta) -> bool:
     return nan_match and numbers_match
 
 
-def test_general_nonleaking_project():
+def test_general_kmac_nonleaking_project():
     project_path = TestDataPath('tvla_general/ci_opentitan_simple_kmac.cwp')
     tvla = TvlaCmd(Args(['--project-file', str(project_path),
                          '--mode', 'kmac', '--save-to-disk-ttest',
                          '--number-of-steps', '10', 'run-tvla'])).run()
-    expected_path = TestDataPath('tvla_general/ttest-step-golden.npy.npz')
+    expected_path = TestDataPath('tvla_general/ttest-step-golden-kmac.npy.npz')
     expected_file = np.load(str(expected_path))
     expected_trace = expected_file['ttest_step']
     received_file = np.load('tmp/ttest-step.npy.npz')
@@ -53,6 +53,21 @@ def test_general_nonleaking_project():
     # Expected and received traces should be equal within precision delta.
     # Small mismatch is possible due to the differences in floating point operations
     # on different machines.
+    delta = 0.001
+    assert ttest_compare_results(expected_trace, received_trace, delta), (
+           f"{tvla} generated ttest_step values that don't match the expected ones")
+
+
+def test_general_aes_nonleaking_project():
+    project_path = TestDataPath('tvla_general/ci_opentitan_simple_aes_fvsr.cwp')
+    tvla = TvlaCmd(Args(['--project-file', str(project_path),
+                         '--mode', 'aes', '--save-to-disk-ttest',
+                         '--number-of-steps', '10', 'run-tvla'])).run()
+    expected_path = TestDataPath('tvla_general/ttest-step-golden-aes.npy.npz')
+    expected_file = np.load(str(expected_path))
+    expected_trace = expected_file['ttest_step']
+    received_file = np.load('tmp/ttest-step.npy.npz')
+    received_trace = received_file['ttest_step']
     delta = 0.001
     assert ttest_compare_results(expected_trace, received_trace, delta), (
            f"{tvla} generated ttest_step values that don't match the expected ones")

@@ -169,7 +169,7 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
     return histograms
 
 
-def compute_leakage_aes(keys, plaintexts, leakage_model):
+def compute_leakage_aes(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     """
     Sensitive variable is always byte-sized.
 
@@ -567,8 +567,7 @@ def run_tvla(ctx: typer.Context):
                     log.info("Computing Leakage")
                     leakage = Parallel(n_jobs=num_jobs)(
                         delayed(compute_leakage_aes)(keys[i:i + trace_step_leakage],
-                                                     plaintexts[i:i + trace_step_leakage],
-                                                     'HAMMING_WEIGHT')
+                                                     plaintexts[i:i + trace_step_leakage])
                         for i in range(0, num_traces, trace_step_leakage))
                     leakage = np.concatenate((leakage[:]), axis=2)
                     if save_to_disk_leakage:

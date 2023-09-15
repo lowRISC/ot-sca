@@ -230,6 +230,47 @@ def compute_leakage_aes(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     return leakage
 
 
+def find_fixed_key(keys):
+    """
+    Finds a fixed key.
+
+    In a fixed-vs-random analysis, only fixed_key will repeat multiple times,
+    this will not necesserily be the first key on the list.
+    This function looks at the input list of keys and finds the first one that
+    is repeated multiple times.
+    """
+
+    for i_key in range(len(keys)):
+        fixed_key = keys[i_key]
+        num_hits = 0
+        for i in range(len(keys)):
+            num_hits += np.array_equal(fixed_key, keys[i])
+        if num_hits > 1:
+            break
+
+    # If no key repeats, then the fixed key cannot be identified.
+    assert num_hits > 1, "Cannot identify fixed key. Try using a longer list."
+
+    return fixed_key
+
+
+def compute_leakage_general(keys, fixed_key):
+    """
+    Computes leakage for TVLA fixed-vs-random general attaks.
+
+    Output "leakage" shows whether a given trace belongs to the fixed or random
+    group.
+        leakage[i] = 1 - trace i belonges to the fixed group
+        leakage[i] = 0 - trace i belonges to the random group
+    """
+
+    leakage = np.zeros((len(keys)), dtype=np.uint8)
+    for i in range(len(keys)):
+        leakage[i] = np.array_equal(fixed_key, keys[i])
+
+    return leakage
+
+
 @app.command()
 def run_tvla(ctx: typer.Context):
     """Run TVLA described in "Fast Leakage Assessment"."""
@@ -527,17 +568,6 @@ def run_tvla(ctx: typer.Context):
                             else:
                                 keys_nparrays.append(np.frombuffer(project.keys[i], dtype=np.uint8))
 
-                        # In addition, for some existing trace sets the fixed key is used for the
-                        # second instead of the first trace. For compatibility, compare a couple of
-                        # keys and then select the fixed one. Eventually, we can drop this.
-                        for i_key in range(10):
-                            fixed_key = keys_nparrays[i_key]
-                            num_hits = 0
-                            for i in range(10):
-                                num_hits += np.array_equal(fixed_key, keys_nparrays[i])
-                            if num_hits > 1:
-                                break
-
                     # Select the correct slice of keys for each step.
                     keys[:] = keys_nparrays[trace_start:trace_end + 1]
 
@@ -571,11 +601,8 @@ def run_tvla(ctx: typer.Context):
                     assert num_traces == leakage.shape[2]
             else:
                 log.info("Computing Leakage")
-                # We do general fixed-vs-random TVLA. The "leakage" is indicating whether a trace
-                # belongs to the fixed (1) or random (0) group.
-                leakage = np.zeros((num_traces), dtype=np.uint8)
-                for i in range(num_traces):
-                    leakage[i] = np.array_equal(fixed_key, keys[i])
+                # We identify the fixed key by looking at the first 20 keys in the project.
+                leakage = compute_leakage_general(keys, find_fixed_key(keys_nparrays[0:20]))
 
             # Uncomment the function call below for debugging e.g. when the t-test results aren't
             # centered around 0.

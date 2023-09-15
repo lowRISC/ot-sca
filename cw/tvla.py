@@ -171,12 +171,14 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
 
 def compute_leakage_aes(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     """
-    Sensitive variable is always byte-sized.
+    Computes AES leakage for a given list of plaintexts and keys.
 
+    The output "leakage" contains leakage of all state-register bytes after each round.
+        leakage[X][Y][Z] - Leakage (e.g. hamming weight) of AES round X, byte Y for trace Z
+    Leakage is computed based on the specified leakage_model.
     Two leakage models are available:
-    HAMMING_WEIGHT - based on the hamming weight of the state register byte.
-    HAMMING_DISTANCE - based on the hamming distance between the curent and previous state
-                       for a specified byte.
+        HAMMING_WEIGHT - based on the hamming weight of the state register byte.
+        HAMMING_DISTANCE - based on the hamming distance between the curent and previous state.
     """
     num_traces = len(keys)
     leakage = np.zeros((11, 16, num_traces), dtype=np.uint8)

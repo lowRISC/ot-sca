@@ -892,7 +892,6 @@ def capture_kmac_random(ot, ktp):
     """
     key, _ = ktp.next()
     tqdm.write(f'Using key: {binascii.b2a_hex(bytes(key))}')
-    ot.target.simpleserial_write('k', key)
     while True:
         _, text = ktp.next()
         ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)

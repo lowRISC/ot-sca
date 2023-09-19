@@ -251,34 +251,27 @@ def run_tvla(ctx: typer.Context):
             cfg["mode"] != "otbn"):
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            cfg["general_test"] is True):
-        general_test = True
-    else:
-        general_test = False
+    general_test = (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
+                    cfg["general_test"] is True)
 
-    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            general_test is True):
-        # We don't care about the round select in this mode. Set it to 0 for code compatibility.
+    if general_test:
+        # We don't care about the round select or byte select in this mode.
+        # Set them to 0 for code compatibility.
         rnd_list = [0]
-    elif cfg["round_select"] is None:
-        rnd_list = list(range(11))
-    else:
-        rnd_list = [int(cfg["round_select"])]
-    assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
-
-    num_rnds = len(rnd_list)
-
-    if (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-            general_test is True):
-        # We don't care about the byte select in this mode. Set it to 0 for code compatibility.
         byte_list = [0]
-    elif cfg["byte_select"] is None:
-        byte_list = list(range(16))
     else:
-        byte_list = [int(cfg["byte_select"])]
+        if cfg["round_select"] is None:
+            rnd_list = list(range(11))
+        else:
+            rnd_list = [int(cfg["round_select"])]
+        if cfg["byte_select"] is None:
+            byte_list = list(range(16))
+        else:
+            byte_list = [int(cfg["byte_select"])]
+    assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
     assert all(byte >= 0 and byte < 16 for byte in byte_list)
 
+    num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
 
     if cfg["mode"] == "otbn":

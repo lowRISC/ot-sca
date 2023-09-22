@@ -1050,7 +1050,7 @@ default_output_histogram_file = None
 default_number_of_steps = 1
 default_ttest_step_file = None
 default_plot_figures = False
-default_general_test = True
+default_general_test = False
 default_mode = "aes"
 default_update_cfg_file = False
 

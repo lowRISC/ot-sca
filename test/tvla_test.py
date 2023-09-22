@@ -89,3 +89,14 @@ def test_general_nonleaking_histogram():
                          'run-tvla'])).run()
     assert not ttest_significant(np.load('tmp/ttest.npy')), (
            f"{tvla} did find significant leakage, which is unexpected")
+
+
+def test_aes_byte_filtering():
+    project_path = TestDataPath('tvla_aes_byte/ci_opentitan_simple_aes.cwp')
+    tvla = TvlaCmd(Args(['--project-file', str(project_path),
+                         '--mode', 'aes', '--round-select', '0',
+                         '--byte-select', '0', '--save-to-disk', 'run-tvla'])).run()
+    received_file = np.load('tmp/traces.npy.npz')
+    traces_to_use = received_file['traces_to_use']
+    assert sum(traces_to_use) <= 100, (
+           f"{tvla} filtered less than 90 % of the input traces, which is unexpected.")

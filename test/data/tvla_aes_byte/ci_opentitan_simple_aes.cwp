@@ -1,0 +1,28 @@
+[Trace Management]
+tracefile0 = ci_opentitan_simple_aes_data/traces/config_2023.09.21-17.29.29_0.cfg
+enabled0 = True
+[ChipWhisperer]
+[[General Settings]]
+Project Name = Untitled
+Project File Version = 1.00
+Project Author = Unknown
+Program Name = ChipWhisperer
+Program Version = ""
+sample_rate = 200000000
+fpga_bitstream = objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
+force_program_bitstream = False
+fw_bin = objs/aes_serial_fpga_cw310.bin
+pll_frequency = 100000000
+baudrate = 115200
+key_len_bytes = 16
+plain_text_len_bytes = 16
+output_len_bytes = 16
+num_samples = 1200
+offset = -40
+lfsr_seed = 3735928559
+batch_prng_seed = 0
+scope_gain = 31.5
+num_traces = 1000
+project_name = projects/opentitan_simple_aes
+waverunner_ip = 192.168.1.228
+datetime = "09/21/2023, 17:29:29"

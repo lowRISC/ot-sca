@@ -1,0 +1,13 @@
+trigger:
+  branches:
+    include:
+    - "*"
+
+jobs:
+- job: hello_world
+  displayName: Hello world
+  pool:
+    vmImage: ubuntu-latest
+  steps:
+  - bash: |
+      echo Hello, world!

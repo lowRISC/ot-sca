@@ -1,0 +1,30 @@
+device:
+  fpga_bitstream: ../cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
+  force_program_bitstream: True
+  fw_bin: ../cw/objs/aes_serial_fpga_cw310.bin
+  pll_frequency: 100000000
+  baudrate: 115200
+capture:
+  # Only AES-128 ECB is supported at this moment.
+  key_len_bytes: 16
+  plain_text_len_bytes: 16
+  output_len_bytes: 16
+  # Samples per trace - We oversample by 20x and AES w/ DOM is doing
+  # ~56/72 cycles per encryption (AES-128/256).
+  num_samples: 1200
+  # Offest in samples - The AES idle signal becomes visible 1 target clock
+  # cycle later (20 samples) and there are 2 synchronization stages at 100 MHz
+  # at the top level (4 samples).
+  offset: -40
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # To switch off the masking, 0 must be used as LFSR seed.
+  lfsr_seed: 0xdeadbeef
+  batch_prng_seed: 0
+  scope_gain: 31.5
+  num_traces: 1000
+  project_name: ci_projects/opentitan_simple_aes
+  waverunner_ip: 192.168.1.228
+plot_capture:
+  show: False
+  num_traces: 100
+  trace_image_filename: null

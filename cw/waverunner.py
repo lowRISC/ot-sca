@@ -74,9 +74,6 @@ class WaveRunner:
         self._instr = vxi11.Instrument(self._ip_addr)
         self._populate_device_info()
         self._print_device_info()
-        # Commented out since default configuration is highly specific
-        # Class will be used more general
-        # self._configure()
 
     @property
     def num_segments_max(self):

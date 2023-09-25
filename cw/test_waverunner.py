@@ -10,6 +10,7 @@ from datetime import datetime
 from waverunner import WaveRunner
 
 if __name__ == '__main__':
+    # Create WaveRunner
     waverunner = WaveRunner("172.26.111.125")
 
     # Save WaveRunner setup to timestamped file
@@ -23,3 +24,14 @@ if __name__ == '__main__':
     waverunner.save_setup_to_local_file(file_name_local)
     # Load setup from local file
     waverunner.load_setup_from_local_file(file_name_local)
+
+    # Configuration: Choose num_samples and first_point
+    # num_segments, sparsing, num_samples, first_point, acqu_channel
+    waverunner.configure_waveform_transfer_general(5, 1, 1000, 0, "C1")
+
+    # Loop
+    waverunner.arm()
+    waves = waverunner.capture_and_transfer_waves()
+
+    # plot waves
+    # TODO

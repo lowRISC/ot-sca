@@ -1,13 +1,30 @@
-trigger:
+pr:
   branches:
     include:
     - "*"
 
 jobs:
-- job: hello_world
-  displayName: Hello world
-  pool:
-    vmImage: ubuntu-latest
+- job: sca_capture
+  displayName: "Capture SCA traces"
+  timeoutInMinutes: 30
+  pool: FPGA SCA
   steps:
+  - checkout: self
   - bash: |
-      echo Hello, world!
+      python3 -m pip install --user -r python-requirements.txt
+    displayName: "Install python dependencies"
+  - bash: |
+      apt update
+      apt install git-lfs
+    displayName: "Install system dependencies"
+  - bash: |
+      git-lfs pull
+    displayName: "Pull LFS binaries"
+  - bash: |
+      pushd ci
+      ./ci_capture_aes_fvsr.sh
+      popd
+    displayName: "Capture traces"
+  - publish: ./ci/ci_projects/opentitan_simple_aes_data/
+    artifact: traces
+    displayName: "Upload traces"

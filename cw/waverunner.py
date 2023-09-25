@@ -74,7 +74,9 @@ class WaveRunner:
         self._instr = vxi11.Instrument(self._ip_addr)
         self._populate_device_info()
         self._print_device_info()
-        self._configure()
+        # Commented out since default configuration is highly specific
+        # Class will be used more general
+        # self._configure()
 
     @property
     def num_segments_max(self):
@@ -92,6 +94,74 @@ class WaveRunner:
 
     def _ask_raw(self, cmd):
         return self._instr.ask_raw(cmd)
+
+    def _get_and_print_cmd_error(self):
+        """Get command error status for last command. On error, displays error message."""
+        # from p.328
+        # https://cdn.teledynelecroy.com/files/manuals/maui-remote-control-and-automation-manual.pdf
+        # Note: beware of numbering; idx starts at 0
+        error_msg = ["OK.",
+                     "Unrecognized command/query header.",
+                     "Illegal header path.",
+                     "Illegal number.",
+                     "Illegal number suffix.",
+                     "Unrecognized keyword.",
+                     "String error.",
+                     "GET embedded in another message.",
+                     "",
+                     "",
+                     "Arbitrary data block expected.",
+                     "Non-digit character in byte count field of arbitrary data block.",
+                     "EOI detected during definite length data block transfer.",
+                     "Extra bytes detected during definite length data block transfer"]
+        return_code = int((re.findall(r'\d+', self._ask("CMR?")))[0])
+        if return_code > 13 or return_code in [8, 9]:
+            return_msg = f"{return_code} Unkown error code"
+        else:
+            return_msg = f"{return_code} {error_msg[return_code]}"
+        if return_code != 0:
+            print("WAVERUNNER: ERROR in last command: " + return_msg)
+
+    def _fetch_file_from_scope(self, file_name_scope):
+        fetched_file = self._ask("TRANSFER_FILE? DISK,HDD,FILE," + file_name_scope)
+        # remove echoed command characters from beginning
+        fetched_file = fetched_file[5:]
+        self._get_and_print_cmd_error()
+        return fetched_file
+
+    def _write_to_file_on_scope(self, file_name_scope, data):
+        self._write("TRANSFER_FILE DISK,HDD,FILE," + file_name_scope + "," + data)
+        self._get_and_print_cmd_error()
+
+    def _delete_file_on_scope(self, file_name_scope):
+        self._write("DELETE_FILE DISK,HDD,FILE," + file_name_scope)
+        self._get_and_print_cmd_error()
+
+    def _store_setup_to_file_on_scope(self, file_name_scope):
+        self._write("STORE_PANEL DISK,HDD,FILE," + file_name_scope)
+        self._get_and_print_cmd_error()
+
+    def _recall_setup_from_file_on_scope(self, file_name_scope):
+        self._write("RECALL_PANEL DISK,HDD,FILE," + file_name_scope)
+        self._get_and_print_cmd_error()
+
+    def save_setup_to_local_file(self, file_name_local):
+        setup_data = self._ask("PANEL_SETUP?")
+        self._get_and_print_cmd_error()
+        # remove echoed command characters from beginning
+        setup_data = setup_data[5:]
+        local_file = open(file_name_local, "w", encoding='utf-8')
+        local_file.write(setup_data)
+        local_file.close()
+
+    def load_setup_from_local_file(self, file_name_local):
+        # Note: Preserve line endings so that lenght matches
+        # File probably received/stored from Windows scope with \r\n
+        local_file = open(file_name_local, "r", newline='')
+        data_read_from_file = local_file.read()
+        file_name_scope = "'D:\\Temporary_setup.lss'"
+        self._write_to_file_on_scope(file_name_scope, data_read_from_file)
+        self._recall_setup_from_file_on_scope(file_name_scope)
 
     def _populate_device_info(self):
         manufacturer, model, serial, version = re.match(
@@ -111,7 +181,9 @@ class WaveRunner:
             # TODO: logging
             print(f"Connected to {manufacturer} {model} (ip: {self._ip_addr}, serial: {serial}, "
                   f"version: {version}, options: {opts})")
-
+            if opts == "WARNING : CURRENT REMOTE CONTROL INTERFACE IS TCPIP":
+                print("ERROR: WAVERUNNER: Must set remote control to VXI11 on scope under: "
+                      "Utilities > Utilities Setup > Remote")
         print_info(**self._device_info)
 
     def _default_setup(self):

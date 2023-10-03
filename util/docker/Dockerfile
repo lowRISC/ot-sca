@@ -4,7 +4,7 @@
 
 # Docker file for OpenTitan side channel analysis and fault injection setup.
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 
 LABEL version="0.1"
 LABEL description="OpenTitan SCA/FI image"
@@ -33,7 +33,7 @@ RUN apt-get update && \
         screen \
         locales \
         tzdata \
-        setpriv && \
+        util-linux && \
     curl -fsSL https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | DEBIAN_FRONTEND="noninteractive" bash && \
     apt-get update && \
     apt-get install --no-install-recommends -y git-lfs

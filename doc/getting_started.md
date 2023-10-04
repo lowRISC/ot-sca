@@ -48,6 +48,91 @@ The following, alternative hardware equipment is partially supported:
   CW-Lite needs to run firmware v.0.23. The last known commit of ot-sca to
   support segmented/batch capture is e64e76d.
 
+### Hardware Setup
+
+To setup the hardware, first connect the target and capture board together. You
+don't want to accidentally short something out with the conductive SMA
+connector.
+
+#### CW310
+
+As shown in the photo below,
+1. Connect the `SHUNTLOW AMPLIFIED` output of the CW310 (topmost SMA) to the
+   CW-Husky `Pos` input. When using the CW-Lite instead of CW-Husky, use the
+   `MEASURE` input.
+1. Connect the `ChipWhisperer Connector` (`J14`) on the CW310 to the
+   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
+   is the connector on the *SIDE* not the connector on the *FRONT*.
+
+![](img/cw310_cwhusky.jpg)
+
+The CW310 will need a power supply, the default power supply uses a DC barrel
+connector to supply 12V. If you use this power supply all switches should be
+in the default position. To this end, make sure to:
+1. Set the `SW2` switch (to the right of the barrel connector) up to the
+   `5V Regulator` option.
+1. Set the switch below the barrel connector to the right towards the `Barrel`
+   option.
+1. Set the `Control Power` switch (bottom left corner, `SW7`) to the right.
+1. Ensure the `Tgt Power` switch (above the fan, `S1`) is set to the right
+   towards the `Auto` option.
+
+Then,
+1. Plug the DC power adapter into the barrel jack (`J11`) in the top left
+   corner of the board.
+1. Use a USB-C cable to connect your PC with the `USB-C Data` connector (`J8`)
+   in the lower left corner on the board.
+1. Connect the CW-Husky to your PC via USB-C cable.
+
+You should see the blue "Status" LED on the CW310 blinking, along with several
+green power LEDs. The "USB-C Power" led may be red as there is no USB-C PD
+source. The CW-Husky should also have a green blinking status LED at this
+point. If LEDs are solid it may mean the device has not enumerated, which might
+require additional setup (see UDEV Rules below).
+
+#### CW305
+
+1. Connect the `X4` output of the CW305 (rightmost SMA) to the CW-Husky `Pos`
+   input. When using the CW-Lite instead of CW-Husky, use the `MEASURE` input.
+2. Connect the `ChipWhisperer 20-Pin Connector` on the CW305 to the
+   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
+   is the connector on the *SIDE* not the connector on the *FRONT*.
+
+Make sure the `S1` jumper on the back of the CW305 is set to `111` such that
+the FPGA bitstream can be reconfigured via USB. Connect the two boards to your
+PC via USB.
+
+### UDEV Rules
+
+You might need to setup the following `udev` rules to gain access to the two
+USB devices. To do so, open the file `/etc/udev/rules.d/90-lowrisc.rules` or
+create it if does not yet exist and add the following content to it:
+
+```
+# CW310 (Kintex Target)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666" SYMLINK+="opentitan/cw_310"
+
+# CW-Husky
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666" SYMLINK+="opentitan/cw_husky"
+
+# CW305 (Artix Target)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
+
+# CW-Lite
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
+```
+
+To activate the rules, type
+```console
+$ sudo udevadm control --reload
+```
+and then disconnect and reconnect the devices.
+
+With the optional `SYMLINK` attribute, a stable symbolic link is created,
+helping to identify the USB devices more easily.
+
+For more details on how to set up `udev` rules, see the corresponding section
+in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instructions/#xilinx-vivado).
 
 ### Software Requirements
 
@@ -97,7 +182,7 @@ ChipWhisperer itself is installed as a Python dependency through
 `python_requirements.txt`.
 
 However, it has some non-Python dependencies related to USB. Please see
-[this page](https://chipwhisperer.readthedocs.io/en/latest/prerequisites.html#packages)
+[this page](https://chipwhisperer.readthedocs.io/en/latest/linux-install.html#required-packages)
 to install the specific `apt` packages required by ChipWhisperer.
 
 **Notes:**
@@ -176,43 +261,14 @@ Usage: util/docker/run_container.sh -d DEVICE [-d DEVICE] -m SHM_SIZE -w HOST_WO
 ```
 
 For example, if the host has 32+ GB RAM, the ot-sca repository is at
-`~/repos/ot-sca`, and ChipWhisperer devices are at `/dev/bus/usb/001/036`
-and `/dev/bus/usb/001/038`, you can use:
+`~/repos/ot-sca`, and ChipWhisperer devices are at `/dev/opentitan/cw_310`
+and `/dev/opentitan/cw_husky`, you can use:
 ```console
-$ util/docker/run_container.sh -d /dev/bus/usb/001/036 -d /dev/bus/usb/001/038 -m 12g -w ~/repos/ot-sca
+$ util/docker/run_container.sh -d /dev/opentitan/cw_310 -d /dev/opentitan/cw_husky -m 12g -w ~/repos/ot-sca
 ```
 
 If ChipWhisperer devices are the only USB devices that are connected to the
 host, you can use the following to add all USB devices to the container:
-```console
-$ util/docker/run_container.sh $(find /dev/bus/usb -type c | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
-```
-
-If you want to add only ChipWhisperer devices to the container and don't want
-to search for the correct device nodes every time they are disconnected and
-connected, you can add the following rules in
-`/etc/udev/rules.d/90-opentitan.rules` to create stable symbolic links using
-the `SYMLINK` attribute:
-```
-# CW310 (Kintex Target)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666" SYMLINK+="opentitan/cw_310"
-
-# CW-Husky
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666" SYMLINK+="opentitan/cw_husky"
-
-# CW305 (Artix Target)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
-
-# CW-Lite
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
-```
-
-Load the new rules:
-```console
-$ sudo udevadm control --reload
-```
-
-Reconnect the devices and use the following to run the image in a container:
 ```console
 $ util/docker/run_container.sh $(find /dev/opentitan -type l -exec readlink -f {} \; | sed 's/^/-d /g' | xargs echo) -m 12g -w ~/repos/ot-sca
 ```
@@ -337,94 +393,7 @@ $ ./hw/top_englishbreakfast/util/prepare_sw.py --delete
 ```
 and clean the auto-generated files with a checkout.
 
-## Setup
-
-### Board
-
-To setup the hardware, first connect the target and capture board together. You
-don't want to accidentally short something out with the conductive SMA
-connector.
-
-#### CW310
-
-As shown in the photo below,
-1. Connect the `SHUNTLOW AMPLIFIED` output of the CW310 (topmost SMA) to the
-   CW-Husky `Pos` input. When using the CW-Lite instead of CW-Husky, use the
-   `MEASURE` input.
-1. Connect the `ChipWhisperer Connector` (`J14`) on the CW310 to the
-   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
-   is the connector on the *SIDE* not the connector on the *FRONT*.
-
-![](img/cw310_cwhusky.jpg)
-
-The CW310 will need a power supply, the default power supply uses a DC barrel
-connector to supply 12V. If you use this power supply all switches should be
-in the default position. To this end, make sure to:
-1. Set the `SW2` switch (to the right of the barrel connector) up to the
-   `5V Regulator` option.
-1. Set the switch below the barrel connector to the right towards the `Barrel`
-   option.
-1. Set the `Control Power` switch (bottom left corner, `SW7`) to the right.
-1. Ensure the `Tgt Power` switch (above the fan, `S1`) is set to the right
-   towards the `Auto` option.
-
-Then,
-1. Plug the DC power adapter into the barrel jack (`J11`) in the top left
-   corner of the board.
-1. Use a USB-C cable to connect your PC with the `USB-C Data` connector (`J8`)
-   in the lower left corner on the board.
-1. Connect the CW-Husky to your PC via USB-C cable.
-
-You should see the blue "Status" LED on the CW310 blinking, along with several
-green power LEDs. The "USB-C Power" led may be red as there is no USB-C PD
-source. The CW-Husky should also have a green blinking status LED at this
-point. If LEDs are solid it may mean the device has not enumerated, which might
-require additional setup (see UDEV Rules below).
-
-#### CW305
-
-1. Connect the `X4` output of the CW305 (rightmost SMA) to the CW-Husky `Pos`
-   input. When using the CW-Lite instead of CW-Husky, use the `MEASURE` input.
-2. Connect the `ChipWhisperer 20-Pin Connector` on the CW305 to the
-   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
-   is the connector on the *SIDE* not the connector on the *FRONT*.
-
-Make sure the `S1` jumper on the back of the CW305 is set to `111` such that
-the FPGA bitstream can be reconfigured via USB. Connect the two boards to your
-PC via USB.
-
-
-### UDEV Rules
-
-You might need to setup the following `udev` rules to gain access to the two
-USB devices. To do so, open the file `/etc/udev/rules.d/90-lowrisc.rules` or
-create it if does not yet exist and add the following content to it:
-
-```
-# NewAE Technology Inc. ChipWhisperer CW310
-ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666"
-
-# NewAE Technology Inc. ChipWhisperer-Husky
-ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666"
-
-# NewAE Technology Inc. ChipWhisperer CW305
-ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666"
-
-# NewAE Technology Inc. ChipWhisperer-Lite
-ACTION=="add|change", SUBSYSTEM=="usb|tty", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666"
-```
-
-To activate the rules, type
-```console
-$ sudo udevadm control --reload
-```
-and then disconnect and reconnect the devices.
-
-For more details on how to set up `udev` rules, see the corresponding section
-in the [OpenTitan documentation](https://docs.opentitan.org/doc/ug/install_instructions/#xilinx-vivado).
-
-
-### Configuration
+## Configuration
 
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```

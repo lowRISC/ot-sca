@@ -152,7 +152,7 @@ The
 [Dockerfile](https://github.com/lowRISC/ot-sca/blob/master/util/docker/Dockerfile)
 in this repository can be used to build a ready-to-use image with all the
 dependencies installed. To build the image:
-1. If not already installed, install Podman following the instructions
+1. If not already installed, install Podman and containers-storage following the instructions
 [here](https://podman.io/getting-started/installation), and
 2. Build the container image using
 [build\_image.sh](https://github.com/lowRISC/ot-sca/blob/master/util/docker/build_image.sh):

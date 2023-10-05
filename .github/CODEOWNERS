@@ -13,7 +13,7 @@
 #   https://help.github.com/en/articles/about-code-owners
 
 # Default Owners
-*                   @abdullahvarici @alphan @andreaskurth @vogelpi @vrozic
+*                   @andreaskurth @nasahlpa @vogelpi @vrozic
 
 # License related files
 LICENSE*            @vogelpi

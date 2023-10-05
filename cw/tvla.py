@@ -397,7 +397,7 @@ def run_tvla(ctx: typer.Context):
 
                 if i_step == 0:
                     # Keep a single trace to create the figures.
-                    single_trace = traces[1]
+                    single_trace = traces[traces_to_use[0]]
 
                 if save_to_disk_trace:
                     log.info("Saving Traces")

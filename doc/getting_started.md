@@ -674,3 +674,18 @@ Run the following command to see serial outputs of the target program:
 $ screen /dev/ttyACM1 115200,cs8,-ixon,-ixoff
 ```
 Note that you may need to change "ttyACM1" to something else.
+
+# Troubleshooting
+
+## Unreachable Husky Scope
+If a connection with CW-Husky cannot be established, e.g., due to a failed
+firmware update, first try to [erase](https://rtfm.newae.com/Capture/ChipWhisperer-Husky/#erase-pins)
+its firmware by shorting ```SJ1``` on the board. If the scope is still
+unreachable but the USB connection is detected by Linux, load the firmware
+manually:
+```python
+import chipwhisperer as cw
+programmer = cw.SAMFWLoader(scope=None)
+programmer.program('/dev/ttyACM0', hardware_type='cwhusky')
+```
+Replace ```/dev/ttyACM0``` with the corresponding device.

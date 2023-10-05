@@ -58,6 +58,7 @@ if [[ -z "${HOST_WORK_DIR}" ]] || [[ -z "${SHM_SIZE}" ]] || [[ ${#DEVICES[@]} -e
 fi
 
 podman run --rm -it \
+    --userns=keep-id \
     --shm-size "${SHM_SIZE}" \
     -v "${HOST_WORK_DIR}":"${CONTAINER_WORK_DIR}" \
     -w "${CONTAINER_WORK_DIR}" \

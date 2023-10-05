@@ -30,8 +30,7 @@ RUN apt-get update && \
         ca-certificates \
         screen \
         locales \
-        tzdata \
-        util-linux && \
+        tzdata && \
     curl -fsSL https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | DEBIAN_FRONTEND="noninteractive" bash && \
     apt-get update && \
     apt-get install --no-install-recommends -y git-lfs
@@ -81,6 +80,6 @@ RUN rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 # Entrypoint
 COPY util/docker/docker_entrypoint.sh /docker_entrypoint.sh
-RUN echo "exec /docker_entrypoint.sh '${USER_NAME}' '${MOUNT_DIR}'" > /docker_entrypoint_wrapper.sh
+RUN echo "exec /docker_entrypoint.sh" > /docker_entrypoint_wrapper.sh
 RUN chmod +x /docker_entrypoint.sh /docker_entrypoint_wrapper.sh
 ENTRYPOINT /docker_entrypoint_wrapper.sh

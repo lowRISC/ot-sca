@@ -4,19 +4,17 @@
 
 # Docker file for OpenTitan side channel analysis and fault injection setup.
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
-LABEL version="0.1"
+LABEL version="0.2"
 LABEL description="OpenTitan SCA/FI image"
-LABEL maintainer="alphan@google.com"
+LABEL maintainer="nasahlpa@lowrisc.org"
 
 ARG USER_NAME=ot
 ARG MOUNT_DIR=/repo
 ARG TIME_ZONE=America/New_York 
 # This is convenient if we want to switch to different python version.
-# Note: numba, a chipwhisperer dependency, requires python 3.7+ but does not
-# support python 3.9 yet.
-ARG PYTHON=python3.8
+ARG PYTHON=python3.10
 ARG VENV_PATH=/opt/venv
 ARG GCC_VERSION=9
 

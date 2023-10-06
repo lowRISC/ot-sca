@@ -372,28 +372,23 @@ def run_tvla(ctx: typer.Context):
                                                          trace_start] + 0.5) * trace_resolution
                     traces = traces.astype('uint16')
 
-                if general_test is False:
-                    # Filter out noisy traces.
-                    log.info("Filtering Traces")
+                # Filter out noisy traces.
+                log.info("Filtering Traces")
 
-                    # Get the mean and standard deviation.
-                    mean = traces.mean(axis=0)
-                    std = traces.std(axis=0)
+                # Get the mean and standard deviation.
+                mean = traces.mean(axis=0)
+                std = traces.std(axis=0)
 
-                    # Define upper and lower limits.
-                    max_trace = mean + num_sigmas * std
-                    min_trace = mean - num_sigmas * std
+                # Define upper and lower limits.
+                max_trace = mean + num_sigmas * std
+                min_trace = mean - num_sigmas * std
 
-                    # Filtering of converted traces (len = num_samples). traces_to_use itself can be
-                    # used to index the entire project file (len >= num_samples).
-                    traces_to_use = np.zeros(len(project.waves), dtype=bool)
-                    traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
-                                                                      (traces <= max_trace), axis=1)
-                    traces = traces[traces_to_use[trace_start:trace_end + 1]]
-                else:
-                    # For now, don't perform any filtering when doing general fixed-vs-random TVLA.
-                    traces_to_use = np.zeros(len(project.waves), dtype=bool)
-                    traces_to_use[trace_start:trace_end + 1] = True
+                # Filtering of converted traces (len = num_samples). traces_to_use itself can be
+                # used to index the entire project file (len >= num_samples).
+                traces_to_use = np.zeros(len(project.waves), dtype=bool)
+                traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
+                                                                  (traces <= max_trace), axis=1)
+                traces = traces[traces_to_use[trace_start:trace_end + 1]]
 
                 if i_step == 0:
                     # Keep a single trace to create the figures.

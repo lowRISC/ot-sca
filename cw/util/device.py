@@ -152,6 +152,10 @@ class OpenTitan(object):
         scope.io.tio2 = "serial_rx"
         scope.io.hs2 = "disabled"
 
+        # Make sure that clkgen_locked is true.
+        if husky:
+            scope.clock.clkgen_src = 'extclk'
+
         # TODO: Need to update error handling.
         if not husky:
             scope.clock.reset_adc()

@@ -27,7 +27,7 @@ joblib
 # Development version of ChipWhisperer toolchain with latest features and
 # bug fixes - Needs to be installed in editable mode. We fix the version
 # for improved stability and manually update if necessary.
--e git+https://github.com/newaetech/chipwhisperer.git@c5181a87111d3aabab42d83b10dbc368140b43ef#egg=chipwhisperer
+-e git+https://github.com/newaetech/chipwhisperer.git@3eace1719daf43d4f0965c1790c2c8a9e8b2f690#egg=chipwhisperer
 
 # Linters
 -r python-requirements-lint.txt

@@ -65,10 +65,15 @@ class OpenTitan(object):
         # TODO: Remove these comments after discussion
         self.fpga = self.initialize_fpga(fpga, bitstream, force_programming,
                                          pll_frequency)
+
         self.scope = self.initialize_scope(scope_gain, num_samples, offset,
                                            pll_frequency)
+        print(f'Scope setup with sampling rate {self.scope.clock.adc_freq} S/s')
+
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
+
+        self._test_read_version_from_target()
 
     def initialize_fpga(self, fpga, bitstream, force_programming,
                         pll_frequency):
@@ -194,6 +199,19 @@ class OpenTitan(object):
         target.flush()
 
         return target
+
+    def _test_read_version_from_target(self):
+        version = None
+        ping_cnt = 0
+        while not version:
+            if ping_cnt == 3:
+                raise RuntimeError(
+                    f'No response from the target (attempts: {ping_cnt}).')
+            self.target.write('v' + '\n')
+            ping_cnt += 1
+            time.sleep(0.5)
+            version = self.target.read().strip()
+        print(f'Target simpleserial version: {version} (attempts: {ping_cnt}).')
 
     def program_target(self, fw, pll_frequency=100e6):
         """Loads firmware image """

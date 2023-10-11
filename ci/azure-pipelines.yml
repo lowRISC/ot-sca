@@ -28,3 +28,17 @@ jobs:
   - publish: ./ci/ci_projects/opentitan_simple_aes_data/
     artifact: traces
     displayName: "Upload traces"
+  - bash: |
+      set -e
+      pushd ci
+      ./ci_check_aes_traces.sh
+      ./ci_trace_check/ci_compare_aes_traces.py -f ./ci_projects/opentitan_simple_aes.cwp -g ./ci_trace_check/golden_traces/aes_128_ecb_static.zip -c 0.8
+      popd
+    displayName: "Check captured AES traces"
+    continueOnError: True
+  - publish: ./ci/tmp/
+    artifact: plot_traces_aes
+    displayName: "Upload plot of captured AES traces."
+  - publish: ./ci/ci_projects/opentitan_simple_aes.zip
+    artifact: project_traces_aes
+    displayName: "Upload project of captured AES traces."

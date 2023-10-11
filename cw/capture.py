@@ -208,6 +208,47 @@ def capture_loop(trace_gen, ot, capture_cfg, device_cfg):
 def capture_end(cfg):
     if cfg["plot_capture"]["show"]:
         plot_results(cfg["plot_capture"], cfg["capture"]["project_name"])
+    if cfg["capture"]["project_export"]:
+        project = cw.open_project(cfg["capture"]["project_name"])
+        project.export(cfg["capture"]["project_export_filename"])
+        project.close(save=False)
+
+
+def capture_aes_static(ot):
+    """A generator for capturing AES traces for fixed key and test.
+
+    Args:
+      ot: Initialized OpenTitan target.
+    """
+    key = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
+                     0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
+    text = bytearray([0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA,
+                      0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA])
+
+    tqdm.write(f'Fixed key: {binascii.b2a_hex(bytes(key))}')
+
+    while True:
+        cipher = AES.new(bytes(key), AES.MODE_ECB)
+        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
+        if not ret:
+            raise RuntimeError('Capture failed.')
+        expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
+        got = binascii.b2a_hex(ret.textout)
+        if got != expected:
+            raise RuntimeError(f'Bad ciphertext: {got} != {expected}.')
+        yield ret
+
+
+@app_capture.command()
+def aes_static(ctx: typer.Context,
+               force_program_bitstream: bool = opt_force_program_bitstream,
+               num_traces: int = opt_num_traces,
+               plot_traces: int = opt_plot_traces):
+    """Capture AES traces from a target that runs the `aes_serial` program."""
+    capture_init(ctx, force_program_bitstream, num_traces, plot_traces)
+    capture_loop(capture_aes_static(ctx.obj.ot), ctx.obj.ot,
+                 ctx.obj.cfg["capture"], ctx.obj.cfg["device"])
+    capture_end(ctx.obj.cfg)
 
 
 def capture_aes_random(ot, ktp):

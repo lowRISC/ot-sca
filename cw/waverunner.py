@@ -312,6 +312,7 @@ class WaveRunner:
         self.num_samples = num_samples
         self.num_segments = num_segments
         self.acqu_channel = acqu_channel
+        # Commands below configure all except sequence mode and num_segments which is done in arm()
         commands = [
             # WAVEFORM_SETUP
             # SP: sparsing, e.g. 10 for every 10th point, 1 for every point.
@@ -342,14 +343,21 @@ class WaveRunner:
         self._configure_waveform_transfer()
 
     def arm(self):
-        """Arms the oscilloscope in sequence mode for selected channel."""
-        # SEQ SEQUENCE Mode
-        # TRMD Trigger Mode Single
-        commands = [
-            f"SEQ ON,{self.num_segments}",
-            "TRMD SINGLE",
-            "*OPC?",
-        ]
+        """Arms the oscilloscope for selected channel, in sequence mode if num_segments > 1."""
+        if self.num_segments > 1:
+            # SEQ SEQUENCE Mode
+            # TRMD Trigger Mode Single
+            commands = [
+                f"SEQ ON,{self.num_segments}",
+                "TRMD SINGLE",
+                "*OPC?",
+            ]
+        else:
+            # TRMD Trigger Mode Single
+            commands = [
+                "TRMD SINGLE",
+                "*OPC?",
+            ]
         res = self._ask(";".join(commands))
         assert res == "*OPC 1"
 

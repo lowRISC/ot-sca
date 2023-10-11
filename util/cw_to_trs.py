@@ -44,7 +44,7 @@ def gen_trs_headers(project, export_key):
         trsfile.Header.ACQUISITION_RANGE_OF_SCOPE: 0.200,
         trsfile.Header.ACQUISITION_COUPLING_OF_SCOPE: 1,
         trsfile.Header.ACQUISITION_OFFSET_OF_SCOPE: 0.0,
-        trsfile.Header.ACQUISITION_DEVICE_ID: b'CWLite',
+        trsfile.Header.ACQUISITION_DEVICE_ID: b'CWHusky',
         trsfile.Header.ACQUISITION_TYPE_FILTER: 0,
     }
 

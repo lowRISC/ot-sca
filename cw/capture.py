@@ -1872,7 +1872,6 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
         ot.scope.adc.bits_per_sample = 12
         ot.scope.adc.samples = 131070
     else:
-        # TODO: Add cw-lite support
         raise RuntimeError('Only CW-Husky is supported now')
 
     # OTBN operations are long. CW-Husky can store only 131070 samples

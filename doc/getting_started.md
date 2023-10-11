@@ -36,18 +36,6 @@ The following, alternative hardware equipment is partially supported:
   that also for this board there exist different versions of which of which
   only the board with the bigger FPGA device (XC7A100T-2FTG256) is supported.
 
-* [ChipWhisperer-Lite CW1173 Capture Board](https://rtfm.newae.com/Capture/ChipWhisperer-Lite/)
-
-  This is an alternative capture or scope board. Compared to CW-Husky, CW-Lite
-  has a lower maximum ADC sampling rate (105 MS/s vs. 200 MS/s) and resolution
-  (10 bits vs. 12 bits) and smaller sample buffer (24k samples vs. 80k
-  samples).
-
-  **Note:** The CW-Lite currently doesn't support segmented/batch capture.
-  For this feature to work, commit 0998072 of ChipWhisperer is required and
-  CW-Lite needs to run firmware v.0.23. The last known commit of ot-sca to
-  support segmented/batch capture is e64e76d.
-
 ### Hardware Setup
 
 To setup the hardware, first connect the target and capture board together. You
@@ -58,8 +46,7 @@ connector.
 
 As shown in the photo below,
 1. Connect the `SHUNTLOW AMPLIFIED` output of the CW310 (topmost SMA) to the
-   CW-Husky `Pos` input. When using the CW-Lite instead of CW-Husky, use the
-   `MEASURE` input.
+   CW-Husky `Pos` input.
 1. Connect the `ChipWhisperer Connector` (`J14`) on the CW310 to the
    `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
    is the connector on the *SIDE* not the connector on the *FRONT*.
@@ -93,7 +80,7 @@ require additional setup (see UDEV Rules below).
 #### CW305
 
 1. Connect the `X4` output of the CW305 (rightmost SMA) to the CW-Husky `Pos`
-   input. When using the CW-Lite instead of CW-Husky, use the `MEASURE` input.
+   input.
 2. Connect the `ChipWhisperer 20-Pin Connector` on the CW305 to the
    `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
    is the connector on the *SIDE* not the connector on the *FRONT*.
@@ -117,9 +104,6 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666"
 
 # CW305 (Artix Target)
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
-
-# CW-Lite
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace2", MODE="0666", SYMLINK+="opentitan/cw_lite"
 ```
 
 To activate the rules, type
@@ -192,14 +176,6 @@ to install the specific `apt` packages required by ChipWhisperer.
   currently not available.
 - CW-Husky requires ChipWhisperer 5.6.1 or later. The default
   `python_requirements.txt` will install a version supporting CW-Husky.
-- CW-Lite requires the following specifc commit of ChipWhisperer and firmware
-  v.0.23 due to broken support for segmented/batch captures in later versions:
-```console
-$ pip3 install -e git+https://github.com/newaetech/chipwhisperer.git@099807207f3351d16e7988d8f0cccf6d570f306a#egg=chipwhisperer
-```
-  However, this version does not support CW-Husky. We recommend using CW-Husky
-  instead.
-
 
 ##### Git Large File Storage (LFS)
 
@@ -421,8 +397,8 @@ the specified file paths.
 
 ## Capturing Power Traces
 
-`capture.py`: Supports capturing AES and KMAC-128 power traces using either 
-a CW-Husky or CW-Lite capture board. When using a CW-Husky board, the script 
+`capture.py`: Supports capturing AES and KMAC-128 power traces using a
+CW-Husky capture board. When using a CW-Husky board, the script 
 also supports capturing AES power traces in batches to achieve substantially 
 higher capture rates (ca. 1300 traces/s).
 

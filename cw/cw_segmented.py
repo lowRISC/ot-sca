@@ -2,7 +2,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-"""Support for capturing traces using ChipWhisperer-Lite/Husky in segmented mode."""
+"""Support for capturing traces using ChipWhisperer-Husky in segmented mode."""
 
 import time
 
@@ -12,38 +12,27 @@ from packaging import version
 
 
 class CwSegmented:
-    """Class for capturing traces using a ChipWhisperer-Lite/ChipWhisperer-Husky.
+    """Class for capturing traces using a ChipWhisperer-Husky.
 
     This class uses segmented traces mode to improve capture performance.
 
-    When in segmented mode, ChipWhisperer-Lite/Husky captures multiple segments each starting
+    When in segmented mode, ChipWhisperer-Husky captures multiple segments each starting
     at a trigger event. This is much more efficient than sending a separate command for
     each segment.
 
-    Due to current limitations of the firmware, ChipWhisperer-Lite needs to fill the
-    entire sample buffer when running in batch mode. Therefore, the number of segments
-    that need to be captured may be fewer or more than the desired number of segments
-    depending on the number of samples per segment. Additionally, the last segment may
-    be captured only partially. This class handles all the associated processing,
-    including discarding partially captured segments, internally.
-
-    However, the target must generate the correct number of triggers so that the entire
-    sample buffer is filled. This number is made available via the read-only
-    ``num_segments_actual`` attribute so that the target can be configured accordingly.
-
     Typical usage:
-    >>> cw_lite = CwSegmented()
+    >>> cw_scope = CwSegmented()
     >>> while foo:
     >>>     ...
-    >>>     cw_lite.num_segments = desired_num_segments
-    >>>     # Note: cw_lite.num_segments_actual gives the actual number of segments that
+    >>>     cw_scope.num_segments = desired_num_segments
+    >>>     # Note: cw_scope.num_segments_actual gives the actual number of segments that
     >>>     # will be captured.
-    >>>     cw_lite.arm()
-    >>>     # Configure the target using cw_lite.num_segments_actual.
-    >>>     target.configure(cw_lite.num_segments_actual)
-    >>>     # This returns cw_lite.num_segments number of waves each with
-    >>>     # cw_lite.num_samples samples.
-    >>>     waves = cw_lite.capture_and_transfer_waves()
+    >>>     cw_scope.arm()
+    >>>     # Configure the target using cw_scope.num_segments_actual.
+    >>>     target.configure(cw_scope.num_segments_actual)
+    >>>     # This returns cw_scope.num_segments number of waves each with
+    >>>     # cw_scope.num_samples samples.
+    >>>     waves = cw_scope.capture_and_transfer_waves()
     >>>     ...
 
     Attributes:
@@ -84,21 +73,13 @@ class CwSegmented:
             if version.parse(cw.__version__) < version.parse("5.6.1"):
                 raise IOError("ChipWhisperer Version must be 5.6.1 or later for Husky Support")
         else:
-            if version.parse(cw.__version__) != version.parse("5.5.0"):
-                raise IOError("""ChipWhisperer Version must be 5.5.0
-                              (from commit 099807207f3351d16e7988d8f0cccf6d570f306a)
-                              for CW-Lite with Segmenting
-                              """)
+            raise IOError("""Only ChipWhisperer Husky is supported""")
 
-        if not self._is_husky:
-            offset = offset // 2
         self._configure_scope(scope_gain, offset, pll_frequency)
 
         self.num_segments = 1
         if self._is_husky:
             self.num_samples = num_samples
-        else:
-            self.num_samples = num_samples // 2
         self._print_device_info()
 
     @property
@@ -109,16 +90,11 @@ class CwSegmented:
     def num_segments_max(self):
         if self._is_husky:
             return self._scope.adc.oa.hwMaxSegmentSamples // self._scope.adc.samples
-        else:
-            return (self._scope.adc.oa.hwMaxSamples // self._scope.adc.samples) - 1
 
     @property
     def num_segments_actual(self):
         if self._is_husky:
             return self._scope.adc.segments
-        else:
-            # Must round-up to fill the entire buffer.
-            return round(self._scope.adc.oa.hwMaxSamples / self._scope.adc.samples) + 1
 
     @property
     def num_segments(self):
@@ -128,11 +104,6 @@ class CwSegmented:
     def num_segments(self, num_segments):
         if self._is_husky:
             self._scope.adc.segments = num_segments
-        else:
-            if not self.num_segments_min <= num_segments <= self.num_segments_max:
-                raise RuntimeError(
-                    f"num_segments must be in [{self.num_segments_min}, {self.num_segments_max}]."
-                )
         self._num_segments = num_segments
 
     @property
@@ -159,15 +130,6 @@ class CwSegmented:
             # Husky has simplified interface
             self._scope.adc.samples = num_samples
             self._num_samples_actual = num_samples
-        else:
-            # This should ideally be handled by the chipwhisperer library but setting the
-            # number of samples smaller than 241 results in "received fewer points than
-            # expected" error. This number is further rounded up by chipwhisperer so that
-            # (num_samples-1) is divisible by 3. We get the actual number of samples from
-            # adc.
-            self._scope.adc.samples = max(241, num_samples)
-            # Note: CW-Lite actually returns one less than adc.samples.
-            self._num_samples_actual = self._scope.adc.samples - 1
 
         if self.num_segments > self.num_segments_max:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
@@ -186,12 +148,6 @@ class CwSegmented:
             self._scope.clock.adc_mul = 2
             self._scope.clock.clkgen_freq = pll_frequency
             self._scope.clock.clkgen_src = 'extclk'
-        else:
-            # We sample using the target clock (100 MHz).
-            self._scope.clock.adc_mul = 1
-            self._scope.clock.clkgen_freq = pll_frequency
-            self._scope.clock.adc_src = "extclk_dir"
-            self._scope.adc.fifo_fill_mode = "segment"
 
         self._scope.trigger.triggers = "tio4"
         self._scope.io.tio1 = "serial_tx"
@@ -228,8 +184,6 @@ class CwSegmented:
         """
         if self._is_husky:
             self._scope.capture()
-        else:
-            self._scope.capture_segmented()
         data = self._scope.get_last_trace(as_int=True)
         waves = self._parse_waveform(data)
         return waves

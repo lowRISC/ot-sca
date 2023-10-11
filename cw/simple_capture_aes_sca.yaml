@@ -5,19 +5,26 @@ cwfpgahusky:
   baudrate: 115200
   output_len_bytes: 16
   pll_frequency: 100000000
+  num_segments: 1
   num_samples: 1200
   offset: -40
   scope_gain: 31.5
+waverunner:
+  waverunner_ip: 100.107.71.10
+  num_segments: 1
+  num_samples: 6000
+  sample_offset: 0
+capture:
+  scope_select: husky
+#  scope_select: waverunner
+  num_traces: 1000
+  project_name: "projects/simple_capture_aes_sca"
+  show_plot: True
+  plot_traces: 50
+  trace_image_filename: "projects/simple_capture_aes_sca_sample_traces.html"
 test:
   key_len_bytes: 16
   test_random_seed: 0
   key: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
   text: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
   key_for_gen: [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF1, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xE0, 0xF0]
-capture:
-  num_traces: 1000
-  project_name: "projects/simple_capture_aes_sca"
-  show_plot: True
-  plot_traces: 100
-  trace_image_filename: "projects/simple_capture_aes_sca_sample_traces.html"
-

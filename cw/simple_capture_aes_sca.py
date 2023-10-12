@@ -180,7 +180,8 @@ if __name__ == '__main__':
         if USE_HUSKY:
             project.traces.append(trace, dtype=np.uint16)
         if USE_WAVERUNNER:
-            project.traces.append(trace, dtype=np.uint8)
+            # Also use uint16 as dtype so that tvla processing works
+            project.traces.append(trace, dtype=np.uint16)
 
     # Save metadata and entire configuration cfg to project file
     project.settingsDict['datetime'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
@@ -192,6 +193,6 @@ if __name__ == '__main__':
     # Create and show test plot
     if cfg["capture"]["show_plot"]:
         plot.save_plot_to_file(project.waves, None, cfg["capture"]["plot_traces"],
-                               cfg["capture"]["trace_image_filename"])
+                               cfg["capture"]["trace_image_filename"], add_mean_stddev=True)
         print(f'Created plot with {cfg["capture"]["plot_traces"]} traces: '
               f'{Path(cfg["capture"]["trace_image_filename"]).resolve()}')

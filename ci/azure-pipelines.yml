@@ -42,3 +42,13 @@ jobs:
   - publish: ./ci/ci_projects/opentitan_simple_aes.zip
     artifact: project_traces_aes
     displayName: "Upload project of captured AES traces."
+  - bash: |
+      set -e
+      pushd ci
+      ./ci_check_tvla_aes.sh
+      ../cw/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+      popd
+    displayName: "Check AES TVLA"
+  - publish: ./ci/tmp/figures
+    artifact: tvla_figure
+    displayName: "Upload figure of AES TVLA."

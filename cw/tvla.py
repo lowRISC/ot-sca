@@ -372,16 +372,17 @@ def run_tvla(ctx: typer.Context):
                                                          trace_start] + 0.5) * trace_resolution
                     traces = traces.astype('uint16')
 
-                # Filter out noisy traces.
-                log.info("Filtering Traces")
-
-                # Get the mean and standard deviation.
-                mean = traces.mean(axis=0)
-                std = traces.std(axis=0)
-
                 # Define upper and lower limits.
-                max_trace = mean + num_sigmas * std
-                min_trace = mean - num_sigmas * std
+                max_trace = trace_resolution
+                min_trace = 0
+                if cfg["filter_traces"]:
+                    # Filter out noisy traces.
+                    log.info("Filtering Traces")
+                    # Get the mean and standard deviation.
+                    mean = traces.mean(axis=0)
+                    std = traces.std(axis=0)
+                    max_trace = mean + num_sigmas * std
+                    min_trace = mean - num_sigmas * std
 
                 # Filtering of converted traces (len = num_samples). traces_to_use itself can be
                 # used to index the entire project file (len >= num_samples).
@@ -936,6 +937,7 @@ default_ttest_step_file = None
 default_plot_figures = False
 default_general_test = False
 default_mode = "aes"
+default_filter_traces = True
 default_update_cfg_file = False
 
 
@@ -987,6 +989,9 @@ help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA wit
     Default: """ + str(default_general_test))
 help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3" or "otbn".
     Default: """ + str(default_mode))
+help_filter_traces = inspect.cleandoc("""Excludes the outlier traces from the analysis. A trace is
+    an outlier if any of the points is more than 3.5 sigma away from the mean.
+    Default: """ + str(default_filter_traces))
 help_update_cfg_file = inspect.cleandoc("""Update existing configuration file or create if there
     isn't any configuration file. Default: """ + str(default_update_cfg_file))
 
@@ -1010,6 +1015,7 @@ def main(ctx: typer.Context,
          plot_figures: bool = typer.Option(None, help=help_plot_figures),
          general_test: bool = typer.Option(None, help=help_general_test),
          mode: str = typer.Option(None, help=help_mode),
+         filter_traces: bool = typer.Option(None, help=help_filter_traces),
          update_cfg_file: bool = typer.Option(None, help=help_update_cfg_file)):
     """A histogram-based TVLA described in "Fast Leakage Assessment" by O. Reparaz, B. Gierlichs and
     I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
@@ -1020,7 +1026,7 @@ def main(ctx: typer.Context,
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
               'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
               'input_histogram_file', 'output_histogram_file', 'number_of_steps',
-              'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+              'ttest_step_file', 'plot_figures', 'general_test', 'mode', 'filter_traces']:
         run_cmd = f'''cfg[v] = default_{v}'''
         exec(run_cmd)
 
@@ -1034,7 +1040,7 @@ def main(ctx: typer.Context,
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
               'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
               'input_histogram_file', 'output_histogram_file', 'number_of_steps',
-              'ttest_step_file', 'plot_figures', 'general_test', 'mode']:
+              'ttest_step_file', 'plot_figures', 'general_test', 'mode', 'filter_traces']:
         run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
         exec(run_cmd)
 

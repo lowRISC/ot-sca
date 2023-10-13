@@ -208,7 +208,7 @@ def capture_loop(trace_gen, ot, capture_cfg, device_cfg):
 def capture_end(cfg):
     if cfg["plot_capture"]["show"]:
         plot_results(cfg["plot_capture"], cfg["capture"]["project_name"])
-    if cfg["capture"]["project_export"]:
+    if "project_export" in cfg["capture"] and cfg["capture"]["project_export"]:
         project = cw.open_project(cfg["capture"]["project_name"])
         project.export(cfg["capture"]["project_export_filename"])
         project.close(save=False)

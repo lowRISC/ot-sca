@@ -11,7 +11,7 @@ mkdir -p tmp
 MODE="aes"
 BOARD=cw310
 declare -A aes_test_list
-aes_test_list["aes-static"]=100
+aes_test_list["aes-random"]=100
 
 ARGS="--force-program-bitstream"
 for test in ${!aes_test_list[@]}; do
@@ -19,7 +19,5 @@ for test in ${!aes_test_list[@]}; do
   NUM_TRACES=${aes_test_list[${test}]}
   ../cw/capture.py --cfg-file cfg/ci_capture_aes_cw310.yaml capture ${test} \
       --num-traces ${NUM_TRACES} ${ARGS}
-
-  mv ./ci_projects/sample_traces_${MODE}.html tmp/${test}_traces.html
   ARGS=""
 done

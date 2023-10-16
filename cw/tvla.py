@@ -375,7 +375,7 @@ def run_tvla(ctx: typer.Context):
                 # Define upper and lower limits.
                 max_trace = trace_resolution
                 min_trace = 0
-                if cfg["filter_traces"]:
+                if "filter_traces" in cfg and cfg["filter_traces"]:
                     # Filter out noisy traces.
                     log.info("Filtering Traces")
                     # Get the mean and standard deviation.

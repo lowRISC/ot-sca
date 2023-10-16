@@ -34,9 +34,9 @@ jobs:
       set -e
       pushd ci
       ./ci_check_aes_traces.sh
-      ./ci_trace_check/ci_compare_aes_traces.py -f ./ci_projects/opentitan_simple_aes.cwp -g ./ci_trace_check/golden_traces/aes_128_ecb_static.zip -c 0.8
+      ./ci_trace_check/ci_compare_aes_traces.py -f ./ci_projects/opentitan_simple_aes.cwp -g ./ci_trace_check/golden_traces/aes_128_ecb_static_cw310.zip -c 0.8
       popd
-    displayName: "Check captured AES traces"
+    displayName: "Compare captured AES trace against golden trace"
     continueOnError: True
   - publish: ./ci/tmp/
     artifact: plot_traces_aes

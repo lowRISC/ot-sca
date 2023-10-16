@@ -7,7 +7,9 @@ jobs:
 - job: sca_capture
   displayName: "Capture SCA traces"
   timeoutInMinutes: 30
-  pool: FPGA SCA
+  pool:
+    name: FPGA SCA
+    demands: BOARD -equals cw310
   steps:
   - checkout: self
   - bash: |

@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Simple script to test AES capture.
+set -e
 mkdir -p tmp
 
 # AES

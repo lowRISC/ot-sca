@@ -46,7 +46,7 @@ jobs:
       set -e
       pushd ci
       ./ci_check_tvla_aes.sh
-      ../cw/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+      ../cw/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla 
       popd
     displayName: "Check AES TVLA"
   - publish: ./ci/tmp/figures

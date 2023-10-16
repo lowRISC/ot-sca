@@ -5,8 +5,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Simple script to test AES capture.
+set -e
 mkdir -p tmp
-
 # AES
 MODE="aes"
 BOARD=cw310
@@ -19,7 +19,6 @@ for test in ${!aes_test_list[@]}; do
   NUM_TRACES=${aes_test_list[${test}]}
   ../cw/capture.py --cfg-file cfg/ci_capture_aes_cw310.yaml capture ${test} \
       --num-traces ${NUM_TRACES} ${ARGS}
-
   mv ./ci_projects/sample_traces_${MODE}.html tmp/${test}_traces.html
   ARGS=""
 done

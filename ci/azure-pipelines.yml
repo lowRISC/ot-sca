@@ -4,8 +4,8 @@ pr:
     - "*"
 
 jobs:
-- job: sca_capture
-  displayName: "Capture SCA traces"
+- job: sca_capture_cw310
+  displayName: "Capture SCA traces (CW310)"
   timeoutInMinutes: 30
   pool:
     name: FPGA SCA
@@ -54,3 +54,27 @@ jobs:
   - publish: ./ci/tmp/figures
     artifact: tvla_figure
     displayName: "Upload figure of AES TVLA."
+
+- job: sca_capture_cw305
+  displayName: "Capture SCA traces (CW305)"
+  timeoutInMinutes: 30
+  pool:
+    name: FPGA SCA
+    demands: BOARD -equals cw305
+  steps:
+  - checkout: self
+  - bash: |
+      python3 -m pip install --user -r python-requirements.txt
+    displayName: "Install python dependencies"
+  - bash: |
+      apt update
+      apt install git-lfs
+    displayName: "Install system dependencies"
+  - bash: |
+      git-lfs pull
+    displayName: "Pull LFS binaries"
+  - bash: |
+      set -e
+      cd cw
+      ./capture.py --cfg-file capture_aes_cw305.yaml capture aes-random-batch --num-traces 10000 --force-program-bitstream
+    displayName: "Capture traces"

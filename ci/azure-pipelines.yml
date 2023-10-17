@@ -76,5 +76,5 @@ jobs:
   - bash: |
       set -e
       cd cw
-      ./capture.py --cfg-file capture_aes_cw305.yaml capture aes-random-batch --num-traces 10000 --force-program-bitstream
+      ./capture.py --cfg-file capture_aes_cw305.yaml capture aes-random-batch --num-traces 1000 --force-program-bitstream
     displayName: "Capture traces"

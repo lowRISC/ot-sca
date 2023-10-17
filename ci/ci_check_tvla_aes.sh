@@ -11,7 +11,7 @@ mkdir -p tmp
 MODE="aes"
 BOARD=cw310
 declare -A aes_test_list
-aes_test_list["aes-random"]=100
+aes_test_list["aes-random"]=5000
 
 ARGS="--force-program-bitstream"
 for test in ${!aes_test_list[@]}; do

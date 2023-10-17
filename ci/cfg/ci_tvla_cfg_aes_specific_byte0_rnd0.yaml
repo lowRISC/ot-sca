@@ -14,3 +14,4 @@ ttest_step_file: null
 plot_figures: true
 general_test: false
 mode: aes
+filter_traces: true

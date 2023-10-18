@@ -355,6 +355,7 @@ class WaveRunner:
         else:
             # TRMD Trigger Mode Single
             commands = [
+                "SEQ OFF",
                 "TRMD SINGLE",
                 "*OPC?",
             ]

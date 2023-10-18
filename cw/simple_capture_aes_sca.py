@@ -3,7 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 import binascii
-import random
+# import random
 import signal
 import sys
 import time
@@ -21,12 +21,12 @@ from waverunner import WaveRunner
 from util import device, plot, trace_util
 
 
-def abort_handler_during_loop(project, sig, frame):
+def abort_handler_during_loop(this_project, sig, frame):
     # Handler for ctrl-c keyboard interrupts
     # TODO: Has to be modified according to database (i.e. CW project atm) used
-    if project is not None:
+    if this_project is not None:
         print("\nHandling keyboard interrupt")
-        project.close(save=True)
+        this_project.close(save=True)
     sys.exit(0)
 
 
@@ -35,19 +35,34 @@ if __name__ == '__main__':
     with open('simple_capture_aes_sca.yaml') as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-    # Choose scope from configuration
-    if cfg["capture"]["scope_select"] == "waverunner":
+    # Determine scope and single/batch from configuration ----------------------
+    BATCH_MODE = False
+    NUM_SEGMENTS = 1
+    if "waverunner" in cfg and cfg["capture"]["scope_select"] == "waverunner":
         print("Using Waverunner scope")
-        USE_WAVERUNNER = True
-        USE_HUSKY = False
+        WAVERUNNER = True
+        HUSKY = False
+
+        # Determine single or batch mode
+        if cfg["waverunner"]["num_segments"] > 1:
+            BATCH_MODE = True
+            NUM_SEGMENTS = cfg["waverunner"]["num_segments"]
     elif cfg["capture"]["scope_select"] == "husky":
         print("Using Husky scope")
-        USE_WAVERUNNER = False
-        USE_HUSKY = True
+        WAVERUNNER = False
+        HUSKY = True
 
-    # Create ChipWhisperer project for storage of traces and metadata
+        # Batch not supported for Husky at the moment
+        if cfg["cwfpgahusky"]["num_segments"] > 1:
+            print("Warning: Sequence (batch) mode not supported for Husky yet")
+            sys.exit(0)
+    else:
+        print("Warning: No valid scope selected in configuration")
+
+    # Create ChipWhisperer project for storage of traces and metadata ----------
     project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
 
+    # Create device and scope --------------------------------------------------
     # Create OpenTitan encapsulating ChipWhisperer Husky and FPGA
     # NOTE: A clean separation of the two seems infeasible since
     # scope needs FPGA (PLL?) to be configured and target constructor needs scope as input.
@@ -61,7 +76,11 @@ if __name__ == '__main__':
                                    cfg["cwfpgahusky"]["offset"],
                                    cfg["cwfpgahusky"]["output_len_bytes"])
 
-    if USE_WAVERUNNER:
+    # Upgrade CW FW
+    # cwfpgahusky.scope.upgrade_firmware()
+    # quit()
+
+    if WAVERUNNER:
         # Create WaveRunner
         waverunner = WaveRunner(cfg["waverunner"]["waverunner_ip"])
         # Capture configuration: num_segments, sparsing, num_samples, first_point, acqu_channel
@@ -78,121 +97,154 @@ if __name__ == '__main__':
         file_name_local = f"{project_name}_data/scope_config_{now_str}.lss"
         waverunner.save_setup_to_local_file(file_name_local)
 
-    # Check if batch mode is requested TODO: not supported yet
-    if cfg["waverunner"]["num_segments"] > 1:
-        print("Warning: Sequence (batch) mode not supported yet")
-    if cfg["cwfpgahusky"]["num_segments"] > 1:
-        print("Warning: Sequence (batch) mode not supported yet")
+    # Preparation of Key and plaintext generation ------------------------------
 
-    # Register ctrl-c handler to store traces on abort
-    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
+    # This test currently uses one fixed key and generates random texts through
+    # AES encryption using a generation key. The batch mode uses ciphertexts as
+    # next text input here and in the OT device SW.
 
-    # Preparation of Key and plaintext generation
-    # Generate key at random based on test_random_seed (not used atm)
-    random.seed(cfg["test"]["test_random_seed"])
-    key = bytearray(cfg["test"]["key_len_bytes"])
-    for i in range(0, cfg["test"]["key_len_bytes"]):
-        key[i] = random.randint(0, 255)
-    # Load initial key and text values from cfg
-    key = bytearray(cfg["test"]["key"])
-    print(f'Using key: {binascii.b2a_hex(bytes(key))}')
-    text = bytearray(cfg["test"]["text"])
+    # Load fixed key and initial text values from cfg
+    key_fixed = bytearray(cfg["test"]["key_fixed"])
+    print(f'Using key: {binascii.b2a_hex(bytes(key_fixed))}')
+    text = bytearray(cfg["test"]["text_fixed"])
+
+    # Cipher to compute expected responses
+    cipher = AES.new(bytes(key_fixed), AES.MODE_ECB)
+
     # Prepare generation of new texts/keys by encryption using key_for_generation
     key_for_gen = bytearray(cfg["test"]["key_for_gen"])
     cipher_gen = AES.new(bytes(key_for_gen), AES.MODE_ECB)
 
+    # Seed the target's PRNGs for initial key masking, and additionally turn off masking when '0'
+    cwfpgahusky.target.simpleserial_write("l", cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+
     # Set key
-    cwfpgahusky.target.simpleserial_write("k", key)
+    cwfpgahusky.target.simpleserial_write("k", key_fixed)
 
-    # Cipher to compute expected responses
-    cipher = AES.new(bytes(key), AES.MODE_ECB)
+    if WAVERUNNER and BATCH_MODE:
+        # Set initial plaintext for batch mode
+        cwfpgahusky.target.simpleserial_write("i", text)
 
-    # Main loop for measurements with progress bar
-    for _ in tqdm(range(cfg["capture"]["num_traces"]), desc='Capturing', ncols=80):
+    # Template to generate key at random based on test_random_seed (not used)
+    # random.seed(cfg["test"]["test_random_seed"])
+    # key = bytearray(cfg["test"]["key_len_bytes"])
+    # for i in range(0, cfg["test"]["key_len_bytes"]):
+    #    key[i] = random.randint(0, 255)
 
-        # TODO: Useful code line for batch capture
-        # cwfpgahusky..simpleserial_write("s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
+    # Main loop for measurements with progress bar -----------------------------
 
-        # Note: Capture performance tested Oct. 2023:
-        #   Using husky with 1200 samples per trace leads to 48 it/s
-        #   Using Waverunner with 1200 - 50000 samples per trace leads to 27 it/s
-        #       Increases to 31 it/s when 'Performance' set to 'Analysis' in Utilies->Preferences
-        #       Transfer over UART only slows down if .e.g transfering key 5 additional times
+    # Register ctrl-c handler to store traces on abort
+    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
 
-        if USE_HUSKY:
-            # Arm Husky scope
-            cwfpgahusky.scope.arm()
+    remaining_num_traces = cfg["capture"]["num_traces"]
+    with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+        while remaining_num_traces > 0:
 
-        if USE_WAVERUNNER:
-            # Arm Waverunner scope
-            waverunner.arm()
+            # Note: Capture performance tested Oct. 2023:
+            # Husy with 1200 samples per trace: 50 it/s
+            # WaveRunner with 1200 - 50000 samples per trace: ~30 it/s
+            #   +10% by setting 'Performance' to 'Analysis' in 'Utilies->Preferences' in GUI
+            # WaveRunner batchmode (6k samples, 100 segmets, 1 GHz): ~150 it/s
 
-        # Generate new text for this iteration
-        text = bytearray(cipher_gen.encrypt(text))
-        # Load text and trigger execution
-        cwfpgahusky.target.simpleserial_write('p', text)
+            # Arm scope --------------------------------------------------------
+            if HUSKY:
+                cwfpgahusky.scope.arm()
 
-        if USE_HUSKY:
-            # Capture Husky trace
-            ret = cwfpgahusky.scope.capture(poll_done=False)
-            i = 0
-            while not cwfpgahusky.target.is_done():
-                i += 1
-                time.sleep(0.05)
-                if i > 100:
-                    print("Warning: Target did not finish operation")
-            if ret:
-                print("Warning: Timeout happened during capture")
+            if WAVERUNNER:
+                waverunner.arm()
 
-            # Get Husky trace
-            wave = cwfpgahusky.scope.get_last_trace(as_int=True)
+            # Trigger execution(s) ---------------------------------------------
+            if WAVERUNNER and BATCH_MODE:
+                # Perform batch encryptions
+                cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
 
-        if USE_WAVERUNNER:
-            # Capture and get Waverunner trace
-            waves = waverunner.capture_and_transfer_waves()
-            assert waves.shape[0] == cfg["waverunner"]["num_segments"]
-            # For single capture, 1st dim contains wave data
-            wave = waves[0, :]
-            # Put into uint8 range
-            wave = wave + 128
+            else:
+                # Generate new text for next iteration, first uses initial text
+                text = bytearray(cipher_gen.encrypt(text))
 
-        # Get response from device and verify
-        response = cwfpgahusky.target.simpleserial_read('r',
-                                                        cwfpgahusky.target.output_len, ack=False)
-        if binascii.b2a_hex(response) != binascii.b2a_hex(cipher.encrypt(bytes(text))):
-            raise RuntimeError(f'Bad ciphertext: {response} != {cipher.encrypt(bytes(text))}.')
+                # Load text and trigger execution
+                cwfpgahusky.target.simpleserial_write('p', text)
 
-        # TODO: Useful code line for batch capture
-        # waves = scope.capture_and_transfer_waves()
+            # Capture trace(s) -------------------------------------------------
+            if HUSKY:
+                ret = cwfpgahusky.scope.capture(poll_done=False)
+                i = 0
+                while not cwfpgahusky.target.is_done():
+                    i += 1
+                    time.sleep(0.05)
+                    if i > 100:
+                        print("Warning: Target did not finish operation")
+                if ret:
+                    print("Warning: Timeout happened during capture")
+                # Get Husky trace (single mode only)
+                wave = cwfpgahusky.scope.get_last_trace(as_int=True)
 
-        # Sanity check retrieved data (wave) and create CW Trace
-        if len(wave) >= 1:
-            trace = cw.Trace(wave, text, response, key)
-        else:
-            raise RuntimeError('Capture failed.')
+            if WAVERUNNER:
+                waves = waverunner.capture_and_transfer_waves()
+                assert waves.shape[0] == NUM_SEGMENTS
+                # Put into uint8 range
+                waves = waves + 128
 
-        if USE_HUSKY:
-            # Check if ADC range has been exceeded for Husky.
-            # Not done for WaveRunner because clipping can be inspected on screen.
-            trace_util.check_range(trace.wave, cwfpgahusky.scope.adc.bits_per_sample)
+            # Storing traces ---------------------------------------------------
+            if WAVERUNNER and BATCH_MODE:
+                # Loop through num_segments to store traces and compute ciphertexts
+                # Note this batch capture command uses the ciphertext as next text
+                for i in range(NUM_SEGMENTS):
+                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
 
-        # Append CW trace to CW project storage
-        if USE_HUSKY:
-            project.traces.append(trace, dtype=np.uint16)
-        if USE_WAVERUNNER:
-            # Also use uint16 as dtype so that tvla processing works
-            project.traces.append(trace, dtype=np.uint16)
+                    # Sanity check retrieved data (wave) and create CW Trace
+                    assert len(waves[i, :]) >= 1
+                    wave = waves[i, :]
+                    trace = cw.Trace(wave, text, ciphertext, key_fixed)
 
-    # Save metadata and entire configuration cfg to project file
-    project.settingsDict['datetime'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    project.settingsDict['cfg'] = cfg
-    sample_rate = int(round(cwfpgahusky.scope.clock.adc_freq, -6))
-    project.settingsDict['sample_rate'] = sample_rate
-    project.save()
+                    # Append CW trace to CW project storage
+                    # Also use uint16 as dtype so that tvla processing works
+                    project.traces.append(trace, dtype=np.uint16)
 
-    # Create and show test plot
+                    # Use ciphertext as next text
+                    text = ciphertext
+
+            else:  # not BATCH_MODE either scope
+                ciphertext = bytearray(cipher.encrypt(bytes(text)))
+
+                if WAVERUNNER:
+                    # For single capture on WaveRunner, waves[0] contains data
+                    wave = waves[0, :]
+
+                # Sanity check retrieved data (wave) and create CW Trace
+                assert len(wave) >= 1
+                trace = cw.Trace(wave, text, ciphertext, key_fixed)
+                if HUSKY:
+                    # Check if ADC range has been exceeded for Husky.
+                    # Not done for WaveRunner because clipping can be inspected on screen.
+                    trace_util.check_range(trace.wave, cwfpgahusky.scope.adc.bits_per_sample)
+
+                # Append CW trace to CW project storage
+                # Also use uint16 for WaveRunner even though 8 bit so that tvla processing works
+                project.traces.append(trace, dtype=np.uint16)
+
+            # Get (last) ciphertext after all calls from device and verify -----
+            response = cwfpgahusky.target.simpleserial_read('r',
+                                                            cwfpgahusky.target.output_len,
+                                                            ack=False)
+            if binascii.b2a_hex(response) != binascii.b2a_hex(ciphertext):
+                raise RuntimeError(f'Bad ciphertext: {response} != {ciphertext}.')
+
+            # Update the loop variable and the progress bar --------------------
+            remaining_num_traces -= NUM_SEGMENTS
+            pbar.update(NUM_SEGMENTS)
+
+    # Create and show test plot ------------------------------------------------
     if cfg["capture"]["show_plot"]:
         plot.save_plot_to_file(project.waves, None, cfg["capture"]["plot_traces"],
                                cfg["capture"]["trace_image_filename"], add_mean_stddev=True)
         print(f'Created plot with {cfg["capture"]["plot_traces"]} traces: '
               f'{Path(cfg["capture"]["trace_image_filename"]).resolve()}')
+
+    # Save metadata and entire configuration cfg to project file ---------------
+    project.settingsDict['datetime'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    project.settingsDict['cfg'] = cfg
+    if HUSKY:
+        sample_rate = int(round(cwfpgahusky.scope.clock.adc_freq, -6))
+        project.settingsDict['sample_rate'] = sample_rate
+    project.save()

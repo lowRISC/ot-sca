@@ -15,6 +15,7 @@ import chipwhisperer as cw
 import numpy as np
 import yaml
 from Crypto.Cipher import AES
+from cw_segmented import CwSegmented
 from tqdm import tqdm
 from waverunner import WaveRunner
 
@@ -54,8 +55,8 @@ if __name__ == '__main__':
 
         # Batch not supported for Husky at the moment
         if cfg["cwfpgahusky"]["num_segments"] > 1:
-            print("Warning: Sequence (batch) mode not supported for Husky yet")
-            sys.exit(0)
+            BATCH_MODE = True
+            NUM_SEGMENTS = cfg["cwfpgahusky"]["num_segments"]
     else:
         print("Warning: No valid scope selected in configuration")
 
@@ -76,7 +77,16 @@ if __name__ == '__main__':
                                    cfg["cwfpgahusky"]["offset"],
                                    cfg["cwfpgahusky"]["output_len_bytes"])
 
-    # Upgrade CW FW
+    # Support Husky batch mode
+    if NUM_SEGMENTS > 1:
+        husky_batch_scope = CwSegmented(num_samples=cfg["cwfpgahusky"]["num_samples"],
+                                        offset=cfg["cwfpgahusky"]["offset"],
+                                        scope_gain=cfg["cwfpgahusky"]["scope_gain"],
+                                        scope=cwfpgahusky.scope,
+                                        pll_frequency=cfg["cwfpgahusky"]["pll_frequency"])
+        husky_batch_scope.num_segments = NUM_SEGMENTS
+
+    # Upgrade Husky FW (manually uncomment if needed)
     # cwfpgahusky.scope.upgrade_firmware()
     # quit()
 
@@ -121,7 +131,7 @@ if __name__ == '__main__':
     # Set key
     cwfpgahusky.target.simpleserial_write("k", key_fixed)
 
-    if WAVERUNNER and BATCH_MODE:
+    if BATCH_MODE:
         # Set initial plaintext for batch mode
         cwfpgahusky.target.simpleserial_write("i", text)
 
@@ -148,36 +158,42 @@ if __name__ == '__main__':
 
             # Arm scope --------------------------------------------------------
             if HUSKY:
-                cwfpgahusky.scope.arm()
+                if BATCH_MODE:
+                    husky_batch_scope.arm()
+                else:
+                    cwfpgahusky.scope.arm()
 
             if WAVERUNNER:
                 waverunner.arm()
 
             # Trigger execution(s) ---------------------------------------------
-            if WAVERUNNER and BATCH_MODE:
+            if BATCH_MODE:
                 # Perform batch encryptions
                 cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
 
             else:
                 # Generate new text for next iteration, first uses initial text
                 text = bytearray(cipher_gen.encrypt(text))
-
                 # Load text and trigger execution
                 cwfpgahusky.target.simpleserial_write('p', text)
 
             # Capture trace(s) -------------------------------------------------
             if HUSKY:
-                ret = cwfpgahusky.scope.capture(poll_done=False)
-                i = 0
-                while not cwfpgahusky.target.is_done():
-                    i += 1
-                    time.sleep(0.05)
-                    if i > 100:
-                        print("Warning: Target did not finish operation")
-                if ret:
-                    print("Warning: Timeout happened during capture")
-                # Get Husky trace (single mode only)
-                wave = cwfpgahusky.scope.get_last_trace(as_int=True)
+                if BATCH_MODE:
+                    waves = husky_batch_scope.capture_and_transfer_waves()
+                    assert waves.shape[0] == NUM_SEGMENTS
+                else:
+                    ret = cwfpgahusky.scope.capture(poll_done=False)
+                    i = 0
+                    while not cwfpgahusky.target.is_done():
+                        i += 1
+                        time.sleep(0.05)
+                        if i > 100:
+                            print("Warning: Target did not finish operation")
+                    if ret:
+                        print("Warning: Timeout happened during capture")
+                    # Get Husky trace (single mode only)
+                    wave = cwfpgahusky.scope.get_last_trace(as_int=True)
 
             if WAVERUNNER:
                 waves = waverunner.capture_and_transfer_waves()
@@ -186,7 +202,7 @@ if __name__ == '__main__':
                 waves = waves + 128
 
             # Storing traces ---------------------------------------------------
-            if WAVERUNNER and BATCH_MODE:
+            if BATCH_MODE:
                 # Loop through num_segments to store traces and compute ciphertexts
                 # Note this batch capture command uses the ciphertext as next text
                 for i in range(NUM_SEGMENTS):
@@ -204,7 +220,7 @@ if __name__ == '__main__':
                     # Use ciphertext as next text
                     text = ciphertext
 
-            else:  # not BATCH_MODE either scope
+            else:  # not BATCH_MODE
                 ciphertext = bytearray(cipher.encrypt(bytes(text)))
 
                 if WAVERUNNER:

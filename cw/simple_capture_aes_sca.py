@@ -6,7 +6,6 @@ import binascii
 # import random
 import signal
 import sys
-import time
 from datetime import datetime
 from functools import partial
 from pathlib import Path
@@ -15,16 +14,16 @@ import chipwhisperer as cw
 import numpy as np
 import yaml
 from Crypto.Cipher import AES
-from cw_segmented import CwSegmented
+from husky_dispatcher import HuskyDispatcher
 from tqdm import tqdm
 from waverunner import WaveRunner
 
-from util import device, plot, trace_util
+from util import device, plot
 
 
 def abort_handler_during_loop(this_project, sig, frame):
     # Handler for ctrl-c keyboard interrupts
-    # TODO: Has to be modified according to database (i.e. CW project atm) used
+    # FIXME: Has to be modified according to database (i.e. CW project atm) used
     if this_project is not None:
         print("\nHandling keyboard interrupt")
         this_project.close(save=True)
@@ -37,33 +36,26 @@ if __name__ == '__main__':
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     # Determine scope and single/batch from configuration ----------------------
-    BATCH_MODE = False
-    NUM_SEGMENTS = 1
+    HUSKY = False
+    WAVERUNNER = False
+
     if "waverunner" in cfg and cfg["capture"]["scope_select"] == "waverunner":
-        print("Using Waverunner scope")
         WAVERUNNER = True
-        HUSKY = False
-
-        # Determine single or batch mode
-        if cfg["waverunner"]["num_segments"] > 1:
-            BATCH_MODE = True
-            NUM_SEGMENTS = cfg["waverunner"]["num_segments"]
+        NUM_SEGMENTS = cfg["waverunner"]["num_segments"]
+        print(f"Using WaveRunner scope with {NUM_SEGMENTS} segments per trace")
     elif cfg["capture"]["scope_select"] == "husky":
-        print("Using Husky scope")
-        WAVERUNNER = False
         HUSKY = True
-
-        # Batch not supported for Husky at the moment
-        if cfg["cwfpgahusky"]["num_segments"] > 1:
-            BATCH_MODE = True
-            NUM_SEGMENTS = cfg["cwfpgahusky"]["num_segments"]
+        NUM_SEGMENTS = cfg["cwfpgahusky"]["num_segments"]
+        print(f"Using Husky scope with {NUM_SEGMENTS} segments per trace")
     else:
         print("Warning: No valid scope selected in configuration")
+        sys.exit(0)
 
     # Create ChipWhisperer project for storage of traces and metadata ----------
     project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
 
     # Create device and scope --------------------------------------------------
+
     # Create OpenTitan encapsulating ChipWhisperer Husky and FPGA
     # NOTE: A clean separation of the two seems infeasible since
     # scope needs FPGA (PLL?) to be configured and target constructor needs scope as input.
@@ -77,35 +69,30 @@ if __name__ == '__main__':
                                    cfg["cwfpgahusky"]["offset"],
                                    cfg["cwfpgahusky"]["output_len_bytes"])
 
-    # Support Husky batch mode
-    if NUM_SEGMENTS > 1:
-        husky_batch_scope = CwSegmented(num_samples=cfg["cwfpgahusky"]["num_samples"],
-                                        offset=cfg["cwfpgahusky"]["offset"],
-                                        scope_gain=cfg["cwfpgahusky"]["scope_gain"],
-                                        scope=cwfpgahusky.scope,
-                                        pll_frequency=cfg["cwfpgahusky"]["pll_frequency"])
-        husky_batch_scope.num_segments = NUM_SEGMENTS
+    if HUSKY:
+        # Use Husky as scope
+        scope = HuskyDispatcher(cwfpgahusky, NUM_SEGMENTS)
 
-    # Upgrade Husky FW (manually uncomment if needed)
-    # cwfpgahusky.scope.upgrade_firmware()
-    # quit()
+        # Upgrade Husky FW (manually uncomment if needed)
+        # scope.scope.upgrade_firmware()
+        # quit()
 
     if WAVERUNNER:
-        # Create WaveRunner
-        waverunner = WaveRunner(cfg["waverunner"]["waverunner_ip"])
+        # Use WaveRunner as scope
+        scope = WaveRunner(cfg["waverunner"]["waverunner_ip"])
         # Capture configuration: num_segments, sparsing, num_samples, first_point, acqu_channel
-        waverunner.configure_waveform_transfer_general(cfg["waverunner"]["num_segments"],
-                                                       1,
-                                                       cfg["waverunner"]["num_samples"],
-                                                       cfg["waverunner"]["sample_offset"],
-                                                       "C1")
+        scope.configure_waveform_transfer_general(cfg["waverunner"]["num_segments"],
+                                                  1,
+                                                  cfg["waverunner"]["num_samples"],
+                                                  cfg["waverunner"]["sample_offset"],
+                                                  "C1")
         # We assume manual setup of channels, gain etc. (e.g. run this script modify while running)
         # Save setup to timestamped file for reference
         now = datetime.now()
         now_str = now.strftime("%Y-%m-%d_%H:%M:%S")
         project_name = cfg["capture"]["project_name"]
         file_name_local = f"{project_name}_data/scope_config_{now_str}.lss"
-        waverunner.save_setup_to_local_file(file_name_local)
+        scope.save_setup_to_local_file(file_name_local)
 
     # Preparation of Key and plaintext generation ------------------------------
 
@@ -131,7 +118,7 @@ if __name__ == '__main__':
     # Set key
     cwfpgahusky.target.simpleserial_write("k", key_fixed)
 
-    if BATCH_MODE:
+    if NUM_SEGMENTS > 1:
         # Set initial plaintext for batch mode
         cwfpgahusky.target.simpleserial_write("i", text)
 
@@ -157,89 +144,42 @@ if __name__ == '__main__':
             # WaveRunner batchmode (6k samples, 100 segmets, 1 GHz): ~150 it/s
 
             # Arm scope --------------------------------------------------------
-            if HUSKY:
-                if BATCH_MODE:
-                    husky_batch_scope.arm()
-                else:
-                    cwfpgahusky.scope.arm()
-
-            if WAVERUNNER:
-                waverunner.arm()
+            scope.arm()
 
             # Trigger execution(s) ---------------------------------------------
-            if BATCH_MODE:
+            if NUM_SEGMENTS > 1:
                 # Perform batch encryptions
                 cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
 
-            else:
-                # Generate new text for next iteration, first uses initial text
-                text = bytearray(cipher_gen.encrypt(text))
+            else:  # single encryption
                 # Load text and trigger execution
+                # First iteration uses initial text, new texts are generated below
                 cwfpgahusky.target.simpleserial_write('p', text)
 
             # Capture trace(s) -------------------------------------------------
-            if HUSKY:
-                if BATCH_MODE:
-                    waves = husky_batch_scope.capture_and_transfer_waves()
-                    assert waves.shape[0] == NUM_SEGMENTS
-                else:
-                    ret = cwfpgahusky.scope.capture(poll_done=False)
-                    i = 0
-                    while not cwfpgahusky.target.is_done():
-                        i += 1
-                        time.sleep(0.05)
-                        if i > 100:
-                            print("Warning: Target did not finish operation")
-                    if ret:
-                        print("Warning: Timeout happened during capture")
-                    # Get Husky trace (single mode only)
-                    wave = cwfpgahusky.scope.get_last_trace(as_int=True)
-
-            if WAVERUNNER:
-                waves = waverunner.capture_and_transfer_waves()
-                assert waves.shape[0] == NUM_SEGMENTS
-                # Put into uint8 range
-                waves = waves + 128
+            waves = scope.capture_and_transfer_waves()
+            assert waves.shape[0] == NUM_SEGMENTS
 
             # Storing traces ---------------------------------------------------
-            if BATCH_MODE:
-                # Loop through num_segments to store traces and compute ciphertexts
-                # Note this batch capture command uses the ciphertext as next text
-                for i in range(NUM_SEGMENTS):
-                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
 
-                    # Sanity check retrieved data (wave) and create CW Trace
-                    assert len(waves[i, :]) >= 1
-                    wave = waves[i, :]
-                    trace = cw.Trace(wave, text, ciphertext, key_fixed)
-
-                    # Append CW trace to CW project storage
-                    # Also use uint16 as dtype so that tvla processing works
-                    project.traces.append(trace, dtype=np.uint16)
-
-                    # Use ciphertext as next text
-                    text = ciphertext
-
-            else:  # not BATCH_MODE
+            # Loop through num_segments to compute ciphertexts and store traces
+            # Note this batch capture command uses the ciphertext as next text
+            # while the first text is the initial one
+            for i in range(NUM_SEGMENTS):
                 ciphertext = bytearray(cipher.encrypt(bytes(text)))
 
-                if WAVERUNNER:
-                    # For single capture on WaveRunner, waves[0] contains data
-                    wave = waves[0, :]
-
                 # Sanity check retrieved data (wave) and create CW Trace
-                assert len(wave) >= 1
-                trace = cw.Trace(wave, text, ciphertext, key_fixed)
-                if HUSKY:
-                    # Check if ADC range has been exceeded for Husky.
-                    # Not done for WaveRunner because clipping can be inspected on screen.
-                    trace_util.check_range(trace.wave, cwfpgahusky.scope.adc.bits_per_sample)
+                assert len(waves[i, :]) >= 1
+                trace = cw.Trace(waves[i, :], text, ciphertext, key_fixed)
 
                 # Append CW trace to CW project storage
-                # Also use uint16 for WaveRunner even though 8 bit so that tvla processing works
+                # FIXME Also use uint16 as dtype for 8 bit WaveRunner for tvla processing
                 project.traces.append(trace, dtype=np.uint16)
 
-            # Get (last) ciphertext after all calls from device and verify -----
+                # Use ciphertext as next text
+                text = ciphertext
+
+            # Get (last) ciphertext from device and verify ---------------------
             response = cwfpgahusky.target.simpleserial_read('r',
                                                             cwfpgahusky.target.output_len,
                                                             ack=False)
@@ -251,6 +191,7 @@ if __name__ == '__main__':
             pbar.update(NUM_SEGMENTS)
 
     # Create and show test plot ------------------------------------------------
+    # Use this plot to check for clipping and adjust gain appropriately
     if cfg["capture"]["show_plot"]:
         plot.save_plot_to_file(project.waves, None, cfg["capture"]["plot_traces"],
                                cfg["capture"]["trace_image_filename"], add_mean_stddev=True)

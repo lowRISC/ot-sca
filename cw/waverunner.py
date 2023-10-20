@@ -392,6 +392,8 @@ class WaveRunner:
         else:
             print("WAVERUNNER: Error: Channel selection invalid")
         waves = self._parse_waveform(data)
+        # Put into uint8 range
+        waves = waves + 128
         return waves
 
     def display_message(self, msg):

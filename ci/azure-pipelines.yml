@@ -51,9 +51,18 @@ jobs:
       ../cw/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
       popd
     displayName: "Check AES TVLA"
+    continueOnError: True
   - publish: ./ci/tmp/figures
     artifact: tvla_figure
     displayName: "Upload figure of AES TVLA."
+  - bash: |
+      pushd ci
+      ./ci_capture_all.sh
+      popd
+    displayName: "Check AES traces"
+  - publish: ./ci/figures_tmp/
+    artifact: cw310_figures
+    displayName: "Upload figures of AES traces"
 
 - job: sca_capture_cw305
   displayName: "Capture SCA traces (CW305)"

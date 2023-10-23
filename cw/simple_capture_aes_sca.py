@@ -3,7 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 import binascii
-# import random
+import random
 import signal
 import sys
 from datetime import datetime
@@ -38,7 +38,6 @@ if __name__ == '__main__':
     # Determine scope and single/batch from configuration ----------------------
     HUSKY = False
     WAVERUNNER = False
-
     if "waverunner" in cfg and cfg["capture"]["scope_select"] == "waverunner":
         WAVERUNNER = True
         NUM_SEGMENTS = cfg["waverunner"]["num_segments"]
@@ -96,43 +95,60 @@ if __name__ == '__main__':
 
     # Preparation of Key and plaintext generation ------------------------------
 
-    # This test currently uses one fixed key and generates random texts through
-    # AES encryption using a generation key. The batch mode uses ciphertexts as
-    # next text input here and in the OT device SW.
+    # Determine which test from configuration
+    TEST_FVSR_KEY_RND_PLAINTEXT = False
+    TEST_FIXED_KEY_RND_PLAINTEXT = False
+    if cfg["test"]["which_test"] == "aes_fvsr_key_random_plaintext":
+        TEST_FVSR_KEY_RND_PLAINTEXT = True
+        if NUM_SEGMENTS > 1:
+            print("ERROR: aes_fvsr_key_random_plaintext only supported "
+                  "with num_segments > 1, i.e. batch mode")
+    elif cfg["test"]["which_test"] == "aes_fixed_key_random_plaintext":
+        TEST_FIXED_KEY_RND_PLAINTEXT = True
+        # This test uses the fixed key. It generates random texts through AES
+        # encryption using a generation key for single mode and uses ciphertexts
+        # as next text input in batch mode.
 
-    # Load fixed key and initial text values from cfg
+    # Load fixed key
     key_fixed = bytearray(cfg["test"]["key_fixed"])
     print(f'Using key: {binascii.b2a_hex(bytes(key_fixed))}')
-    text = bytearray(cfg["test"]["text_fixed"])
-
-    # Cipher to compute expected responses
-    cipher = AES.new(bytes(key_fixed), AES.MODE_ECB)
-
-    # Prepare generation of new texts/keys by encryption using key_for_generation
-    key_for_gen = bytearray(cfg["test"]["key_for_gen"])
-    cipher_gen = AES.new(bytes(key_for_gen), AES.MODE_ECB)
+    key = key_fixed
+    cwfpgahusky.target.simpleserial_write("k", key)
 
     # Seed the target's PRNGs for initial key masking, and additionally turn off masking when '0'
     cwfpgahusky.target.simpleserial_write("l", cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
 
-    # Set key
-    cwfpgahusky.target.simpleserial_write("k", key_fixed)
+    if TEST_FIXED_KEY_RND_PLAINTEXT:
+        # Cipher to compute expected responses
+        cipher = AES.new(bytes(key), AES.MODE_ECB)
 
-    if NUM_SEGMENTS > 1:
-        # Set initial plaintext for batch mode
-        cwfpgahusky.target.simpleserial_write("i", text)
+        # Load fixed text as first text
+        text = bytearray(cfg["test"]["text_fixed"])
 
-    # Template to generate key at random based on test_random_seed (not used)
-    # random.seed(cfg["test"]["test_random_seed"])
-    # key = bytearray(cfg["test"]["key_len_bytes"])
-    # for i in range(0, cfg["test"]["key_len_bytes"]):
-    #    key[i] = random.randint(0, 255)
+        # Prepare generation of new texts/keys by encryption using key_for_generation
+        key_for_gen = bytearray(cfg["test"]["key_for_gen"])
+        cipher_gen = AES.new(bytes(key_for_gen), AES.MODE_ECB)
+
+        if NUM_SEGMENTS > 1:
+            # Set initial plaintext for batch mode
+            cwfpgahusky.target.simpleserial_write("i", text)
+
+    if TEST_FVSR_KEY_RND_PLAINTEXT:
+        # Load seed into host-side PRNG (random Python module, Mersenne twister)
+        random.seed(cfg["test"]["batch_prng_seed"])
+        # Load seed into OT (also Mersenne twister)
+        cwfpgahusky.target.simpleserial_write("s",
+                                              cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+
+        # First trace uses fixed key
+        sample_fixed = 1
+        # Generate plaintexts and keys for first batch
+        cwfpgahusky.target.simpleserial_write("g", NUM_SEGMENTS.to_bytes(4, "little"))
 
     # Main loop for measurements with progress bar -----------------------------
 
     # Register ctrl-c handler to store traces on abort
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
-
     remaining_num_traces = cfg["capture"]["num_traces"]
     with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while remaining_num_traces > 0:
@@ -149,7 +165,12 @@ if __name__ == '__main__':
             # Trigger execution(s) ---------------------------------------------
             if NUM_SEGMENTS > 1:
                 # Perform batch encryptions
-                cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
+                if TEST_FIXED_KEY_RND_PLAINTEXT:
+                    # Execute and generate next text as ciphertext
+                    cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
+                if TEST_FVSR_KEY_RND_PLAINTEXT:
+                    # Execute and generate next keys and plaintexts
+                    cwfpgahusky.target.simpleserial_write("f", NUM_SEGMENTS.to_bytes(4, "little"))
 
             else:  # single encryption
                 # Load text and trigger execution
@@ -162,28 +183,52 @@ if __name__ == '__main__':
 
             # Storing traces ---------------------------------------------------
 
-            # Loop through num_segments to compute ciphertexts and store traces
-            # Note this batch capture command uses the ciphertext as next text
-            # while the first text is the initial one
+            # Loop to compute keys, texts and ciphertexts for each trace and store them.
             for i in range(NUM_SEGMENTS):
-                ciphertext = bytearray(cipher.encrypt(bytes(text)))
 
-                # Sanity check retrieved data (wave) and create CW Trace
+                # Compute text, key, ciphertext
+                if TEST_FIXED_KEY_RND_PLAINTEXT:
+                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
+
+                if TEST_FVSR_KEY_RND_PLAINTEXT:
+                    if sample_fixed:
+                        # Use fixed_key as this key
+                        key = np.asarray(key_fixed)
+                    else:
+                        # Generate this key from PRNG
+                        key = bytearray(cfg["test"]["key_len_bytes"])
+                        for ii in range(0, cfg["test"]["key_len_bytes"]):
+                            key[ii] = random.randint(0, 255)
+                    # Always generate this plaintext from PRNG (including very first one)
+                    text = bytearray(16)
+                    for ii in range(0, 16):
+                        text[ii] = random.randint(0, 255)
+                    # Compute ciphertext for this key and plaintext
+                    cipher = AES.new(bytes(key), AES.MODE_ECB)
+                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
+                    # Determine if next iteration uses fixed_key
+                    sample_fixed = text[0] & 0x1
+
+                # Sanity check retrieved data (wave)
                 assert len(waves[i, :]) >= 1
-                trace = cw.Trace(waves[i, :], text, ciphertext, key_fixed)
+                # Create CW Trace
+                trace = cw.Trace(waves[i, :], text, ciphertext, key)
+
+                if TEST_FIXED_KEY_RND_PLAINTEXT:
+                    # Use ciphertext as next text, first text is the initial one
+                    text = ciphertext
 
                 # Append CW trace to CW project storage
                 # FIXME Also use uint16 as dtype for 8 bit WaveRunner for tvla processing
                 project.traces.append(trace, dtype=np.uint16)
 
-                # Use ciphertext as next text
-                text = ciphertext
-
             # Get (last) ciphertext from device and verify ---------------------
-            response = cwfpgahusky.target.simpleserial_read('r',
-                                                            cwfpgahusky.target.output_len,
-                                                            ack=False)
-            if binascii.b2a_hex(response) != binascii.b2a_hex(ciphertext):
+            if TEST_FIXED_KEY_RND_PLAINTEXT:
+                compare_len = cwfpgahusky.target.output_len
+            if TEST_FVSR_KEY_RND_PLAINTEXT:
+                compare_len = 4
+            response = cwfpgahusky.target.simpleserial_read('r', compare_len, ack=False)
+            if binascii.b2a_hex(response) != binascii.b2a_hex(ciphertext[0:compare_len]):
                 raise RuntimeError(f'Bad ciphertext: {response} != {ciphertext}.')
 
             # Update the loop variable and the progress bar --------------------

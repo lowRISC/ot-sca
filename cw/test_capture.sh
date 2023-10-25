@@ -120,7 +120,39 @@ if [ ${BOARD} == "cw310" ]; then
     mv projects/sample_traces_ecdsa_modinv.html tmp/${BOARD}_${MODE}_${test}_traces.html
   done
 
-  # TODO(#149): Add OTBN horizontal once the relevant binaries have been updated.
+  # OTBN horizontal tests
+
+  # ECDSA256
+  MODE="ecdsa256"
+  declare -A otbn_ecdsa256_test_list
+  otbn_ecdsa256_test_list["ecdsa-simple"]=10
+  otbn_ecdsa256_test_list["ecdsa-stream"]=10
+
+  ARGS="--force-program-bitstream"
+  for test in ${!otbn_ecdsa256_test_list[@]}; do
+    echo Testing ${MODE} ${test} on ${BOARD}
+    echo Testing ${MODE} ${test} on ${BOARD} - `date` >> "tmp/${BOARD}_test_capture.log"
+    NUM_TRACES=${otbn_ecdsa256_test_list[${test}]}
+    ./capture.py --cfg-file capture_${MODE}_${BOARD}.yaml capture ${test} \
+        --num-traces ${NUM_TRACES} ${ARGS} &>> "tmp/${BOARD}_test_capture.log"
+    mv projects/sample_traces_ecdsa256.html tmp/${BOARD}_${MODE}_${test}_traces.html
+    ARGS=""
+  done
+
+  # ECDSA384
+  MODE="ecdsa384"
+  declare -A otbn_ecdsa384_test_list
+  otbn_ecdsa384_test_list["ecdsa-simple"]=10
+  otbn_ecdsa384_test_list["ecdsa-stream"]=10
+
+  for test in ${!otbn_ecdsa384_test_list[@]}; do
+    echo Testing ${MODE} ${test} on ${BOARD}
+    echo Testing ${MODE} ${test} on ${BOARD} - `date` >> "tmp/${BOARD}_test_capture.log"
+    NUM_TRACES=${otbn_ecdsa384_test_list[${test}]}
+    ./capture.py --cfg-file capture_${MODE}_${BOARD}.yaml capture ${test} \
+        --num-traces ${NUM_TRACES} ${ARGS} &>> "tmp/${BOARD}_test_capture.log"
+    mv projects/sample_traces_ecdsa384.html tmp/${BOARD}_${MODE}_${test}_traces.html
+  done
 fi
 
 echo "Done! Checkout tmp/${BOARD}_... for results."

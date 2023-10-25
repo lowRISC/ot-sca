@@ -17,6 +17,8 @@ pyyaml
 ray
 scared
 scipy
+sqlalchemy
+sqlalchemy_utils
 tqdm
 trsfile
 typer

@@ -1,7 +1,7 @@
 cwfpgahusky:
-  fpga_bitstream: "objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  fpga_bitstream: "../cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: False
-  fw_bin: "objs/aes_serial_fpga_cw310.bin"
+  fw_bin: "../cw/objs/aes_serial_fpga_cw310.bin"
   baudrate: 115200
   output_len_bytes: 16
   pll_frequency: 100000000
@@ -18,7 +18,7 @@ waverunner:
 capture:
   scope_select: husky
 #  scope_select: waverunner
-  num_traces: 10000
+  num_traces: 20000
   project_name: "projects/simple_capture_aes_sca"
   show_plot: True
   plot_traces: 100

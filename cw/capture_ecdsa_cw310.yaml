@@ -1,8 +1,8 @@
 device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
-  force_program_bitstream: False
-  fw_bin: objs/ecc_serial_fpga_cw310.bin
-  # Target operating frequency: 
+  force_program_bitstream: True
+  fw_bin: objs/ecc256_serial_fpga_cw310.bin
+  # Target operating frequency:
   # for ecdsa-simple: 25-50MHz (alignment issues above 66MHz)
   # for ecdsa-stream: 15-20MHz (sampling_rate-adc_resolution tradeoff)
   # More details on Husky stream mode can be found in the following links:

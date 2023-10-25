@@ -19,21 +19,33 @@ from tqdm import tqdm
 from waverunner import WaveRunner
 
 from util import device, plot
+from util.trace_library import Metadata, Trace, TraceLibrary
 
 
-def abort_handler_during_loop(this_project, sig, frame):
+def abort_handler_during_loop(this_project, CWLib, sig, frame):
     # Handler for ctrl-c keyboard interrupts
-    # FIXME: Has to be modified according to database (i.e. CW project atm) used
     if this_project is not None:
         print("\nHandling keyboard interrupt")
-        this_project.close(save=True)
+        if CWLib:
+            this_project.close(save=True)
+        else:
+            this_project.flush_to_disk()
+
     sys.exit(0)
 
 
 if __name__ == '__main__':
+    now = datetime.now()
+    cfg_file = sys.argv[1]
     # Load configuration from file
-    with open('simple_capture_aes_sca.yaml') as f:
+    with open(cfg_file) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
+    # Determine trace library
+    CWLib = True
+    OTTraceLib = False
+    if cfg['capture'].get('trace_db') == 'ot_trace_library':
+        CWLib = False
+        OTTraceLib = True
 
     # Determine scope and single/batch from configuration ----------------------
     HUSKY = False
@@ -50,8 +62,15 @@ if __name__ == '__main__':
         print("Warning: No valid scope selected in configuration")
         sys.exit(0)
 
-    # Create ChipWhisperer project for storage of traces and metadata ----------
-    project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
+    if CWLib:
+        # Create ChipWhisperer project for storage of traces and metadata ------
+        project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
+    else:
+        # Create Trace Database-------------------------------------------------
+        project = TraceLibrary(cfg["capture"]["project_name"],
+                               cfg["capture"]["trace_threshold"],
+                               wave_datatype=np.uint16,
+                               overwrite=True)
 
     # Create device and scope --------------------------------------------------
 
@@ -88,7 +107,6 @@ if __name__ == '__main__':
                                                   "C1")
         # We assume manual setup of channels, gain etc. (e.g. run this script modify while running)
         # Save setup to timestamped file for reference
-        now = datetime.now()
         now_str = now.strftime("%Y-%m-%d_%H:%M:%S")
         project_name = cfg["capture"]["project_name"]
         file_name_local = f"{project_name}_data/scope_config_{now_str}.lss"
@@ -149,7 +167,7 @@ if __name__ == '__main__':
     # Main loop for measurements with progress bar -----------------------------
 
     # Register ctrl-c handler to store traces on abort
-    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
+    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project, CWLib))
     remaining_num_traces = cfg["capture"]["num_traces"]
     with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while remaining_num_traces > 0:
@@ -212,16 +230,25 @@ if __name__ == '__main__':
 
                 # Sanity check retrieved data (wave)
                 assert len(waves[i, :]) >= 1
-                # Create CW Trace
-                trace = cw.Trace(waves[i, :], text, ciphertext, key)
+                # Add trace.
+                if OTTraceLib:
+                    # OT Trace Library
+                    trace = Trace(wave=waves[i, :].tobytes(),
+                                  plaintext=text,
+                                  ciphertext=ciphertext,
+                                  key=key)
+                    project.write_to_buffer(trace)
+                else:
+                    # CW Trace
+                    trace = cw.Trace(waves[i, :], text, ciphertext, key)
+                    # Append trace Library trace to database
+                    # TODO Also use uint16 as dtype for 8 bit WaveRunner for
+                    # tvla processing
+                    project.traces.append(trace, dtype=np.uint16)
 
                 if TEST_FIXED_KEY_RND_PLAINTEXT:
                     # Use ciphertext as next text, first text is the initial one
                     text = ciphertext
-
-                # Append CW trace to CW project storage
-                # FIXME Also use uint16 as dtype for 8 bit WaveRunner for tvla processing
-                project.traces.append(trace, dtype=np.uint16)
 
             # Get (last) ciphertext from device and verify ---------------------
             if TEST_FIXED_KEY_RND_PLAINTEXT:
@@ -238,16 +265,37 @@ if __name__ == '__main__':
 
     # Create and show test plot ------------------------------------------------
     # Use this plot to check for clipping and adjust gain appropriately
+    if CWLib:
+        proj_waves = project.waves
+    else:
+        proj_waves = project.get_waves()
+
     if cfg["capture"]["show_plot"]:
-        plot.save_plot_to_file(project.waves, None, cfg["capture"]["plot_traces"],
+        plot.save_plot_to_file(proj_waves, None, cfg["capture"]["plot_traces"],
                                cfg["capture"]["trace_image_filename"], add_mean_stddev=True)
         print(f'Created plot with {cfg["capture"]["plot_traces"]} traces: '
               f'{Path(cfg["capture"]["trace_image_filename"]).resolve()}')
 
-    # Save metadata and entire configuration cfg to project file ---------------
-    project.settingsDict['datetime'] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    project.settingsDict['cfg'] = cfg
     if HUSKY:
         sample_rate = int(round(cwfpgahusky.scope.clock.adc_freq, -6))
+        sample_offset = cwfpgahusky.offset_samples
+    if WAVERUNNER:
+        sample_rate = cfg["waverunner"]["num_samples"]
+        sample_offset = cfg["waverunner"]["sample_offset"]
+
+    if CWLib:
+        project.settingsDict['datetime'] = now.strftime("%m/%d/%Y, %H:%M:%S")
+        project.settingsDict['cfg'] = cfg
         project.settingsDict['sample_rate'] = sample_rate
-    project.save()
+        project.save()
+    else:
+        metadata = Metadata(config =cfg_file,
+                            datetime=now,
+                            bitstream_path=cfg["cwfpgahusky"]["fpga_bitstream"],
+                            binary_path=cfg["cwfpgahusky"]["fw_bin"],
+                            offset=sample_offset,
+                            sample_rate=sample_rate,
+                            scope_gain=cfg["cwfpgahusky"]["scope_gain"]
+                            )
+        project.write_metadata(metadata)
+        project.flush_to_disk()

@@ -19,6 +19,7 @@ import yaml
 from joblib import Parallel, delayed
 
 from util import plot
+from util.trace_library import TraceLibrary
 
 ABS_PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ABS_PATH + '/../util')
@@ -168,6 +169,11 @@ def run_tvla(ctx: typer.Context):
 
     cfg = ctx.obj.cfg
 
+    # Use CW project or OT trace library.
+    OTTraceLib = False
+    if cfg.get("trace_db") == "ot_trace_library":
+        OTTraceLib = True
+
     Path("tmp").mkdir(exist_ok=True)
     log_format = "%(asctime)s %(levelname)s: %(message)s"
     log.basicConfig(format=log_format,
@@ -264,13 +270,20 @@ def run_tvla(ctx: typer.Context):
             and cfg["ttest_step_file"] is None:
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
-
         # Make sure the project file is compatible with the previously generated histograms.
-        project = cw.open_project(cfg["project_file"])
-        if cfg["input_histogram_file"] is None:
-            num_samples = len(project.waves[0])
+        if OTTraceLib:
+            project = TraceLibrary(cfg["project_file"], cfg["trace_threshold"],
+                                   wave_datatype = np.uint16,
+                                   overwrite = False)
+            proj_waves = project.get_waves()
         else:
-            assert num_samples == len(project.waves[0])
+            project = cw.open_project(cfg["project_file"])
+            proj_waves = project.waves
+
+        if cfg["input_histogram_file"] is None:
+            num_samples = len(proj_waves[0])
+        else:
+            assert num_samples == len(proj_waves[0])
 
         if cfg["input_histogram_file"] is None:
             adc_bits = 12
@@ -286,22 +299,22 @@ def run_tvla(ctx: typer.Context):
         else:
             sample_start = 0
 
-        assert sample_start < len(project.waves[0])
+        assert sample_start < len(proj_waves[0])
 
         if ("num_samples" in cfg and cfg["num_samples"] is not None):
             num_samples = cfg["num_samples"]
         else:
-            num_samples = len(project.waves[0]) - sample_start
+            num_samples = len(proj_waves[0]) - sample_start
 
-        if (num_samples + sample_start > len(project.waves[0])):
+        if (num_samples + sample_start > len(proj_waves[0])):
             log.warning(f"Selected sample window {sample_start} to " +
                         f"{sample_start+num_samples} is out of range!")
-            num_samples = len(project.waves[0]) - sample_start
+            num_samples = len(proj_waves[0]) - sample_start
             log.warning(f"Will use samples from {sample_start} " +
                         f"to {sample_start+num_samples} instead!")
 
         # Overall number of traces, trace start and end indices.
-        num_traces_max = len(project.waves)
+        num_traces_max = len(proj_waves)
         if cfg["trace_start"] is None:
             trace_start_tot = 0
         else:
@@ -351,25 +364,27 @@ def run_tvla(ctx: typer.Context):
 
             if cfg["trace_file"] is None:
 
-                # Make sure to re-open the project file as we close it during the operation to free
-                # up some memory.
+                # Make sure to re-open the CW project file as we close it during
+                # the operation to free up some memory.
                 if i_step > 0:
-                    project = cw.open_project(cfg["project_file"])
+                    if not OTTraceLib:
+                        project = cw.open_project(cfg["project_file"])
+                        proj_waves = project.waves
 
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
-                if project.waves[0].dtype == 'uint16':
+                if proj_waves[0].dtype == 'uint16':
                     traces = np.empty((num_traces, num_samples), dtype=np.uint16)
                     log.info(f"Will use samples from {sample_start} to {sample_start+num_samples}")
                     for i_trace in range(num_traces):
-                        traces[i_trace] = project.waves[i_trace +
-                                                        trace_start][sample_start:sample_start +
-                                                                     num_samples]
+                        traces[i_trace] = proj_waves[i_trace +
+                                                     trace_start][sample_start:sample_start +
+                                                                  num_samples]
                 else:
                     traces = np.empty((num_traces, num_samples), dtype=np.double)
                     for i_trace in range(num_traces):
-                        traces[i_trace] = (project.waves[i_trace +
-                                                         trace_start] + 0.5) * trace_resolution
+                        traces[i_trace] = (proj_waves[i_trace +
+                                                      trace_start] + 0.5) * trace_resolution
                     traces = traces.astype('uint16')
 
                 # Define upper and lower limits.
@@ -386,7 +401,7 @@ def run_tvla(ctx: typer.Context):
 
                 # Filtering of converted traces (len = num_samples). traces_to_use itself can be
                 # used to index the entire project file (len >= num_samples).
-                traces_to_use = np.zeros(len(project.waves), dtype=bool)
+                traces_to_use = np.zeros(len(proj_waves), dtype=bool)
                 traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
                                                                   (traces <= max_trace), axis=1)
                 traces = traces[traces_to_use[trace_start:trace_end + 1]]
@@ -420,8 +435,8 @@ def run_tvla(ctx: typer.Context):
                 assert trace_end == trace_file['trace_end']
                 num_traces = trace_end - trace_start + 1
                 # The project file must match the trace file.
-                assert len(project.waves) == len(traces_to_use)
-                num_traces_max = len(project.waves)
+                assert len(proj_waves) == len(traces_to_use)
+                num_traces_max = len(proj_waves)
 
             # Correct num_traces based on filtering.
             num_traces_orig = num_traces
@@ -440,20 +455,28 @@ def run_tvla(ctx: typer.Context):
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
 
                 if general_test is False:
-                    keys[:] = project.keys[trace_start:trace_end + 1]
+                    if OTTraceLib:
+                        keys[:] = project.get_keys_int(trace_start, trace_end + 1)
+                    else:
+                        keys[:] = project.keys[trace_start:trace_end + 1]
                 else:
                     # Existing KMAC trace sets use a mix of bytes strings and ChipWhisperer byte
                     # arrays. For compatiblity, we need to convert everything to numpy arrays.
                     # Eventually, we can drop this.
                     if i_step == 0:
-                        # Convert all keys from the project file to numpy arrays once.
-                        keys_nparrays = []
-                        for i in range(num_traces_max):
-                            if cfg["mode"] == "sha3":
-                                keys_nparrays.append(np.frombuffer(project.textins[i],
-                                                                   dtype=np.uint8))
-                            else:
-                                keys_nparrays.append(np.frombuffer(project.keys[i], dtype=np.uint8))
+                        if OTTraceLib:
+                            keys_nparrays = project.keys()
+                        else:
+                            # Convert all keys from the project file to numpy
+                            # arrays once.
+                            keys_nparrays = []
+                            for i in range(num_traces_max):
+                                if cfg["mode"] == "sha3":
+                                    keys_nparrays.append(np.frombuffer(project.textins[i],
+                                                                       dtype=np.uint8))
+                                else:
+                                    keys_nparrays.append(np.frombuffer(project.keys[i],
+                                                                       dtype=np.uint8))
 
                     # Select the correct slice of keys for each step.
                     keys[:] = keys_nparrays[trace_start:trace_end + 1]
@@ -463,12 +486,16 @@ def run_tvla(ctx: typer.Context):
                 if general_test is False:
                     # The plaintexts are only required for non-general AES TVLA.
                     plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
-                    plaintexts[:] = project.textins[trace_start:trace_end + 1]
-                    plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
+                    if OTTraceLib:
+                        plaintexts = project.get_plaintexts_int(trace_start, trace_end + 1)
+                    else:
+                        plaintexts[:] = project.textins[trace_start:trace_end + 1]
+                        plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
             # We don't need the project file anymore after this point. Close it together with all
             # trace files opened in the background.
-            project.close(save=False)
+            if not OTTraceLib:
+                project.close(save=False)
 
             if general_test is False:
                 # Compute or load previously computed leakage model.
@@ -669,47 +696,49 @@ def run_tvla(ctx: typer.Context):
 
         # Metadata text variable for plot
         textbox = ""
-        # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
-        try:
-            pll_freq = float(project.config['ChipWhisperer']
-                             ['General Settings']['pll_frequency']) / 1e6
-            textbox = textbox + "PLL:\n" + str(pll_freq) + " MHz\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            pll_freq = float(project.config['ChipWhisperer']
-                             ['General Settings']['sample_rate']) / 1e6
-            textbox = textbox + "ADC:\n" + str(pll_freq) + " MS/s\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            textbox = textbox + "Masks off:\n" + project.config[
-                'ChipWhisperer']['General Settings']['masks_off'] + "\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            textbox = textbox + "Samples:\n" + project.config['ChipWhisperer'][
-                'General Settings']['num_samples'] + "\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            textbox = textbox + "Offset:\n" + project.config['ChipWhisperer'][
-                'General Settings']['offset'] + "\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            textbox = textbox + "Scope gain:\n" + project.config[
-                'ChipWhisperer']['General Settings']['scope_gain'] + "\n\n"
-        except KeyError:
-            textbox = textbox
-        try:
-            textbox = textbox + "Traces:\n" + project.config['ChipWhisperer'][
-                'General Settings']['num_traces'] + "\n\n"
-        except KeyError:
-            textbox = textbox
-        if textbox != "":
-            # remove last two linebreaks
-            textbox = textbox[:-2]
+        # Metadata currently not implemented for OTTraceLib
+        if not OTTraceLib:
+            # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
+            try:
+                pll_freq = float(project.config['ChipWhisperer']
+                                 ['General Settings']['pll_frequency']) / 1e6
+                textbox = textbox + "PLL:\n" + str(pll_freq) + " MHz\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                pll_freq = float(project.config['ChipWhisperer']
+                                 ['General Settings']['sample_rate']) / 1e6
+                textbox = textbox + "ADC:\n" + str(pll_freq) + " MS/s\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                textbox = textbox + "Masks off:\n" + project.config[
+                    'ChipWhisperer']['General Settings']['masks_off'] + "\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                textbox = textbox + "Samples:\n" + project.config['ChipWhisperer'][
+                    'General Settings']['num_samples'] + "\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                textbox = textbox + "Offset:\n" + project.config['ChipWhisperer'][
+                    'General Settings']['offset'] + "\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                textbox = textbox + "Scope gain:\n" + project.config[
+                    'ChipWhisperer']['General Settings']['scope_gain'] + "\n\n"
+            except KeyError:
+                textbox = textbox
+            try:
+                textbox = textbox + "Traces:\n" + project.config['ChipWhisperer'][
+                    'General Settings']['num_traces'] + "\n\n"
+            except KeyError:
+                textbox = textbox
+            if textbox != "":
+                # remove last two linebreaks
+                textbox = textbox[:-2]
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")

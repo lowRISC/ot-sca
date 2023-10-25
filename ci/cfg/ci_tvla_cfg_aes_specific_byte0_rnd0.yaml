@@ -1,4 +1,4 @@
-project_file: ci_projects/opentitan_simple_aes
+project_file: projects/simple_capture_aes_sca
 trace_file: null
 trace_start: null
 trace_end: null
@@ -15,3 +15,5 @@ plot_figures: true
 general_test: false
 mode: aes
 filter_traces: true
+trace_threshold: 1000
+trace_db: ot_trace_library

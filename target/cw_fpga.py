@@ -1,7 +1,7 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-r"""CW305 utility functions. Used to configure FPGA with OpenTitan design."""
+"""CW utility functions. Used to configure FPGA with OpenTitan design."""
 
 import inspect
 import re
@@ -12,7 +12,6 @@ import chipwhisperer as cw
 from util.spiflash import SpiProgrammer
 
 PLL_FREQUENCY_DEFAULT = 100e6
-SAMPLING_RATE_MAX = 200e6
 
 
 class RuntimePatchFPGAProgram:
@@ -45,10 +44,13 @@ class RuntimePatchFPGAProgram:
         self._fpga.FPGAProgram = self._orig_fn
 
 
-class OpenTitan(object):
+class CWFPGA(object):
+    """Class for the CW FPGA. Initializes the FPGA with the bitstream and the
+    target binary.
+    """
 
-    def __init__(self, bitstream, force_programming, firmware, pll_frequency, target_clk_mult,
-                 baudrate, scope_gain, num_cycles, offset_cycles, output_len):
+    def __init__(self, bitstream, force_programming, firmware, pll_frequency,
+                 baudrate, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -62,36 +64,13 @@ class OpenTitan(object):
         else:
             raise ValueError(
                 'Could not infer target board type from bistream name')
+        # Initialize ChipWhisperer scope. This is needed to program the binary.
+        # Note that the actual scope config for capturing traces is later
+        # initialized.
+        self.scope = cw.scope()
 
         self.fpga = self.initialize_fpga(fpga, bitstream, force_programming,
                                          pll_frequency)
-
-        # In our setup, Husky operates on the PLL frequency of the target and
-        # multiplies that by an integer number to obtain the sampling rate.
-        # Note that the sampling rate must be at most 200 MHz.
-        self.clkgen_freq = pll_frequency
-        self.adc_mul = int(SAMPLING_RATE_MAX // pll_frequency)
-        self.sampling_rate = self.clkgen_freq * self.adc_mul
-
-        # The target runs on the PLL clock but uses internal clock dividers and
-        # multiplier to produce the clock of the target block.
-        self.target_freq = pll_frequency * target_clk_mult
-
-        # The scope is configured in terms of samples. For Husky, the number of
-        # samples must be divisble by 3 for batch captures.
-        # TODO: For WaveRunner, we need to read the configured sampling rate here
-        # and use that to compute the horizontal offset and number of samples to
-        # capture.
-        sampling_target_ratio = self.sampling_rate / self.target_freq
-        self.offset_samples = int(offset_cycles * sampling_target_ratio)
-        self.num_samples = int(num_cycles * sampling_target_ratio)
-        if self.num_samples % 3:
-            self.num_samples = self.num_samples + 3 - (self.num_samples % 3)
-
-        self.scope = self.initialize_scope(scope_gain, self.num_samples, self.offset_samples,
-                                           self.clkgen_freq, self.adc_mul)
-        print(f'Scope setup with sampling rate {self.scope.clock.adc_freq} S/s')
-        print(f'Resulting oversampling ratio {sampling_target_ratio}')
 
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
@@ -144,41 +123,6 @@ class OpenTitan(object):
         fpga.clksleeptime = 1
 
         return fpga
-
-    def initialize_scope(self, scope_gain, num_samples, offset_samples, clkgen_freq, adc_mul):
-        """Initializes chipwhisperer scope."""
-        scope = cw.scope()
-        scope.gain.db = scope_gain
-        scope.adc.basic_mode = "rising_edge"
-
-        scope.clock.clkgen_src = 'extclk'
-        scope.clock.clkgen_freq = clkgen_freq
-        scope.clock.adc_mul = adc_mul
-        scope.clock.extclk_monitor_enabled = False
-        scope.adc.samples = num_samples
-        if offset_samples >= 0:
-            scope.adc.offset = offset_samples
-        else:
-            scope.adc.offset = 0
-            scope.adc.presamples = -offset_samples
-        scope.trigger.triggers = "tio4"
-        scope.io.tio1 = "serial_tx"
-        scope.io.tio2 = "serial_rx"
-        scope.io.hs2 = "disabled"
-
-        # Make sure that clkgen_locked is true.
-        scope.clock.clkgen_src = 'extclk'
-
-        # Wait for ADC to lock.
-        ping_cnt = 0
-        while not scope.clock.adc_locked:
-            if ping_cnt == 3:
-                raise RuntimeError(
-                    f'ADC failed to lock (attempts: {ping_cnt}).')
-            ping_cnt += 1
-            time.sleep(0.5)
-
-        return scope
 
     def initialize_target(self, programmer, firmware, baudrate, output_len,
                           pll_frequency):

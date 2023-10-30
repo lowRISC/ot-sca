@@ -18,15 +18,14 @@ import typer
 import yaml
 from joblib import Parallel, delayed
 
-from util import plot
-from util.trace_library import TraceLibrary
-
 ABS_PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(ABS_PATH + '/../util')
-from leakage_models import compute_leakage_aes  # noqa : E402
-from leakage_models import compute_leakage_general  # noqa : E402
-from leakage_models import find_fixed_key  # noqa : E402
-from ttest import ttest_hist_xy  # noqa : E402
+sys.path.append(ABS_PATH + '/..')
+import util.plot as plot  # noqa : E402
+from capture.project_library.trace_library import TraceLibrary  # noqa : E402
+from util.leakage_models import compute_leakage_aes  # noqa : E402
+from util.leakage_models import compute_leakage_general  # noqa : E402
+from util.leakage_models import find_fixed_key  # noqa : E402
+from util.ttest import ttest_hist_xy  # noqa : E402
 
 app = typer.Typer(add_completion=False)
 

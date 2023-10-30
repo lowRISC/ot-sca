@@ -48,8 +48,8 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../cw/simple_capture_aes_sca.py cfg/ci_simple_capture_aes_sca.yaml
-      ../cw/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+      ../capture/capture_aes.py cfg/ci_simple_capture_aes_sca.yaml
+      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
       popd
     displayName: "Check AES TVLA"
     continueOnError: True

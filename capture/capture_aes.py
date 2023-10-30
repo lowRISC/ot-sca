@@ -14,12 +14,13 @@ import chipwhisperer as cw
 import numpy as np
 import yaml
 from Crypto.Cipher import AES
-from husky_dispatcher import HuskyDispatcher
+from project_library.trace_library import Metadata, Trace, TraceLibrary
+from scopes.scope import Scope, ScopeConfig
 from tqdm import tqdm
-from waverunner import WaveRunner
 
-from util import device, plot
-from util.trace_library import Metadata, Trace, TraceLibrary
+sys.path.append("../")
+from target.cw_fpga import CWFPGA  # noqa: E402
+from util import plot  # noqa: E402
 
 
 def abort_handler_during_loop(this_project, CWLib, sig, frame):
@@ -47,21 +48,6 @@ if __name__ == '__main__':
         CWLib = False
         OTTraceLib = True
 
-    # Determine scope and single/batch from configuration ----------------------
-    HUSKY = False
-    WAVERUNNER = False
-    if "waverunner" in cfg and cfg["capture"]["scope_select"] == "waverunner":
-        WAVERUNNER = True
-        NUM_SEGMENTS = cfg["waverunner"]["num_segments"]
-        print(f"Using WaveRunner scope with {NUM_SEGMENTS} segments per trace")
-    elif cfg["capture"]["scope_select"] == "husky":
-        HUSKY = True
-        NUM_SEGMENTS = cfg["cwfpgahusky"]["num_segments"]
-        print(f"Using Husky scope with {NUM_SEGMENTS} segments per trace")
-    else:
-        print("Warning: No valid scope selected in configuration")
-        sys.exit(0)
-
     if CWLib:
         # Create ChipWhisperer project for storage of traces and metadata ------
         project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
@@ -72,49 +58,38 @@ if __name__ == '__main__':
                                wave_datatype=np.uint16,
                                overwrite=True)
 
-    # Create device and scope --------------------------------------------------
+    # Init target
+    cw_target = CWFPGA(
+        bitstream = cfg["cwfpga"]["fpga_bitstream"],
+        force_programming = cfg["cwfpga"]["force_program_bitstream"],
+        firmware = cfg["cwfpga"]["fw_bin"],
+        pll_frequency = cfg["cwfpga"]["pll_frequency"],
+        baudrate = cfg["cwfpga"]["baudrate"],
+        output_len = cfg["cwfpga"]["output_len_bytes"],
+    )
 
-    # Create OpenTitan encapsulating ChipWhisperer Husky and FPGA
-    # NOTE: A clean separation of the two seems infeasible since
-    # scope needs FPGA (PLL?) to be configured and target constructor needs scope as input.
-    cwfpgahusky = device.OpenTitan(cfg["cwfpgahusky"]["fpga_bitstream"],
-                                   cfg["cwfpgahusky"]["force_program_bitstream"],
-                                   cfg["cwfpgahusky"]["fw_bin"],
-                                   cfg["cwfpgahusky"]["pll_frequency"],
-                                   cfg["cwfpgahusky"]["target_clk_mult"],
-                                   cfg["cwfpgahusky"]["baudrate"],
-                                   cfg["cwfpgahusky"]["scope_gain"],
-                                   cfg["cwfpgahusky"]["num_cycles"],
-                                   cfg["cwfpgahusky"]["offset_cycles"],
-                                   cfg["cwfpgahusky"]["output_len_bytes"])
-
-    if HUSKY:
-        # Use Husky as scope
-        scope = HuskyDispatcher(cwfpgahusky, NUM_SEGMENTS)
-
-        # Upgrade Husky FW (manually uncomment if needed)
-        # scope.scope.upgrade_firmware()
-        # quit()
-
-    if WAVERUNNER:
-        # Use WaveRunner as scope
-        scope = WaveRunner(cfg["waverunner"]["waverunner_ip"])
-        # Capture configuration: num_segments, sparsing, num_samples, first_point, acqu_channel
-        scope.configure_waveform_transfer_general(cfg["waverunner"]["num_segments"],
-                                                  1,
-                                                  cfg["waverunner"]["num_samples"],
-                                                  cfg["waverunner"]["sample_offset"],
-                                                  "C1")
-        # We assume manual setup of channels, gain etc. (e.g. run this script modify while running)
-        # Save setup to timestamped file for reference
-        now_str = now.strftime("%Y-%m-%d_%H:%M:%S")
-        project_name = cfg["capture"]["project_name"]
-        file_name_local = f"{project_name}_data/scope_config_{now_str}.lss"
-        scope.save_setup_to_local_file(file_name_local)
+    # Init scope
+    scope_type = cfg["capture"]["scope_select"]
+    scope_cfg = ScopeConfig(
+        scope_type = scope_type,
+        acqu_channel = cfg[scope_type].get("channel"),
+        ip = cfg[scope_type].get("waverunner_ip"),
+        num_cycles = cfg[scope_type].get("num_cycles"),
+        num_samples = cfg[scope_type].get("num_samples"),
+        offset_cycles = cfg[scope_type].get("offset_cycles"),
+        offset_samples = cfg[scope_type].get("sample_offset"),
+        target_clk_mult = cfg[scope_type].get("target_clk_mult"),
+        num_segments = cfg[scope_type]["num_segments"],
+        sparsing = cfg[scope_type].get("sparsing"),
+        scope_gain = cfg[scope_type].get("scope_gain"),
+        pll_frequency = cfg["cwfpga"]["pll_frequency"],
+    )
+    scope = Scope(scope_cfg)
 
     # Preparation of Key and plaintext generation ------------------------------
 
     # Determine which test from configuration
+    NUM_SEGMENTS = cfg[scope_type]["num_segments"]
     TEST_FVSR_KEY_RND_PLAINTEXT = False
     TEST_FIXED_KEY_RND_PLAINTEXT = False
     if cfg["test"]["which_test"] == "aes_fvsr_key_random_plaintext":
@@ -132,10 +107,10 @@ if __name__ == '__main__':
     key_fixed = bytearray(cfg["test"]["key_fixed"])
     print(f'Using key: {binascii.b2a_hex(bytes(key_fixed))}')
     key = key_fixed
-    cwfpgahusky.target.simpleserial_write("k", key)
+    cw_target.target.simpleserial_write("k", key)
 
     # Seed the target's PRNGs for initial key masking, and additionally turn off masking when '0'
-    cwfpgahusky.target.simpleserial_write("l", cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+    cw_target.target.simpleserial_write("l", cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
 
     if TEST_FIXED_KEY_RND_PLAINTEXT:
         # Cipher to compute expected responses
@@ -150,19 +125,21 @@ if __name__ == '__main__':
 
         if NUM_SEGMENTS > 1:
             # Set initial plaintext for batch mode
-            cwfpgahusky.target.simpleserial_write("i", text)
+            cw_target.target.simpleserial_write("i", text)
 
     if TEST_FVSR_KEY_RND_PLAINTEXT:
         # Load seed into host-side PRNG (random Python module, Mersenne twister)
         random.seed(cfg["test"]["batch_prng_seed"])
         # Load seed into OT (also Mersenne twister)
-        cwfpgahusky.target.simpleserial_write("s",
-                                              cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+        cw_target.target.simpleserial_write(
+            "s",
+            cfg["test"]["batch_prng_seed"].to_bytes(4, "little")
+        )
 
         # First trace uses fixed key
         sample_fixed = 1
         # Generate plaintexts and keys for first batch
-        cwfpgahusky.target.simpleserial_write("g", NUM_SEGMENTS.to_bytes(4, "little"))
+        cw_target.target.simpleserial_write("g", NUM_SEGMENTS.to_bytes(4, "little"))
 
     # Main loop for measurements with progress bar -----------------------------
 
@@ -186,15 +163,15 @@ if __name__ == '__main__':
                 # Perform batch encryptions
                 if TEST_FIXED_KEY_RND_PLAINTEXT:
                     # Execute and generate next text as ciphertext
-                    cwfpgahusky.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
+                    cw_target.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
                 if TEST_FVSR_KEY_RND_PLAINTEXT:
                     # Execute and generate next keys and plaintexts
-                    cwfpgahusky.target.simpleserial_write("f", NUM_SEGMENTS.to_bytes(4, "little"))
+                    cw_target.target.simpleserial_write("f", NUM_SEGMENTS.to_bytes(4, "little"))
 
             else:  # single encryption
                 # Load text and trigger execution
                 # First iteration uses initial text, new texts are generated below
-                cwfpgahusky.target.simpleserial_write('p', text)
+                cw_target.target.simpleserial_write('p', text)
 
             # Capture trace(s) -------------------------------------------------
             waves = scope.capture_and_transfer_waves()
@@ -252,10 +229,10 @@ if __name__ == '__main__':
 
             # Get (last) ciphertext from device and verify ---------------------
             if TEST_FIXED_KEY_RND_PLAINTEXT:
-                compare_len = cwfpgahusky.target.output_len
+                compare_len = cw_target.target.output_len
             if TEST_FVSR_KEY_RND_PLAINTEXT:
                 compare_len = 4
-            response = cwfpgahusky.target.simpleserial_read('r', compare_len, ack=False)
+            response = cw_target.target.simpleserial_read('r', compare_len, ack=False)
             if binascii.b2a_hex(response) != binascii.b2a_hex(ciphertext[0:compare_len]):
                 raise RuntimeError(f'Bad ciphertext: {response} != {ciphertext}.')
 
@@ -276,26 +253,19 @@ if __name__ == '__main__':
         print(f'Created plot with {cfg["capture"]["plot_traces"]} traces: '
               f'{Path(cfg["capture"]["trace_image_filename"]).resolve()}')
 
-    if HUSKY:
-        sample_rate = int(round(cwfpgahusky.scope.clock.adc_freq, -6))
-        sample_offset = cwfpgahusky.offset_samples
-    if WAVERUNNER:
-        sample_rate = cfg["waverunner"]["num_samples"]
-        sample_offset = cfg["waverunner"]["sample_offset"]
-
     if CWLib:
-        project.settingsDict['datetime'] = now.strftime("%m/%d/%Y, %H:%M:%S")
+        project.settingsDict['datetime'] = now
         project.settingsDict['cfg'] = cfg
-        project.settingsDict['sample_rate'] = sample_rate
+        project.settingsDict['sample_rate'] = scope_cfg.num_samples
         project.save()
     else:
         metadata = Metadata(config =cfg_file,
                             datetime=now,
-                            bitstream_path=cfg["cwfpgahusky"]["fpga_bitstream"],
-                            binary_path=cfg["cwfpgahusky"]["fw_bin"],
-                            offset=sample_offset,
-                            sample_rate=sample_rate,
-                            scope_gain=cfg["cwfpgahusky"]["scope_gain"]
+                            bitstream_path=cfg["cwfpga"]["fpga_bitstream"],
+                            binary_path=cfg["cwfpga"]["fw_bin"],
+                            offset=scope_cfg.offset_samples,
+                            sample_rate=scope_cfg.num_samples,
+                            scope_gain=scope_cfg.scope_gain
                             )
         project.write_metadata(metadata)
         project.flush_to_disk()

@@ -127,26 +127,16 @@ class OpenTitan(object):
         scope = cw.scope()
         scope.gain.db = scope_gain
         scope.adc.basic_mode = "rising_edge"
-        if hasattr(scope, '_is_husky') and scope._is_husky:
-            # We sample using the target clock * 2 (200 MHz).
-            scope.clock.clkgen_src = 'extclk'
-            # To fully capture the long OTBN applications,
-            # we may need to use pll_frequencies other than 100 MHz.
-            scope.clock.clkgen_freq = pll_frequency
-            scope.clock.adc_mul = 2
-            scope.clock.extclk_monitor_enabled = False
-            scope.adc.samples = num_samples
 
-            husky = True
-            print(f"Husky? = {husky}")
-        else:
-            # We sample using the target clock (100 MHz).
-            scope.clock.adc_mul = 1
-            scope.clock.clkgen_freq = 100000000
-            scope.adc.samples = num_samples // 2
-            offset = offset // 2
-            scope.clock.adc_src = 'extclk_dir'
-            husky = False
+        # We sample using the target clock * 2 (200 MHz).
+        scope.clock.clkgen_src = 'extclk'
+        # To fully capture the long OTBN applications,
+        # we may need to use pll_frequencies other than 100 MHz.
+        scope.clock.clkgen_freq = pll_frequency
+        scope.clock.adc_mul = 2
+        scope.clock.extclk_monitor_enabled = False
+        scope.adc.samples = num_samples
+
         if offset >= 0:
             scope.adc.offset = offset
         else:
@@ -158,13 +148,7 @@ class OpenTitan(object):
         scope.io.hs2 = "disabled"
 
         # Make sure that clkgen_locked is true.
-        if husky:
-            scope.clock.clkgen_src = 'extclk'
-
-        # TODO: Need to update error handling.
-        if not husky:
-            scope.clock.reset_adc()
-            time.sleep(0.5)
+        scope.clock.clkgen_src = 'extclk'
 
         # Wait for ADC to lock.
         ping_cnt = 0

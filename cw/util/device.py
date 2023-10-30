@@ -11,6 +11,9 @@ import chipwhisperer as cw
 
 from util.spiflash import SpiProgrammer
 
+PLL_FREQUENCY_DEFAULT = 100e6
+SAMPLING_RATE_MAX = 200e6
+
 
 class RuntimePatchFPGAProgram:
     """Replaces the FPGAProgram method of an FPGA object with a function
@@ -44,8 +47,8 @@ class RuntimePatchFPGAProgram:
 
 class OpenTitan(object):
 
-    def __init__(self, bitstream, force_programming, firmware, pll_frequency,
-                 baudrate, scope_gain, num_samples, offset, output_len):
+    def __init__(self, bitstream, force_programming, firmware, pll_frequency, target_clk_mult,
+                 baudrate, scope_gain, num_cycles, offset_cycles, output_len):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -60,15 +63,35 @@ class OpenTitan(object):
             raise ValueError(
                 'Could not infer target board type from bistream name')
 
-        # Added `pll_frequency` to handle frequencies other than 100MHz.
-        # Needed this for OTBN ECDSA.
-        # TODO: Remove these comments after discussion
         self.fpga = self.initialize_fpga(fpga, bitstream, force_programming,
                                          pll_frequency)
 
-        self.scope = self.initialize_scope(scope_gain, num_samples, offset,
-                                           pll_frequency)
+        # In our setup, Husky operates on the PLL frequency of the target and
+        # multiplies that by an integer number to obtain the sampling rate.
+        # Note that the sampling rate must be at most 200 MHz.
+        self.clkgen_freq = pll_frequency
+        self.adc_mul = int(SAMPLING_RATE_MAX // pll_frequency)
+        self.sampling_rate = self.clkgen_freq * self.adc_mul
+
+        # The target runs on the PLL clock but uses internal clock dividers and
+        # multiplier to produce the clock of the target block.
+        self.target_freq = pll_frequency * target_clk_mult
+
+        # The scope is configured in terms of samples. For Husky, the number of
+        # samples must be divisble by 3 for batch captures.
+        # TODO: For WaveRunner, we need to read the configured sampling rate here
+        # and use that to compute the horizontal offset and number of samples to
+        # capture.
+        sampling_target_ratio = self.sampling_rate / self.target_freq
+        self.offset_samples = int(offset_cycles * sampling_target_ratio)
+        self.num_samples = int(num_cycles * sampling_target_ratio)
+        if self.num_samples % 3:
+            self.num_samples = self.num_samples + 3 - (self.num_samples % 3)
+
+        self.scope = self.initialize_scope(scope_gain, self.num_samples, self.offset_samples,
+                                           self.clkgen_freq, self.adc_mul)
         print(f'Scope setup with sampling rate {self.scope.clock.adc_freq} S/s')
+        print(f'Resulting oversampling ratio {sampling_target_ratio}')
 
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
@@ -122,26 +145,22 @@ class OpenTitan(object):
 
         return fpga
 
-    def initialize_scope(self, scope_gain, num_samples, offset, pll_frequency):
+    def initialize_scope(self, scope_gain, num_samples, offset_samples, clkgen_freq, adc_mul):
         """Initializes chipwhisperer scope."""
         scope = cw.scope()
         scope.gain.db = scope_gain
         scope.adc.basic_mode = "rising_edge"
 
-        # We sample using the target clock * 2 (200 MHz).
         scope.clock.clkgen_src = 'extclk'
-        # To fully capture the long OTBN applications,
-        # we may need to use pll_frequencies other than 100 MHz.
-        scope.clock.clkgen_freq = pll_frequency
-        scope.clock.adc_mul = 2
+        scope.clock.clkgen_freq = clkgen_freq
+        scope.clock.adc_mul = adc_mul
         scope.clock.extclk_monitor_enabled = False
         scope.adc.samples = num_samples
-
-        if offset >= 0:
-            scope.adc.offset = offset
+        if offset_samples >= 0:
+            scope.adc.offset = offset_samples
         else:
             scope.adc.offset = 0
-            scope.adc.presamples = -offset
+            scope.adc.presamples = -offset_samples
         scope.trigger.triggers = "tio4"
         scope.io.tio1 = "serial_tx"
         scope.io.tio2 = "serial_rx"
@@ -164,26 +183,21 @@ class OpenTitan(object):
     def initialize_target(self, programmer, firmware, baudrate, output_len,
                           pll_frequency):
         """Loads firmware image and initializes test target."""
-        # To fully capture the long OTBN applications,
-        # we may need to use pll_frequencies other than 100 MHz.
-        # As the programming works at 100MHz, we set pll_frequency to 100MHz
-        if pll_frequency != 100e6:
-            self.fpga.pll.pll_outfreq_set(100e6, 1)
+        # The bootstrapping always runs at 100 MHz.
+        if pll_frequency != PLL_FREQUENCY_DEFAULT:
+            self.fpga.pll.pll_outfreq_set(PLL_FREQUENCY_DEFAULT, 1)
 
         programmer.bootstrap(firmware)
 
-        # To handle the PLL frequencies other than 100e6,after programming is done,
-        # we switch the pll frequency back to its original value
-        if pll_frequency != 100e6:
+        # After boostrapping, we can again configure the actually desired
+        # PLL frequency.
+        if pll_frequency != PLL_FREQUENCY_DEFAULT:
             self.fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
         time.sleep(0.5)
         target = cw.target(self.scope)
         target.output_len = output_len
-        # Added `pll_frequency` to handle frequencies other than 100MHz.
-        # Needed this for OTBN ECDSA.
-        # TODO: Remove these comments after discussion
-        target.baud = int(baudrate * pll_frequency / 100e6)
+        target.baud = int(baudrate * pll_frequency / PLL_FREQUENCY_DEFAULT)
         target.flush()
 
         return target
@@ -201,20 +215,21 @@ class OpenTitan(object):
             version = self.target.read().strip()
         print(f'Target simpleserial version: {version} (attempts: {ping_cnt}).')
 
-    def program_target(self, fw, pll_frequency=100e6):
+    def program_target(self, fw, pll_frequency=PLL_FREQUENCY_DEFAULT):
         """Loads firmware image """
         programmer1 = SpiProgrammer(self.fpga)
         # To fully capture the long OTBN applications,
         # we may need to use pll_frequencies other than 100 MHz.
         # As the programming works at 100MHz, we set pll_frequency to 100MHz
-        if self.scope.clock.clkgen_freq != 100e6:
-            self.fpga.pll.pll_outfreq_set(100e6, 1)
+        if self.scope.clock.clkgen_freq != PLL_FREQUENCY_DEFAULT:
+            self.fpga.pll.pll_outfreq_set(PLL_FREQUENCY_DEFAULT, 1)
 
         programmer1.bootstrap(fw)
 
-        # To handle the PLL frequencies other than 100e6,after programming is done,
-        # we switch the pll frequency back to its original value
-        if self.scope.clock.clkgen_freq != 100e6:
+        # To handle the PLL frequencies other than PLL_FREQUENCY_DEFAULT, after
+        # programming is done, we switch the pll frequency back to its original
+        # value
+        if self.scope.clock.clkgen_freq != PLL_FREQUENCY_DEFAULT:
             self.fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
         time.sleep(0.5)

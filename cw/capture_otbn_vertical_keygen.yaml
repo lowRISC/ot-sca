@@ -2,9 +2,13 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
   force_program_bitstream: False
   fw_bin: objs/otbn_vertical_serial_fpga_cw310.bin
-  # Target operating frequency
+  # The clock frequency of the target block is equal to
+  # pll_frequency * target_clk_mult. pll_frequency is controllable via
+  # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
+  # bitstream.
   # For non-batch mode max. 91 MHz, otherwise serial communication fails
   pll_frequency: 91000000
+  target_clk_mult: 0.1
   baudrate: 115200
 capture:
   # Currently, 'p256' is the only supported curve.
@@ -23,11 +27,9 @@ capture:
   masks_off: false
   # Output length (most likely unused).
   output_len_bytes: 40
-  # Samples per trace
   # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
-  num_samples: 4000
-  # Offset in samples
-  offset: 0
+  num_cycles: 200
+  offset_cycles: 0
   # scope gain in db
   scope_gain: 24
   num_traces: 50000

@@ -17,11 +17,12 @@ class HuskyDispatcher:
         if self.num_segments == 1:
             self.scope = opentitan_device.scope
         else:  # Batch mode
-            self.scope = CwSegmented(num_samples=opentitan_device.scope.adc.samples,
-                                     offset=opentitan_device.scope.adc.offset,
+            self.scope = CwSegmented(num_samples=opentitan_device.num_samples,
+                                     offset_samples=opentitan_device.offset_samples,
                                      scope_gain=opentitan_device.scope.gain.db,
                                      scope=opentitan_device.scope,
-                                     pll_frequency=opentitan_device.scope.clock.clkgen_freq)
+                                     clkgen_freq=opentitan_device.scope.clock.clkgen_freq,
+                                     adc_mul=opentitan_device.adc_mul)
             self.scope.num_segments = num_segments
 
     def arm(self):

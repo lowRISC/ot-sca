@@ -5,9 +5,10 @@ cwfpgahusky:
   baudrate: 115200
   output_len_bytes: 16
   pll_frequency: 100000000
+  target_clk_mult: 0.1
   num_segments: 20
-  num_samples: 1200
-  offset: -40
+  num_cycles: 60
+  offset_cycles: -2
   scope_gain: 38
 waverunner:
   waverunner_ip: 100.107.71.10

@@ -50,8 +50,8 @@ class CwSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=1200, offset=0, scope_gain=23, scope=None,
-                 pll_frequency=100000000):
+    def __init__(self, num_samples=1200, offset_samples=0, scope_gain=23, scope=None,
+                 clkgen_freq=100e6, adc_mul=2):
         """Inits a CwSegmented.
 
         Args:
@@ -63,7 +63,7 @@ class CwSegmented:
         else:
             self._scope = cw.scope()
 
-        self._configure_scope(scope_gain, offset, pll_frequency)
+        self._configure_scope(scope_gain, offset_samples, clkgen_freq, adc_mul)
 
         self.num_segments = 1
         self.num_samples = num_samples
@@ -117,17 +117,16 @@ class CwSegmented:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
             self.num_segments = self.num_segments_max
 
-    def _configure_scope(self, scope_gain, offset, pll_frequency):
+    def _configure_scope(self, scope_gain, offset_samples, clkgen_freq, adc_mul):
         self._scope.gain.db = scope_gain
-        if offset >= 0:
-            self._scope.adc.offset = offset
+        if offset_samples >= 0:
+            self._scope.adc.offset = offset_samples
         else:
             self._scope.adc.offset = 0
-            self._scope.adc.presamples = -offset
+            self._scope.adc.presamples = -offset_samples
         self._scope.adc.basic_mode = "rising_edge"
-        # We sample using the target clock * 2 (200 MHz).
-        self._scope.clock.adc_mul = 2
-        self._scope.clock.clkgen_freq = pll_frequency
+        self._scope.clock.adc_mul = adc_mul
+        self._scope.clock.clkgen_freq = clkgen_freq
         self._scope.clock.clkgen_src = 'extclk'
 
         self._scope.trigger.triggers = "tio4"

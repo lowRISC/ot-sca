@@ -2,7 +2,12 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   force_program_bitstream: False
   fw_bin: objs/sha3_serial_fpga_cw310.bin
+  # The clock frequency of the target block is equal to
+  # pll_frequency * target_clk_mult. pll_frequency is controllable via
+  # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
+  # bitstream.
   pll_frequency: 100000000
+  target_clk_mult: 0.1
   baudrate: 115200
 capture:
   key_len_bytes: 16
@@ -12,15 +17,15 @@ capture:
   # into the SHA3 core and the PRNG isn't advanced during SHA3 processing.
   # Works for SHA3 only. Doesn't work when processing key material.
   masks_off: false
-  # Samples per trace - We oversample by 20x and SHA3 with DOM is doing 120
+  # Number of target clock cycles per trace - SHA3 with DOM is doing 120
   # cycles (24 for loading and padding, 96 for processing) with 320 delay
   # cycles between loading the plaintext and adding the padding. The plaintext
   # loading and the delay cycles can be ignored.
-  num_samples: 2500
-  offset: 6400
+  num_cycles: 125
+  offset_cycles: 320
   # w/o ignoring the plaintext loading and delay
-  #num_samples: 8900
-  #offset: 0
+  #num_cycles: 445
+  #offset_cycles: 0
   # 32-bit LFSR seed - Currently not used by the target for SHA3 captures.
   lfsr_seed: 0xdeadbeef
   batch_prng_seed: 0

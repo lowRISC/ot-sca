@@ -2,20 +2,25 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
   force_program_bitstream: False
   fw_bin: objs/aes_serial_fpga_cw305.bin
+  # The clock frequency of the target block is equal to
+  # pll_frequency * target_clk_mult. pll_frequency is controllable via
+  # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
+  # bitstream.
   pll_frequency: 100000000
+  target_clk_mult: 0.1
   baudrate: 115200
 capture:
   # Only AES-128 ECB is supported at this moment.
   key_len_bytes: 16
   plain_text_len_bytes: 16
   output_len_bytes: 16
-  # Samples per trace - We oversample by 20x and AES w/ DOM is doing
+  # Number of target clock cycles per trace - AES w/ DOM is doing
   # ~56/72 cycles per encryption (AES-128/256).
-  num_samples: 1200
-  # Offest in samples - The AES idle signal becomes visible 1 target clock
-  # cycle later (20 samples) and there are 2 synchronization stages at 100 MHz
-  # at the top level (4 samples).
-  offset: -40
+  num_cycles: 60
+  # Offset in target clock cycles - The AES idle signal becomes visible
+  # 1 target clock cycle later and there are 2 synchronization stages at
+  # 100 MHz at the top level.
+  offset_cycles: -2
   # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
   # To switch off the masking, 0 must be used as LFSR seed.
   lfsr_seed: 0xdeadbeef

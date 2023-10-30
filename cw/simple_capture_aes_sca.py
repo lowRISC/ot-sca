@@ -62,10 +62,11 @@ if __name__ == '__main__':
                                    cfg["cwfpgahusky"]["force_program_bitstream"],
                                    cfg["cwfpgahusky"]["fw_bin"],
                                    cfg["cwfpgahusky"]["pll_frequency"],
+                                   cfg["cwfpgahusky"]["target_clk_mult"],
                                    cfg["cwfpgahusky"]["baudrate"],
                                    cfg["cwfpgahusky"]["scope_gain"],
-                                   cfg["cwfpgahusky"]["num_samples"],
-                                   cfg["cwfpgahusky"]["offset"],
+                                   cfg["cwfpgahusky"]["num_cycles"],
+                                   cfg["cwfpgahusky"]["offset_cycles"],
                                    cfg["cwfpgahusky"]["output_len_bytes"])
 
     if HUSKY:

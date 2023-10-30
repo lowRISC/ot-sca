@@ -52,11 +52,12 @@ def create_waverunner(ot, capture_cfg):
 
 def create_cw_segmented(ot, capture_cfg, device_cfg):
     """Create CwSegmented object to be used for batch capture."""
-    return CwSegmented(num_samples=capture_cfg["num_samples"],
-                       offset=capture_cfg["offset"],
+    return CwSegmented(num_samples=ot.num_samples,
+                       offset_samples=ot.offset_samples,
                        scope_gain=capture_cfg["scope_gain"],
                        scope=ot.scope,
-                       pll_frequency=device_cfg["pll_frequency"])
+                       clkgen_freq=ot.clkgen_freq,
+                       adc_mul=ot.adc_mul)
 
 
 SCOPE_FACTORY = {
@@ -101,10 +102,11 @@ def initialize_capture(device_cfg, capture_cfg):
                           device_cfg["force_program_bitstream"],
                           device_cfg["fw_bin"],
                           device_cfg["pll_frequency"],
+                          device_cfg["target_clk_mult"],
                           device_cfg["baudrate"],
                           capture_cfg["scope_gain"],
-                          capture_cfg["num_samples"],
-                          capture_cfg["offset"],
+                          capture_cfg["num_cycles"],
+                          capture_cfg["offset_cycles"],
                           capture_cfg["output_len_bytes"])
     print(f'Scope setup with sampling rate {ot.scope.clock.adc_freq} S/s')
     # Ping target
@@ -1181,16 +1183,13 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
     # OTBN operations are long. CW-Husky can store only 131070 samples
     # in the non-stream mode.
     fifo_size = 131070
-    if capture_cfg["num_samples"] > fifo_size:
+    if ot.num_samples > fifo_size:
         raise RuntimeError('Current setup only supports up to 130k samples')
 
     # Be sure we don't use the stream mode
-    if ot.scope._is_husky:
-        ot.scope.adc.stream_mode = False
-        ot.scope.adc.bits_per_sample = 12
-        ot.scope.adc.samples = capture_cfg["num_samples"]
-    else:
-        raise RuntimeError('Only CW-Husky is supported now')
+    ot.scope.adc.stream_mode = False
+    ot.scope.adc.bits_per_sample = 12
+    ot.scope.adc.samples = ot.num_samples
 
     # Create a cw project to keep the data and traces
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
@@ -1270,7 +1269,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                       desc='Capturing',
                       ncols=80):
 
-            ot.scope.adc.offset = capture_cfg["offset"]
+            ot.scope.adc.offset = ot.offset_samples
 
             if capture_cfg["masks_off"] is True:
                 # Use a constant mask for each trace
@@ -1412,7 +1411,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                       desc='Capturing',
                       ncols=80):
 
-            ot.scope.adc.offset = capture_cfg["offset"]
+            ot.scope.adc.offset = ot.offset_samples
 
             if sample_fixed:
                 # Compute the fixed input shares:
@@ -1574,8 +1573,8 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # OTBN operations are long. CW-Husky can store only 131070 samples
     # in the non-stream mode.
     fifo_size = 131070
-    if capture_cfg["num_samples"] > fifo_size:
-        raise RuntimeError('Current setup only supports up to 130k smaples')
+    if ot.num_samples > fifo_size:
+        raise RuntimeError('Current setup only supports up to 130k samples')
 
     # Create a cw project to keep the data and traces
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
@@ -1921,7 +1920,7 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
     # values.
     # The trace from each run is kept in a section, and all sections are
     # concatenated to create the final trace.
-    num_sections = capture_cfg["num_samples"] // 131070
+    num_sections = ot.num_samples // 131070
     print(f"num_sections = {num_sections}")
 
     # Create a cw project to keep the data and traces

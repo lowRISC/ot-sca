@@ -8,7 +8,6 @@ import time
 
 import chipwhisperer as cw
 from numpy.lib.stride_tricks import as_strided
-from packaging import version
 
 
 class CwSegmented:
@@ -64,22 +63,10 @@ class CwSegmented:
         else:
             self._scope = cw.scope()
 
-        if hasattr(self._scope, '_is_husky'):
-            self._is_husky = self._scope._is_husky
-        else:
-            self._is_husky = False
-
-        if self._is_husky:
-            if version.parse(cw.__version__) < version.parse("5.6.1"):
-                raise IOError("ChipWhisperer Version must be 5.6.1 or later for Husky Support")
-        else:
-            raise IOError("""Only ChipWhisperer Husky is supported""")
-
         self._configure_scope(scope_gain, offset, pll_frequency)
 
         self.num_segments = 1
-        if self._is_husky:
-            self.num_samples = num_samples
+        self.num_samples = num_samples
         self._print_device_info()
 
     @property
@@ -88,13 +75,11 @@ class CwSegmented:
 
     @property
     def num_segments_max(self):
-        if self._is_husky:
-            return self._scope.adc.oa.hwMaxSegmentSamples // self._scope.adc.samples
+        return self._scope.adc.oa.hwMaxSegmentSamples // self._scope.adc.samples
 
     @property
     def num_segments_actual(self):
-        if self._is_husky:
-            return self._scope.adc.segments
+        return self._scope.adc.segments
 
     @property
     def num_segments(self):
@@ -102,8 +87,7 @@ class CwSegmented:
 
     @num_segments.setter
     def num_segments(self, num_segments):
-        if self._is_husky:
-            self._scope.adc.segments = num_segments
+        self._scope.adc.segments = num_segments
         self._num_segments = num_segments
 
     @property
@@ -126,10 +110,8 @@ class CwSegmented:
                 f"num_samples must be in [{self.num_samples_min}, {self.num_samples_max}]."
             )
         self._num_samples = num_samples
-        if self._is_husky:
-            # Husky has simplified interface
-            self._scope.adc.samples = num_samples
-            self._num_samples_actual = num_samples
+        self._scope.adc.samples = num_samples
+        self._num_samples_actual = num_samples
 
         if self.num_segments > self.num_segments_max:
             print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
@@ -143,11 +125,10 @@ class CwSegmented:
             self._scope.adc.offset = 0
             self._scope.adc.presamples = -offset
         self._scope.adc.basic_mode = "rising_edge"
-        if self._is_husky:
-            # We sample using the target clock * 2 (200 MHz).
-            self._scope.clock.adc_mul = 2
-            self._scope.clock.clkgen_freq = pll_frequency
-            self._scope.clock.clkgen_src = 'extclk'
+        # We sample using the target clock * 2 (200 MHz).
+        self._scope.clock.adc_mul = 2
+        self._scope.clock.clkgen_freq = pll_frequency
+        self._scope.clock.clkgen_src = 'extclk'
 
         self._scope.trigger.triggers = "tio4"
         self._scope.io.tio1 = "serial_tx"
@@ -182,8 +163,7 @@ class CwSegmented:
         Returns:
             Waves.
         """
-        if self._is_husky:
-            self._scope.capture()
+        self._scope.capture()
         data = self._scope.get_last_trace(as_int=True)
         waves = self._parse_waveform(data)
         return waves

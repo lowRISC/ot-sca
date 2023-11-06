@@ -60,10 +60,10 @@ jobs:
       pushd ci
       ./ci_capture_all.sh
       popd
-    displayName: "Check AES traces"
+    displayName: "Check all traces"
   - publish: ./ci/figures_tmp/
     artifact: cw310_figures
-    displayName: "Upload figures of AES traces"
+    displayName: "Upload figures of all traces"
 
 - job: sca_capture_cw305
   displayName: "Capture SCA traces (CW305)"

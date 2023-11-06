@@ -1,0 +1,36 @@
+device:
+  fpga_bitstream: ../cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
+  force_program_bitstream: True
+  fw_bin: ../cw/objs/ecc256_serial_fpga_cw310.bin
+  # The clock frequency of the target block is equal to
+  # pll_frequency * target_clk_mult. pll_frequency is controllable via
+  # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
+  # bitstream.
+  pll_frequency: 20000000
+  target_clk_mult: 0.1
+  baudrate: 115200
+capture:
+  # Only ECDSA-256 (32) and ECDSA-384 (48) are supported at this moment.
+  key_len_bytes: 32
+  plain_text_len_bytes: 32
+  output_len_bytes: 32
+  # With pll_frequency = 20 MHz and target_clk_mult = 0.1, 2000
+  # target clock cycles correspond to 200000 scope samples on Husky
+  # (100x oversampling).
+  num_cycles: 2000
+  offset_cycles: 0
+  # scope gain in db - This may change for each setup,
+  # find a value for your setup
+  scope_gain: 32.5
+  num_traces: 1
+  project_name: projects/opentitan_ecdsa_256
+  waverunner_ip: 192.168.1.228
+  batch_prng_seed: 0
+  # As OTBN operations are long, we may need to
+  # overwrite the folloing parameters
+  adc_mul: 1
+  decimate: 1
+plot_capture:
+  show: true
+  num_traces: 1
+  trace_image_filename: projects/sample_traces_ecdsa256.html

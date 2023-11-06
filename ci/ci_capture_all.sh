@@ -69,7 +69,7 @@ ARGS="--force-program-bitstream"
 for test in ${!otbn_keygen_test_list[@]}; do
   echo Testing ${MODE} ${test} on ${BOARD} - `date`
   NUM_TRACES=${otbn_keygen_test_list[${test}]}
-  ../cw/capture.py --cfg-file capture_otbn_vertical_keygen.yaml capture ${test} \
+  ../cw/capture.py --cfg-file ./cfg/ci_capture_otbn_vertical_keygen.yaml capture ${test} \
       --num-traces ${NUM_TRACES} ${ARGS}
   mv projects/sample_traces_ecdsa_keygen.html figures_tmp/${BOARD}_${MODE}_${test}_traces.html
   ARGS=""
@@ -82,7 +82,37 @@ otbn_modinv_test_list["otbn-vertical"]=100
 for test in ${!otbn_modinv_test_list[@]}; do
   echo Testing ${MODE} ${test} on ${BOARD} - `date`
   NUM_TRACES=${otbn_modinv_test_list[${test}]}
-  ../cw/capture.py --cfg-file capture_otbn_vertical_modinv.yaml capture ${test} \
+  ../cw/capture.py --cfg-file ./cfg/ci_capture_otbn_vertical_modinv.yaml capture ${test} \
       --num-traces ${NUM_TRACES} ${ARGS}
   mv projects/sample_traces_ecdsa_modinv.html figures_tmp/${BOARD}_${MODE}_${test}_traces.html
+done
+
+# OTBN Horizonal ECDSA256
+MODE="ecdsa256"
+declare -A otbn_ecdsa256_test_list
+otbn_ecdsa256_test_list["ecdsa-simple"]=10
+otbn_ecdsa256_test_list["ecdsa-stream"]=10
+
+ARGS="--force-program-bitstream"
+for test in ${!otbn_ecdsa256_test_list[@]}; do
+  echo Testing ${MODE} ${test} on ${BOARD} - `date`
+  NUM_TRACES=${otbn_ecdsa256_test_list[${test}]}
+  ../cw/capture.py --cfg-file ./cfg/ci_capture_ecdsa256_cw310.yaml capture ${test} \
+        --num-traces ${NUM_TRACES} ${ARGS}
+  mv projects/sample_traces_ecdsa256.html figures_tmp/${BOARD}_${MODE}_${test}_traces.html
+  ARGS=""
+done
+
+# OTBN Horizonal ECDSA384
+MODE="ecdsa384"
+declare -A otbn_ecdsa384_test_list
+otbn_ecdsa384_test_list["ecdsa-simple"]=10
+otbn_ecdsa384_test_list["ecdsa-stream"]=10
+
+for test in ${!otbn_ecdsa384_test_list[@]}; do
+  echo Testing ${MODE} ${test} on ${BOARD} - `date`
+  NUM_TRACES=${otbn_ecdsa384_test_list[${test}]}
+  ../cw/capture.py --cfg-file ./cfg/ci_capture_ecdsa384_cw310.yaml capture ${test} \
+      --num-traces ${NUM_TRACES} ${ARGS}
+  mv projects/sample_traces_ecdsa384.html figures_tmp/${BOARD}_${MODE}_${test}_traces.html
 done

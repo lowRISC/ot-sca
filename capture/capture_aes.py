@@ -2,19 +2,23 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
+
 import binascii
+import logging
 import random
 import signal
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
 
-import chipwhisperer as cw
+import lib.helpers as helpers
 import numpy as np
 import yaml
 from Crypto.Cipher import AES
-from project_library.trace_library import Metadata, Trace, TraceLibrary
+from lib.ot_communication import OTAES
+from project_library.project import ProjectConfig, SCAProject
 from scopes.scope import Scope, ScopeConfig
 from tqdm import tqdm
 
@@ -22,54 +26,60 @@ sys.path.append("../")
 from target.cw_fpga import CWFPGA  # noqa: E402
 from util import plot  # noqa: E402
 
+logger = logging.getLogger()
 
-def abort_handler_during_loop(this_project, CWLib, sig, frame):
-    # Handler for ctrl-c keyboard interrupts
+
+def abort_handler_during_loop(this_project, sig, frame):
+    """ Abort capture and store traces.
+
+    Args:
+        this_project: Project instance.
+    """
     if this_project is not None:
-        print("\nHandling keyboard interrupt")
-        if CWLib:
-            this_project.close(save=True)
-        else:
-            this_project.flush_to_disk()
-
+        logger.info("\nHandling keyboard interrupt")
+        this_project.close(save=True)
     sys.exit(0)
 
 
-if __name__ == '__main__':
-    now = datetime.now()
-    cfg_file = sys.argv[1]
-    # Load configuration from file
-    with open(cfg_file) as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-    # Determine trace library
-    CWLib = True
-    OTTraceLib = False
-    if cfg['capture'].get('trace_db') == 'ot_trace_library':
-        CWLib = False
-        OTTraceLib = True
+@dataclass
+class CaptureConfig:
+    """ Configuration class for the current capture.
+    """
+    capture_mode: str
+    batch_mode: bool
+    num_traces: int
+    num_segments: int
+    output_len: int
+    text_fixed: bytearray
+    key_fixed: bytearray
+    key_len_bytes: int
+    text_len_bytes: int
 
-    if CWLib:
-        # Create ChipWhisperer project for storage of traces and metadata ------
-        project = cw.create_project(cfg["capture"]["project_name"], overwrite=True)
-    else:
-        # Create Trace Database-------------------------------------------------
-        project = TraceLibrary(cfg["capture"]["project_name"],
-                               cfg["capture"]["trace_threshold"],
-                               wave_datatype=np.uint16,
-                               overwrite=True)
 
-    # Init target
-    cw_target = CWFPGA(
-        bitstream = cfg["cwfpga"]["fpga_bitstream"],
-        force_programming = cfg["cwfpga"]["force_program_bitstream"],
-        firmware = cfg["cwfpga"]["fw_bin"],
-        pll_frequency = cfg["cwfpga"]["pll_frequency"],
-        baudrate = cfg["cwfpga"]["baudrate"],
-        output_len = cfg["cwfpga"]["output_len_bytes"],
+def setup(cfg: dict, project: Path):
+    """ Setup target, scope, and project.
+
+    Args:
+        cfg: The configuration for the current experiment.
+        project: The path for the project file.
+
+    Returns:
+        The target, scope, and project.
+    """
+    # Init target.
+    logger.info(f"Initializing target {cfg['target']['target_type']} ...")
+    target = CWFPGA(
+        bitstream = cfg["target"]["fpga_bitstream"],
+        force_programming = cfg["target"]["force_program_bitstream"],
+        firmware = cfg["target"]["fw_bin"],
+        pll_frequency = cfg["target"]["pll_frequency"],
+        baudrate = cfg["target"]["baudrate"],
+        output_len = cfg["target"]["output_len_bytes"],
     )
 
-    # Init scope
+    # Init scope.
     scope_type = cfg["capture"]["scope_select"]
+    logger.info(f"Initializing scope {scope_type} ...")
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
         acqu_channel = cfg[scope_type].get("channel"),
@@ -82,190 +92,337 @@ if __name__ == '__main__':
         num_segments = cfg[scope_type]["num_segments"],
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),
-        pll_frequency = cfg["cwfpga"]["pll_frequency"],
+        pll_frequency = cfg["target"]["pll_frequency"],
     )
     scope = Scope(scope_cfg)
 
-    # Preparation of Key and plaintext generation ------------------------------
+    # Init project.
+    project_cfg = ProjectConfig(type = cfg["capture"]["trace_db"],
+                                path = project,
+                                wave_dtype = np.uint16,
+                                overwrite = True,
+                                trace_threshold = cfg["capture"].get("trace_threshold")
+                                )
+    project = SCAProject(project_cfg)
+    project.create_project()
 
-    # Determine which test from configuration
-    NUM_SEGMENTS = cfg[scope_type]["num_segments"]
-    TEST_FVSR_KEY_RND_PLAINTEXT = False
-    TEST_FIXED_KEY_RND_PLAINTEXT = False
-    if cfg["test"]["which_test"] == "aes_fvsr_key_random_plaintext":
-        TEST_FVSR_KEY_RND_PLAINTEXT = True
-        if NUM_SEGMENTS > 1:
-            print("ERROR: aes_fvsr_key_random_plaintext only supported "
-                  "with num_segments > 1, i.e. batch mode")
-    elif cfg["test"]["which_test"] == "aes_fixed_key_random_plaintext":
-        TEST_FIXED_KEY_RND_PLAINTEXT = True
-        # This test uses the fixed key. It generates random texts through AES
-        # encryption using a generation key for single mode and uses ciphertexts
-        # as next text input in batch mode.
+    return target, scope, project
 
-    # Load fixed key
-    key_fixed = bytearray(cfg["test"]["key_fixed"])
-    print(f'Using key: {binascii.b2a_hex(bytes(key_fixed))}')
-    key = key_fixed
-    cw_target.target.simpleserial_write("k", key)
 
-    # Seed the target's PRNGs for initial key masking, and additionally turn off masking when '0'
-    cw_target.target.simpleserial_write("l", cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+def configure_cipher(cfg, target, capture_cfg) -> OTAES:
+    """ Configure the AES cipher.
 
-    if TEST_FIXED_KEY_RND_PLAINTEXT:
-        # Cipher to compute expected responses
-        cipher = AES.new(bytes(key), AES.MODE_ECB)
+    Establish communication with the AES cipher and configure the seed.
 
-        # Load fixed text as first text
-        text = bytearray(cfg["test"]["text_fixed"])
+    Args:
+        cfg: The project config.
+        target: The OT target.
+        capture_cfg: The capture config.
 
-        # Prepare generation of new texts/keys by encryption using key_for_generation
-        key_for_gen = bytearray(cfg["test"]["key_for_gen"])
-        cipher_gen = AES.new(bytes(key_for_gen), AES.MODE_ECB)
+    Returns:
+        The communication interface to the AES cipher.
+    """
+    # Create communication interface to OT AES.
+    ot_aes = OTAES(target.target)
 
-        if NUM_SEGMENTS > 1:
-            # Set initial plaintext for batch mode
-            cw_target.target.simpleserial_write("i", text)
-
-    if TEST_FVSR_KEY_RND_PLAINTEXT:
-        # Load seed into host-side PRNG (random Python module, Mersenne twister)
+    # If batch mode, configure PRNGs.
+    if capture_cfg.batch_mode:
+        # Seed host's PRNG.
         random.seed(cfg["test"]["batch_prng_seed"])
-        # Load seed into OT (also Mersenne twister)
-        cw_target.target.simpleserial_write(
-            "s",
-            cfg["test"]["batch_prng_seed"].to_bytes(4, "little")
-        )
 
-        # First trace uses fixed key
-        sample_fixed = 1
-        # Generate plaintexts and keys for first batch
-        cw_target.target.simpleserial_write("g", NUM_SEGMENTS.to_bytes(4, "little"))
+        # Seed the target's PRNGs for initial key masking, and additionally
+        # turn off masking when '0'.
+        ot_aes.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+        ot_aes.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
-    # Main loop for measurements with progress bar -----------------------------
+    return ot_aes
 
-    # Register ctrl-c handler to store traces on abort
-    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project, CWLib))
-    remaining_num_traces = cfg["capture"]["num_traces"]
+
+def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
+                        plaintext_fixed, key_length):
+    """ Generate cipher material for the encryption.
+
+    This function derives the next key as well as the plaintext for the next
+    encryption.
+
+    Args:
+        sample_fixed: Use fixed key or new key.
+        mode: The mode of the capture.
+        batch: Batch or non-batch mode.
+        key: The current key.
+        key_fixed: The fixed key for FVSR.
+        plaintext: The current plaintext.
+        plaintext_fixed: The fixed plaintext for FVSR.
+        key_length: Th length of the key.
+
+    Returns:
+        plaintext: The next plaintext.
+        key: The next key.
+        ciphertext: The next ciphertext.
+        sample_fixed: Is the next sample fixed or not?
+    """
+    if mode == "aes_fsvr_key" and not batch:
+        if sample_fixed:
+            # Expected ciphertext.
+            cipher = AES.new(bytes(key_fixed), AES.MODE_ECB)
+            ciphertext = bytearray(cipher.encrypt(bytes(plaintext_fixed)))
+            # Next key is random.
+            key = bytearray(key_length)
+            for i in range(0, key_length):
+                key[i] = random.randint(0, 255)
+            # Next plaintext is random.
+            plaintext = bytearray(16)
+            for i in range(0, 16):
+                plaintext[i] = random.randint(0, 255)
+            sample_fixed = 0
+        else:
+            cipher = AES.new(bytes(key), AES.MODE_ECB)
+            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
+            # Use fixed_key as the next key.
+            key = np.asarray(key_fixed)
+            # Use fixed_plaintext as the next plaintext.
+            plaintext = np.asarray(plaintext_fixed)
+            sample_fixed = 1
+    else:
+        if mode == "aes_random":
+            cipher = AES.new(bytes(key), AES.MODE_ECB)
+            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
+        else:
+            if sample_fixed:
+                # Use fixed_key as this key.
+                key = np.asarray(key_fixed)
+            else:
+                # Generate this key from the PRNG.
+                key = bytearray(key_length)
+                for i in range(0, key_length):
+                    key[i] = random.randint(0, 255)
+            # Always generate this plaintext from PRNG (including very first one).
+            plaintext = bytearray(16)
+            for i in range(0, 16):
+                plaintext[i] = random.randint(0, 255)
+            # Compute ciphertext for this key and plaintext.
+            # TODO: Instantiating the AES could be a bottleneck.
+            cipher = AES.new(bytes(key), AES.MODE_ECB)
+            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
+            # Determine if next iteration uses fixed_key.
+            sample_fixed = plaintext[0] & 0x1
+
+    return plaintext, key, ciphertext, sample_fixed
+
+
+def check_ciphertext(ot_aes, expected_last_ciphertext, ciphertext_len):
+    """ Compares the received with the generated ciphertext.
+
+    Ciphertext is read from the device and compared against the pre-computed
+    generated ciphertext. In batch mode, only the last ciphertext is compared.
+    Asserts on mismatch.
+
+    Args:
+        ot_aes: The OpenTitan AES communication interface.
+        expected_last_ciphertext: The pre-computed ciphertext.
+        ciphertext_len: The length of the ciphertext in bytes.
+    """
+    actual_last_ciphertext = ot_aes.read_ciphertext(ciphertext_len)
+    assert actual_last_ciphertext == expected_last_ciphertext[0:ciphertext_len], (
+        f"Incorrect encryption result!\n"
+        f"actual: {actual_last_ciphertext}\n"
+        f"expected: {expected_last_ciphertext}"
+    )
+
+
+def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
+            project: SCAProject, cwtarget: CWFPGA):
+    """ Capture power consumption during AES encryption.
+
+    Supports four different capture types:
+    * aes_random: Fixed key, random plaintext.
+    * aes_random_batch: Fixed key, random plaintext in batch mode.
+    * aes_fvsr: Fixed vs. random key.
+    * aes_fvsr_batch: Fixed vs. random key batch.
+
+    Args:
+        scope: The scope class representing a scope (Husky or WaveRunner).
+        ot_aes: The OpenTitan AES communication interface.
+        capture_cfg: The configuration of the capture.
+        project: The SCA project.
+        cwtarget: The CW FPGA target.
+    """
+    # Initial plaintext.
+    text_fixed = bytearray(capture_cfg.text_fixed)
+    text = text_fixed
+    # Load fixed key.
+    key_fixed = bytearray(capture_cfg.key_fixed)
+    key = key_fixed
+    logger.info(f"Initializing OT AES with key {binascii.b2a_hex(bytes(key))} ...")
+    if capture_cfg.capture_mode == "aes_fsvr_key":
+        ot_aes.fvsr_key_set(key)
+    else:
+        ot_aes.write_key(key)
+
+    # Generate plaintexts and keys for first batch.
+    if capture_cfg.batch_mode:
+        if capture_cfg.capture_mode == "aes_fsvr_key":
+            ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
+        elif capture_cfg.capture_mode == "aes_random":
+            ot_aes.write_init_text(text)
+
+    # FVSR setup.
+    sample_fixed = 1
+
+    # Optimization for CW trace library.
+    num_segments_storage = 1
+
+    # Register ctrl-c handler to store traces on abort.
+    signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
+    # Main capture with progress bar.
+    remaining_num_traces = capture_cfg.num_traces
     with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while remaining_num_traces > 0:
-
-            # Note: Capture performance tested Oct. 2023:
-            # Husy with 1200 samples per trace: 50 it/s
-            # WaveRunner with 1200 - 50000 samples per trace: ~30 it/s
-            #   +10% by setting 'Performance' to 'Analysis' in 'Utilies->Preferences' in GUI
-            # WaveRunner batchmode (6k samples, 100 segmets, 1 GHz): ~150 it/s
-
-            # Arm scope --------------------------------------------------------
+            # Arm the scope.
             scope.arm()
 
-            # Trigger execution(s) ---------------------------------------------
-            if NUM_SEGMENTS > 1:
-                # Perform batch encryptions
-                if TEST_FIXED_KEY_RND_PLAINTEXT:
-                    # Execute and generate next text as ciphertext
-                    cw_target.target.simpleserial_write("a", NUM_SEGMENTS.to_bytes(4, "little"))
-                if TEST_FVSR_KEY_RND_PLAINTEXT:
-                    # Execute and generate next keys and plaintexts
-                    cw_target.target.simpleserial_write("f", NUM_SEGMENTS.to_bytes(4, "little"))
-
-            else:  # single encryption
-                # Load text and trigger execution
-                # First iteration uses initial text, new texts are generated below
-                cw_target.target.simpleserial_write('p', text)
-
-            # Capture trace(s) -------------------------------------------------
-            waves = scope.capture_and_transfer_waves()
-            assert waves.shape[0] == NUM_SEGMENTS
-
-            # Storing traces ---------------------------------------------------
-
-            # Loop to compute keys, texts and ciphertexts for each trace and store them.
-            for i in range(NUM_SEGMENTS):
-
-                # Compute text, key, ciphertext
-                if TEST_FIXED_KEY_RND_PLAINTEXT:
-                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
-
-                if TEST_FVSR_KEY_RND_PLAINTEXT:
-                    if sample_fixed:
-                        # Use fixed_key as this key
-                        key = np.asarray(key_fixed)
-                    else:
-                        # Generate this key from PRNG
-                        key = bytearray(cfg["test"]["key_len_bytes"])
-                        for ii in range(0, cfg["test"]["key_len_bytes"]):
-                            key[ii] = random.randint(0, 255)
-                    # Always generate this plaintext from PRNG (including very first one)
-                    text = bytearray(16)
-                    for ii in range(0, 16):
-                        text[ii] = random.randint(0, 255)
-                    # Compute ciphertext for this key and plaintext
-                    cipher = AES.new(bytes(key), AES.MODE_ECB)
-                    ciphertext = bytearray(cipher.encrypt(bytes(text)))
-                    # Determine if next iteration uses fixed_key
-                    sample_fixed = text[0] & 0x1
-
-                # Sanity check retrieved data (wave)
-                assert len(waves[i, :]) >= 1
-                # Add trace.
-                if OTTraceLib:
-                    # OT Trace Library
-                    trace = Trace(wave=waves[i, :].tobytes(),
-                                  plaintext=text,
-                                  ciphertext=ciphertext,
-                                  key=key)
-                    project.write_to_buffer(trace)
+            # Trigger encryption.
+            if capture_cfg.batch_mode:
+                # Batch mode.
+                if capture_cfg.capture_mode == "aes_random":
+                    # Fixed key, random plaintexts.
+                    ot_aes.encrypt_batch(
+                        capture_cfg.num_segments.to_bytes(4, "little"))
                 else:
-                    # CW Trace
-                    trace = cw.Trace(waves[i, :], text, ciphertext, key)
-                    # Append trace Library trace to database
-                    # TODO Also use uint16 as dtype for 8 bit WaveRunner for
-                    # tvla processing
-                    project.traces.append(trace, dtype=np.uint16)
+                    # Fixed vs random key test.
+                    ot_aes.encrypt_fvsr_key_batch(
+                        capture_cfg.num_segments.to_bytes(4, "little"))
+            else:
+                # Non batch mode.
+                if capture_cfg.capture_mode == "aes_fsvr_key":
+                    ot_aes.write_key(key)
+                ot_aes.encrypt(text)
 
-                if TEST_FIXED_KEY_RND_PLAINTEXT:
-                    # Use ciphertext as next text, first text is the initial one
+            # Capture traces.
+            waves = scope.capture_and_transfer_waves(cwtarget.target)
+            assert waves.shape[0] == capture_cfg.num_segments
+
+            # Generate reference crypto material and store trace.
+            for i in range(capture_cfg.num_segments):
+                text, key, ciphertext, sample_fixed = generate_ref_crypto(
+                    sample_fixed = sample_fixed,
+                    mode = capture_cfg.capture_mode,
+                    batch = capture_cfg.batch_mode,
+                    key = key,
+                    key_fixed = key_fixed,
+                    plaintext = text,
+                    plaintext_fixed = text_fixed,
+                    key_length = capture_cfg.key_len_bytes
+                )
+                # Sanity check retrieved data (wave).
+                assert len(waves[i, :]) >= 1
+                # Store trace into database.
+                project.append_trace(wave = waves[i, :],
+                                     plaintext = text,
+                                     ciphertext = ciphertext,
+                                     key = key)
+
+                if capture_cfg.capture_mode == "aes_random":
+                    # Use ciphertext as next text, first text is the initial
+                    # one.
                     text = ciphertext
 
-            # Get (last) ciphertext from device and verify ---------------------
-            if TEST_FIXED_KEY_RND_PLAINTEXT:
-                compare_len = cw_target.target.output_len
-            if TEST_FVSR_KEY_RND_PLAINTEXT:
+            # Compare received ciphertext with generated.
+            compare_len = capture_cfg.output_len
+            if capture_cfg.batch_mode and capture_cfg.capture_mode == "aes_fsvr_key":
                 compare_len = 4
-            response = cw_target.target.simpleserial_read('r', compare_len, ack=False)
-            if binascii.b2a_hex(response) != binascii.b2a_hex(ciphertext[0:compare_len]):
-                raise RuntimeError(f'Bad ciphertext: {response} != {ciphertext}.')
+            check_ciphertext(ot_aes, ciphertext, compare_len)
 
-            # Update the loop variable and the progress bar --------------------
-            remaining_num_traces -= NUM_SEGMENTS
-            pbar.update(NUM_SEGMENTS)
+            # Memory allocation optimization for CW trace library.
+            num_segments_storage = project.optimize_capture(num_segments_storage)
 
-    # Create and show test plot ------------------------------------------------
-    # Use this plot to check for clipping and adjust gain appropriately
-    if CWLib:
-        proj_waves = project.waves
-    else:
-        proj_waves = project.get_waves()
+            # Update the loop variable and the progress bar.
+            remaining_num_traces -= capture_cfg.num_segments
+            pbar.update(capture_cfg.num_segments)
 
-    if cfg["capture"]["show_plot"]:
-        plot.save_plot_to_file(proj_waves, None, cfg["capture"]["plot_traces"],
-                               cfg["capture"]["trace_image_filename"], add_mean_stddev=True)
-        print(f'Created plot with {cfg["capture"]["plot_traces"]} traces: '
-              f'{Path(cfg["capture"]["trace_image_filename"]).resolve()}')
 
-    if CWLib:
-        project.settingsDict['datetime'] = now
-        project.settingsDict['cfg'] = cfg
-        project.settingsDict['sample_rate'] = scope_cfg.num_samples
-        project.save()
-    else:
-        metadata = Metadata(config =cfg_file,
-                            datetime=now,
-                            bitstream_path=cfg["cwfpga"]["fpga_bitstream"],
-                            binary_path=cfg["cwfpga"]["fw_bin"],
-                            offset=scope_cfg.offset_samples,
-                            sample_rate=scope_cfg.num_samples,
-                            scope_gain=scope_cfg.scope_gain
-                            )
-        project.write_metadata(metadata)
-        project.flush_to_disk()
+def print_plot(project: SCAProject, config: dict) -> None:
+    """ Print plot of traces.
+
+    Printing the plot helps to adjust the scope gain and check for clipping.
+
+    Args:
+        project: The project containing the traces.
+        config: The capture configuration.
+    """
+    if config["capture"]["show_plot"]:
+        plot.save_plot_to_file(project.get_waves(0, config["capture"]["plot_traces"]),
+                               set_indices = None,
+                               num_traces = config["capture"]["plot_traces"],
+                               outfile = config["capture"]["trace_image_filename"],
+                               add_mean_stddev=True)
+        print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
+              f'{Path(config["capture"]["trace_image_filename"]).resolve()}')
+
+
+def main(argv=None):
+    # Configure the logger.
+    logger.setLevel(logging.INFO)
+    console = logging.StreamHandler()
+    logger.addHandler(console)
+
+    # Parse the provided arguments.
+    args = helpers.parse_arguments(argv)
+
+    # Load configuration from file.
+    with open(args.cfg) as f:
+        cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+    # Setup the target, scope and project.
+    target, scope, project = setup(cfg, args.project)
+
+    # Determine the capture mode and configure the current capture.
+    mode = "aes_fsvr_key"
+    batch = False
+    if "aes_random" in cfg["test"]["which_test"]:
+        mode = "aes_random"
+    if "batch" in cfg["test"]["which_test"]:
+        batch = True
+    capture_cfg = CaptureConfig(capture_mode = mode,
+                                batch_mode = batch,
+                                num_traces = cfg["capture"]["num_traces"],
+                                num_segments = cfg[cfg["capture"]["scope_select"]]["num_segments"],
+                                output_len = cfg["target"]["output_len_bytes"],
+                                text_fixed = cfg["test"]["text_fixed"],
+                                key_fixed = cfg["test"]["key_fixed"],
+                                key_len_bytes = cfg["test"]["key_len_bytes"],
+                                text_len_bytes = cfg["test"]["text_len_bytes"])
+    logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
+
+    # Configure cipher.
+    ot_aes = configure_cipher(cfg, target, capture_cfg)
+
+    # Capture traces.
+    capture(scope, ot_aes, capture_cfg, project, target)
+
+    # Print plot.
+    print_plot(project, cfg)
+
+    # Save metadata.
+    metadata = {}
+    metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    metadata["cfg"] = cfg
+    metadata["num_samples"] = scope.scope_cfg.num_samples
+    metadata["offset_samples"] = scope.scope_cfg.offset_samples
+    metadata["scope_gain"] = scope.scope_cfg.scope_gain
+    metadata["cfg_file"] = str(args.cfg)
+    metadata["fpga_bitstream"] = cfg["target"]["fpga_bitstream"]
+    # TODO: Store binary into database instead of binary path.
+    # (Issue lowrisc/ot-sca#214)
+    metadata["fw_bin"] = cfg["target"]["fw_bin"]
+    # TODO: Allow user to enter notes via CLI.
+    # (Issue lowrisc/ot-sca#213)
+    metadata["notes"] = ""
+    project.write_metadata(metadata)
+
+    # Save and close project.
+    project.save()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,44 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: True
+  fw_bin: "../objs/aes_serial_fpga_cw310.bin"
+  pll_frequency: 100000000
+  baudrate: 115200
+  output_len_bytes: 16
+husky:
+  pll_frequency: 100000000
+  target_clk_mult: 0.24
+  num_segments: 20
+  num_cycles: 60
+  offset_cycles: -2
+  scope_gain: 38
+waverunner:
+  waverunner_ip: 100.107.71.10
+  num_segments: 20
+  num_samples: 6000
+  sample_offset: 0
+capture:
+  scope_select: husky
+  # scope_select: waverunner
+  num_traces: 1000
+  show_plot: True
+  plot_traces: 100
+  trace_image_filename: "projects/aes_sca_random_cw310.html"
+  trace_db: ot_trace_library
+  # trace_db: cw
+  trace_threshold: 10000
+test:
+  which_test: aes_random_batch
+  # which_test: aes_random
+  # which_test: aes_fsvr_key_batch
+  key_len_bytes: 16
+  text_len_bytes: 16
+  key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  key_for_gen: [0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC, 0xDE, 0xF1, 0x23, 0x45, 0x67, 0x89, 0xAB, 0xCD, 0xE0, 0xF0]
+  # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
+  batch_prng_seed: 0
+  # 32-bit seed for masking on device. To switch off the masking, use 0 as LFSR seed.
+  lfsr_seed: 0x00000000
+  # lfsr_seed: 0xdeadbeef

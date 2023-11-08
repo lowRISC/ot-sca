@@ -1,7 +1,7 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-import datetime
+import pickle
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Optional
@@ -19,19 +19,7 @@ class Metadata:
     Stores information about the capture of the traces.
 
     """
-    config: str
-    datetime: datetime.datetime
-    bitstream_path: str
-    binary_path: str
-    bitstream: Optional[bytearray] = None
-    binary: Optional[bytearray] = None
-    offset: Optional[int] = 0
-    sample_rate: Optional[int] = 0
-    scope_gain: Optional[float] = 0
-    trigger_level: Optional[float] = 0
-    time_div: Optional[float] = 0
-    ot_sca_commit: Optional[str] = ""
-    notes: Optional[str] = ""
+    data: bytearray
 
 
 @dataclass
@@ -81,19 +69,7 @@ class TraceLibrary:
         self.metadata_table = db.Table(
             "metadata",
             self.metadata,
-            db.Column("config", db.String),
-            db.Column("datetime", db.DateTime),
-            db.Column("bitstream_path", db.String),
-            db.Column("binary_path", db.String),
-            db.Column("bitstream", db.LargeBinary),
-            db.Column("binary", db.LargeBinary),
-            db.Column("offset", db.Integer),
-            db.Column("sample_rate", db.Integer),
-            db.Column("scope_gain", db.Float),
-            db.Column("trigger_level", db.Float),
-            db.Column("time_div", db.Float),
-            db.Column("ot_sca_commit", db.String),
-            db.Column("notes", db.String)
+            db.Column("data", db.PickleType)
         )
         self.metadata.create_all(self.engine)
         self.trace_mem = []
@@ -152,25 +128,26 @@ class TraceLibrary:
         return [Trace(**trace._mapping)
                 for trace in self.session.execute(query).fetchall()]
 
-    def get_waves_bytearray(self):
+    def get_waves_bytearray(self, start: Optional[int] = None,
+                            end: Optional[int] = None):
         """ Get all waves from the database.
 
         Returns:
             The bytearray waves from the database.
         """
-        return [trace.wave for trace in self.get_traces()]
+        return [trace.wave for trace in self.get_traces(start, end)]
 
-    def get_waves(self):
+    def get_waves(self, start: Optional[int] = None, end: Optional[int] = None):
         """ Get all waves from the database in the trace array format.
 
         Returns:
             The waves from the database in the type wave_datatype.
         """
         return [np.frombuffer(b, self.wave_datatype)
-                for b in self.get_waves_bytearray()]
+                for b in self.get_waves_bytearray(start, end)]
 
-    def get_plaintexts_int(self, start: Optional[int] = None,
-                           end: Optional[int] = None):
+    def get_plaintexts(self, start: Optional[int] = None,
+                       end: Optional[int] = None):
         """ Get all plaintexts between start and end from the database in the
         int8 array format.
 
@@ -180,8 +157,8 @@ class TraceLibrary:
         return [np.frombuffer(trace.plaintext, np.uint8)
                 for trace in self.get_traces(start, end)]
 
-    def get_keys_int(self, start: Optional[int] = None,
-                     end: Optional[int] = None):
+    def get_keys(self, start: Optional[int] = None,
+                 end: Optional[int] = None):
         """ Get all keys between start and end from the database in the int8
         array format.
 
@@ -198,7 +175,8 @@ class TraceLibrary:
            metadata: The metadata to store.
         """
         query = db.insert(self.metadata_table)
-        self.session.execute(query, asdict(metadata))
+        data = Metadata(str(pickle.dumps(metadata), encoding="latin1"))
+        self.session.execute(query, asdict(data))
         self.session.commit()
 
     def get_metadata(self):
@@ -208,4 +186,5 @@ class TraceLibrary:
             The metadata from the database.
         """
         query = db.select(self.metadata_table)
-        return self.session.execute(query).fetchall()
+        metadata = Metadata(**self.session.execute(query).fetchall()[0]._mapping)
+        return pickle.loads(bytes(metadata.data, encoding="latin1"))

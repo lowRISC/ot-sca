@@ -5,9 +5,12 @@
 import argparse
 import sys
 
-import chipwhisperer as cw
 import numpy as np
 import scipy.stats
+
+sys.path.append("../")
+from capture.project_library.project import ProjectConfig  # noqa: E402
+from capture.project_library.project import SCAProject  # noqa: E402
 
 
 def analyze_traces(file_proj, file_gold_proj, corr_coeff) -> bool:
@@ -27,14 +30,30 @@ def analyze_traces(file_proj, file_gold_proj, corr_coeff) -> bool:
         True if trace comparison succeeds, False otherwise.
     """
     # Open the current project
-    proj_curr = cw.open_project(file_proj)
+    project_curr_cfg = ProjectConfig(type = "ot_trace_library",
+                                     path = file_proj,
+                                     wave_dtype = np.uint16,
+                                     overwrite = False,
+                                     trace_threshold = 10000
+                                     )
+    proj_curr = SCAProject(project_curr_cfg)
+    proj_curr.open_project()
     # Calculate mean of new traces
-    curr_trace = np.mean(proj_curr.waves, axis=0)
+    curr_waves = proj_curr.get_waves()
+    curr_trace = np.mean(curr_waves, axis=0)
 
     # Import the golden project
-    proj_gold = cw.import_project(file_gold_proj)
+    project_gold_cfg = ProjectConfig(type = "ot_trace_library",
+                                     path = file_gold_proj,
+                                     wave_dtype = np.uint16,
+                                     overwrite = False,
+                                     trace_threshold = 10000
+                                     )
+    proj_gold = SCAProject(project_gold_cfg)
+    proj_gold.open_project()
     # Calculate mean of golden traces
-    gold_trace = np.mean(proj_gold.waves, axis=0)
+    gold_waves = proj_gold.get_waves()
+    gold_trace = np.mean(gold_waves, axis=0)
 
     # Pearson correlation: golden trace vs. mean of new traces
     calc_coeff = scipy.stats.pearsonr(gold_trace, curr_trace).correlation

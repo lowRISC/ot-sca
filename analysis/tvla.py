@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-import chipwhisperer as cw
 import matplotlib.pyplot as plt
 import numpy as np
 import typer
@@ -21,7 +20,8 @@ from joblib import Parallel, delayed
 ABS_PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ABS_PATH + '/..')
 import util.plot as plot  # noqa : E402
-from capture.project_library.trace_library import TraceLibrary  # noqa : E402
+from capture.project_library.project import ProjectConfig  # noqa : E402
+from capture.project_library.project import SCAProject  # noqa : E402
 from util.leakage_models import compute_leakage_aes  # noqa : E402
 from util.leakage_models import compute_leakage_general  # noqa : E402
 from util.leakage_models import find_fixed_key  # noqa : E402
@@ -270,14 +270,20 @@ def run_tvla(ctx: typer.Context):
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
         # Make sure the project file is compatible with the previously generated histograms.
-        if OTTraceLib:
-            project = TraceLibrary(cfg["project_file"], cfg["trace_threshold"],
-                                   wave_datatype = np.uint16,
-                                   overwrite = False)
-            proj_waves = project.get_waves()
-        else:
-            project = cw.open_project(cfg["project_file"])
-            proj_waves = project.waves
+        project_type = cfg.get("trace_db")
+        if not project_type:
+            project_type = "cw"
+
+        project_cfg = ProjectConfig(type = project_type,
+                                    path = cfg["project_file"],
+                                    wave_dtype = np.uint16,
+                                    overwrite = False,
+                                    trace_threshold = cfg.get("trace_threshold")
+                                    )
+        project = SCAProject(project_cfg)
+        project.open_project()
+        proj_waves = project.get_waves()
+        metadata = project.get_metadata()
 
         if cfg["input_histogram_file"] is None:
             num_samples = len(proj_waves[0])
@@ -367,8 +373,8 @@ def run_tvla(ctx: typer.Context):
                 # the operation to free up some memory.
                 if i_step > 0:
                     if not OTTraceLib:
-                        project = cw.open_project(cfg["project_file"])
-                        proj_waves = project.waves
+                        project.open_project()
+                        proj_waves = project.get_waves()
 
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
@@ -454,27 +460,24 @@ def run_tvla(ctx: typer.Context):
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
 
                 if general_test is False:
-                    if OTTraceLib:
-                        keys[:] = project.get_keys_int(trace_start, trace_end + 1)
-                    else:
-                        keys[:] = project.keys[trace_start:trace_end + 1]
+                    keys[:] = project.get_keys()[trace_start:trace_end + 1]
                 else:
                     # Existing KMAC trace sets use a mix of bytes strings and ChipWhisperer byte
                     # arrays. For compatiblity, we need to convert everything to numpy arrays.
                     # Eventually, we can drop this.
                     if i_step == 0:
                         if OTTraceLib:
-                            keys_nparrays = project.keys()
+                            keys_nparrays = project.get_keys()
                         else:
                             # Convert all keys from the project file to numpy
                             # arrays once.
                             keys_nparrays = []
                             for i in range(num_traces_max):
                                 if cfg["mode"] == "sha3":
-                                    keys_nparrays.append(np.frombuffer(project.textins[i],
+                                    keys_nparrays.append(np.frombuffer(project.project.textins[i],
                                                                        dtype=np.uint8))
                                 else:
-                                    keys_nparrays.append(np.frombuffer(project.keys[i],
+                                    keys_nparrays.append(np.frombuffer(project.project.keys[i],
                                                                        dtype=np.uint8))
 
                     # Select the correct slice of keys for each step.
@@ -486,9 +489,9 @@ def run_tvla(ctx: typer.Context):
                     # The plaintexts are only required for non-general AES TVLA.
                     plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
                     if OTTraceLib:
-                        plaintexts = project.get_plaintexts_int(trace_start, trace_end + 1)
+                        plaintexts = project.get_plaintexts(trace_start, trace_end + 1)
                     else:
-                        plaintexts[:] = project.textins[trace_start:trace_end + 1]
+                        plaintexts[:] = project.project.textins[trace_start:trace_end + 1]
                         plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
             # We don't need the project file anymore after this point. Close it together with all
@@ -699,39 +702,39 @@ def run_tvla(ctx: typer.Context):
         if not OTTraceLib:
             # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
             try:
-                pll_freq = float(project.config['ChipWhisperer']
+                pll_freq = float(metadata['ChipWhisperer']
                                  ['General Settings']['pll_frequency']) / 1e6
                 textbox = textbox + "PLL:\n" + str(pll_freq) + " MHz\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                pll_freq = float(project.config['ChipWhisperer']
+                pll_freq = float(metadata['ChipWhisperer']
                                  ['General Settings']['sample_rate']) / 1e6
                 textbox = textbox + "ADC:\n" + str(pll_freq) + " MS/s\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                textbox = textbox + "Masks off:\n" + project.config[
+                textbox = textbox + "Masks off:\n" + metadata[
                     'ChipWhisperer']['General Settings']['masks_off'] + "\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                textbox = textbox + "Samples:\n" + project.config['ChipWhisperer'][
+                textbox = textbox + "Samples:\n" + metadata['ChipWhisperer'][
                     'General Settings']['num_samples'] + "\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                textbox = textbox + "Offset:\n" + project.config['ChipWhisperer'][
+                textbox = textbox + "Offset:\n" + metadata['ChipWhisperer'][
                     'General Settings']['offset'] + "\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                textbox = textbox + "Scope gain:\n" + project.config[
+                textbox = textbox + "Scope gain:\n" + metadata[
                     'ChipWhisperer']['General Settings']['scope_gain'] + "\n\n"
             except KeyError:
                 textbox = textbox
             try:
-                textbox = textbox + "Traces:\n" + project.config['ChipWhisperer'][
+                textbox = textbox + "Traces:\n" + metadata['ChipWhisperer'][
                     'General Settings']['num_traces'] + "\n\n"
             except KeyError:
                 textbox = textbox

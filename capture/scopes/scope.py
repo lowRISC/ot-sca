@@ -79,7 +79,10 @@ class Scope:
         """
         self.scope.arm()
 
-    def capture_and_transfer_waves(self):
+    def capture_and_transfer_waves(self, target=None):
         """ Wait until capture is finished and return traces.
         """
-        return self.scope.capture_and_transfer_waves()
+        if self.scope_cfg.scope_type == "husky":
+            return self.scope.capture_and_transfer_waves(target)
+        else:
+            return self.scope.capture_and_transfer_waves()

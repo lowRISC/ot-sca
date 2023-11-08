@@ -23,48 +23,41 @@ jobs:
       git-lfs pull
     displayName: "Pull LFS binaries"
   - bash: |
+      set -e
       pushd ci
-      ./ci_capture_aes_fvsr.sh
+      mkdir -p projects
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310.yaml -p projects/aes_sca_fvsr_cw310
       popd
-    displayName: "Capture traces"
-  - publish: ./ci/ci_projects/opentitan_simple_aes_data/
-    artifact: traces
-    displayName: "Upload traces"
+    displayName: "Capture AES FVSR traces"
+  - publish: ./ci/projects/aes_sca_fvsr_cw310.html
+    artifact: traces_aes_fvsr
+    displayName: "Upload AES FVSR traces"
   - bash: |
       set -e
       pushd ci
-      ./ci_check_aes_traces.sh
-      ./ci_trace_check/ci_compare_aes_traces.py -f ./ci_projects/opentitan_simple_aes.cwp -g ./ci_trace_check/golden_traces/aes_128_ecb_static_cw310.zip -c 0.8
+      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
       popd
-    displayName: "Compare captured AES trace against golden trace"
+    displayName: "Perform TVLA on AES FVSR traces"
     continueOnError: True
-  - publish: ./ci/tmp/
-    artifact: plot_traces_aes
-    displayName: "Upload plot of captured AES traces."
-  - publish: ./ci/ci_projects/opentitan_simple_aes.zip
-    artifact: project_traces_aes
-    displayName: "Upload project of captured AES traces."
+  - publish: ./ci/tmp/figures
+    artifact: tvla_figure
+    displayName: "Upload figure of AES TVLA."  
   - bash: |
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_aes.py cfg/ci_simple_capture_aes_sca.yaml
-      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310.yaml -p projects/aes_sca_random_cw310
       popd
-    displayName: "Check AES TVLA"
-    continueOnError: True
-  - publish: ./ci/tmp/figures
-    artifact: tvla_figure
-    displayName: "Upload figure of AES TVLA."
+    displayName: "Capture AES Random Key traces"
+  - publish: ./ci/projects/aes_sca_random_cw310.html
+    artifact: traces_aes_random_key
+    displayName: "Upload AES Random Key traces"
   - bash: |
+      set -e
       pushd ci
-      ./ci_capture_all.sh
+      ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
       popd
-    displayName: "Check all traces"
-  - publish: ./ci/figures_tmp/
-    artifact: cw310_figures
-    displayName: "Upload figures of all traces"
-
+    displayName: "Compare AES Random Key traces against golden trace"
 - job: sca_capture_cw305
   displayName: "Capture SCA traces (CW305)"
   timeoutInMinutes: 30
@@ -85,6 +78,11 @@ jobs:
     displayName: "Pull LFS binaries"
   - bash: |
       set -e
-      cd cw
-      ./capture.py --cfg-file capture_aes_cw305.yaml capture aes-random-batch --num-traces 1000 --force-program-bitstream
-    displayName: "Capture traces"
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
+      popd
+    displayName: "Capture AES Random Key traces"
+  - publish: ./ci/projects/aes_sca_fvsr_cw305.html
+    artifact: traces_aes_random_cw305
+    displayName: "Upload AES Random Key traces"

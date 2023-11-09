@@ -264,6 +264,10 @@ def capture_aes_random(ot, ktp):
     key, _ = ktp.next()
     tqdm.write(f'Using key: {binascii.b2a_hex(bytes(key))}')
     cipher = AES.new(bytes(key), AES.MODE_ECB)
+    # Select the trigger type:
+    # 0 - precise, hardware-generated trigger - default
+    # 1 - fully software-controlled trigger
+    ot.target.simpleserial_write("t", bytearray([0x00]))
     while True:
         _, text = ktp.next()
         ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)

@@ -508,7 +508,7 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
     key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
                            0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
     tqdm.write(f'Fixed key: {binascii.b2a_hex(bytes(key_fixed))}')
-    ot.target.simpleserial_write("t", key_fixed)
+    ot.target.simpleserial_write("f", key_fixed)
 
     sample_fixed = 1
     is_first_batch = True
@@ -536,7 +536,7 @@ def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, gen_ciphertexts
             if is_first_batch:
                 ot.target.simpleserial_write("g", scope.num_segments_actual.to_bytes(4, "little"))
                 is_first_batch = False
-            ot.target.simpleserial_write("f", scope.num_segments_actual.to_bytes(4, "little"))
+            ot.target.simpleserial_write("e", scope.num_segments_actual.to_bytes(4, "little"))
 
             # Transfer traces.
             waves = scope.capture_and_transfer_waves()
@@ -731,7 +731,7 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # plaintext_fixed = bytearray([0xA5, 0xC3, 0x5A, 0x3C, 0x96, 0x0F, 0x69, 0xF0,
     #                              0xC3, 0xA5, 0x3C, 0x5A, 0x0F, 0x96, 0xF0, 0x69])
 
-    ot.target.simpleserial_write("t", plaintext_fixed)
+    ot.target.simpleserial_write("f", plaintext_fixed)
 
     plaintext = plaintext_fixed
     random.seed(capture_cfg["batch_prng_seed"])
@@ -968,7 +968,7 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
     key_fixed = bytearray([0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78,
                            0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9])
-    ot.target.simpleserial_write("t", key_fixed)
+    ot.target.simpleserial_write("f", key_fixed)
     key = key_fixed
     random.seed(capture_cfg["batch_prng_seed"])
     ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))

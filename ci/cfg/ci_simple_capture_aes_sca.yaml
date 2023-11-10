@@ -5,7 +5,7 @@ cwfpgahusky:
   baudrate: 115200
   output_len_bytes: 16
   pll_frequency: 100000000
-  target_clk_mult: 0.1
+  target_clk_mult: 0.24
   num_segments: 20
   num_cycles: 60
   offset_cycles: -2

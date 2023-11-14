@@ -2,7 +2,12 @@ device:
   fpga_bitstream: objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   force_program_bitstream: False
   fw_bin: objs/sha3_serial_fpga_cw310.bin
+  # The clock frequency of the target block is equal to
+  # pll_frequency * target_clk_mult. pll_frequency is controllable via
+  # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
+  # bitstream.
   pll_frequency: 100000000
+  target_clk_mult: 0.24
   baudrate: 115200
 capture:
   key_len_bytes: 16

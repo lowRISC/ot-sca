@@ -7,7 +7,7 @@ device:
   # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
   # bitstream.
   pll_frequency: 100000000
-  target_clk_mult: 0.1
+  target_clk_mult: 0.24
   baudrate: 115200
 capture:
   key_len_bytes: 16

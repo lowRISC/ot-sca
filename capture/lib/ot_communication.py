@@ -53,6 +53,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         self.target.simpleserial_write("a", num_segments)
+        self.target.simpleserial_wait_ack()
 
     def encrypt_fvsr_key_batch(self, num_segments):
         """ Start encryption for FVSR.

@@ -40,6 +40,14 @@ class OTAES:
         """
         self.target.simpleserial_write("s", seed)
 
+    def start_fvsr_batch_generate(self):
+        """Set SW PRNG to starting values for FvsR data
+        generation.
+        """
+        command = 1
+        self.target.simpleserial_write("d", command.to_bytes(4, "little"))
+        self.target.simpleserial_wait_ack()
+
     def write_fvsr_batch_generate(self, num_segments):
         """ Generate random plaintexts for FVSR.
         Args:

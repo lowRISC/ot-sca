@@ -25,6 +25,7 @@ from tqdm import tqdm
 
 sys.path.append("../")
 from target.cw_fpga import CWFPGA  # noqa: E402
+from util import data_generator as dg  # noqa: E402
 from util import plot  # noqa: E402
 
 logger = logging.getLogger()
@@ -152,8 +153,7 @@ def configure_cipher(cfg, target, capture_cfg) -> OTAES:
     return ot_aes
 
 
-def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
-                        plaintext_fixed, key_length):
+def generate_ref_crypto(sample_fixed, mode, key, plaintext):
     """ Generate cipher material for the encryption.
 
     This function derives the next key as well as the plaintext for the next
@@ -162,12 +162,8 @@ def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
     Args:
         sample_fixed: Use fixed key or new key.
         mode: The mode of the capture.
-        batch: Batch or non-batch mode.
         key: The current key.
-        key_fixed: The fixed key for FVSR.
         plaintext: The current plaintext.
-        plaintext_fixed: The fixed plaintext for FVSR.
-        key_length: Th length of the key.
 
     Returns:
         plaintext: The next plaintext.
@@ -175,51 +171,17 @@ def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
         ciphertext: The next ciphertext.
         sample_fixed: Is the next sample fixed or not?
     """
-    if mode == "aes_fsvr_key" and not batch:
+    if mode == "aes_fsvr_key":
         if sample_fixed:
-            # Expected ciphertext.
-            cipher = AES.new(bytes(key_fixed), AES.MODE_ECB)
-            ciphertext = bytearray(cipher.encrypt(bytes(plaintext_fixed)))
-            # Next key is random.
-            key = bytearray(key_length)
-            for i in range(0, key_length):
-                key[i] = random.randint(0, 255)
-            # Next plaintext is random.
-            plaintext = bytearray(16)
-            for i in range(0, 16):
-                plaintext[i] = random.randint(0, 255)
-            sample_fixed = 0
+            plaintext, ciphertext, key = dg.get_fixed()
         else:
-            cipher = AES.new(bytes(key), AES.MODE_ECB)
-            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
-            # Use fixed_key as the next key.
-            key = np.asarray(key_fixed)
-            # Use fixed_plaintext as the next plaintext.
-            plaintext = np.asarray(plaintext_fixed)
-            sample_fixed = 1
+            plaintext, ciphertext, key = dg.get_random()
+        # The next sample is either fixed or random.
+        sample_fixed = plaintext[0] & 0x1
     else:
         if mode == "aes_random":
             cipher = AES.new(bytes(key), AES.MODE_ECB)
             ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
-        else:
-            if sample_fixed:
-                # Use fixed_key as this key.
-                key = np.asarray(key_fixed)
-            else:
-                # Generate this key from the PRNG.
-                key = bytearray(key_length)
-                for i in range(0, key_length):
-                    key[i] = random.randint(0, 255)
-            # Always generate this plaintext from PRNG (including very first one).
-            plaintext = bytearray(16)
-            for i in range(0, 16):
-                plaintext[i] = random.randint(0, 255)
-            # Compute ciphertext for this key and plaintext.
-            # TODO: Instantiating the AES could be a bottleneck.
-            cipher = AES.new(bytes(key), AES.MODE_ECB)
-            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
-            # Determine if next iteration uses fixed_key.
-            sample_fixed = plaintext[0] & 0x1
 
     return plaintext, key, ciphertext, sample_fixed
 
@@ -269,13 +231,14 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
     key = key_fixed
     logger.info(f"Initializing OT AES with key {binascii.b2a_hex(bytes(key))} ...")
     if capture_cfg.capture_mode == "aes_fsvr_key":
-        ot_aes.fvsr_key_set(key)
+        dg.set_start()
     else:
         ot_aes.write_key(key)
 
     # Generate plaintexts and keys for first batch.
     if capture_cfg.batch_mode:
         if capture_cfg.capture_mode == "aes_fsvr_key":
+            ot_aes.start_fvsr_batch_generate()
             ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
         elif capture_cfg.capture_mode == "aes_random":
             ot_aes.write_init_text(text)
@@ -321,12 +284,8 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                 text, key, ciphertext, sample_fixed = generate_ref_crypto(
                     sample_fixed = sample_fixed,
                     mode = capture_cfg.capture_mode,
-                    batch = capture_cfg.batch_mode,
                     key = key,
-                    key_fixed = key_fixed,
-                    plaintext = text,
-                    plaintext_fixed = text_fixed,
-                    key_length = capture_cfg.key_len_bytes
+                    plaintext = text
                 )
                 # Sanity check retrieved data (wave).
                 assert len(waves[i, :]) >= 1

@@ -12,28 +12,23 @@ SAMPLING_RATE_MAX = 200e6
 
 
 class Husky:
-    def __init__(self, scope_gain, num_cycles, num_segments, offset_cycles,
-                 pll_frequency, target_clk_mult):
+    def __init__(self, scope_gain, num_samples, num_segments, offset_samples,
+                 sampling_rate, pll_frequency):
         self.scope = None
         self.scope_gain = scope_gain
         # In our setup, Husky operates on the PLL frequency of the target and
         # multiplies that by an integer number to obtain the sampling rate.
         # Note that the sampling rate must be at most 200 MHz.
         self.clkgen_freq = pll_frequency
-        self.adc_mul = int(SAMPLING_RATE_MAX // pll_frequency)
-        self.sampling_rate = self.clkgen_freq * self.adc_mul
+        self.sampling_rate = sampling_rate
+        if self.sampling_rate % self.clkgen_freq:
+            raise RuntimeError("sampling_rate % (target_frequency / target_clk_mult) != 0")
+        self.adc_mul = int(self.sampling_rate / self.clkgen_freq)
 
-        # The target runs on the PLL clock but uses internal clock dividers and
-        # multiplier to produce the clock of the target block.
-        self.target_freq = pll_frequency * target_clk_mult
-
-        # The scope is configured in terms of samples. For Husky, the number of
-        # samples must be divisble by 3 for batch captures.
-        sampling_target_ratio = self.sampling_rate / self.target_freq
-        self.offset_samples = int(offset_cycles * sampling_target_ratio)
-        self.num_samples = int(num_cycles * sampling_target_ratio)
-        if self.num_samples % 3:
-            self.num_samples = self.num_samples + 3 - (self.num_samples % 3)
+        self.offset_samples = offset_samples
+        # For Husky, the number of samples must be divisble by 3 for batch
+        # captures.
+        self.num_samples = num_samples
 
         self.num_segments = num_segments
         self.scope = None

@@ -3,12 +3,13 @@ target:
   fpga_bitstream: "../objs/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit"
   force_program_bitstream: True
   fw_bin: "../objs/aes_serial_fpga_cw305.bin"
-  pll_frequency: 100000000
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
+  target_clk_mult: 0.1
+  target_freq: 10000000
   baudrate: 115200
   output_len_bytes: 16
 husky:
-  pll_frequency: 100000000
-  target_clk_mult: 0.1
+  sampling_rate: 200000000
   num_segments: 1
   num_cycles: 60
   offset_cycles: -2

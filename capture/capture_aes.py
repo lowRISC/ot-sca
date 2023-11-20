@@ -19,7 +19,8 @@ import yaml
 from Crypto.Cipher import AES
 from lib.ot_communication import OTAES
 from project_library.project import ProjectConfig, SCAProject
-from scopes.scope import Scope, ScopeConfig
+from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
+from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
 from tqdm import tqdm
 
 sys.path.append("../")
@@ -66,6 +67,11 @@ def setup(cfg: dict, project: Path):
     Returns:
         The target, scope, and project.
     """
+    # Calculate pll_frequency of the target.
+    # target_freq = pll_frequency * target_clk_mult
+    # target_clk_mult is a hardcoded constant in the FPGA bitstream.
+    cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
+
     # Init target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
     target = CWFPGA(
@@ -79,16 +85,24 @@ def setup(cfg: dict, project: Path):
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
-    logger.info(f"Initializing scope {scope_type} ...")
+
+    # Determine sampling rate, if necessary.
+    cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+    # Convert number of cycles into number of samples, if necessary.
+    cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
+    # Convert offset in cycles into offset in samples, if necessary.
+    cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+
+    logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
+
+    # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
         acqu_channel = cfg[scope_type].get("channel"),
         ip = cfg[scope_type].get("waverunner_ip"),
-        num_cycles = cfg[scope_type].get("num_cycles"),
-        num_samples = cfg[scope_type].get("num_samples"),
-        offset_cycles = cfg[scope_type].get("offset_cycles"),
-        offset_samples = cfg[scope_type].get("sample_offset"),
-        target_clk_mult = cfg[scope_type].get("target_clk_mult"),
+        num_samples = cfg[scope_type]["num_samples"],
+        offset_samples = cfg[scope_type]["offset_samples"],
+        sampling_rate = cfg[scope_type].get("sampling_rate"),
         num_segments = cfg[scope_type]["num_segments"],
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),

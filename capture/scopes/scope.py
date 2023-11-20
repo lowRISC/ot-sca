@@ -18,15 +18,42 @@ class ScopeConfig:
     scope_type: str
     acqu_channel: Optional[str] = None
     ip: Optional[str] = None
-    num_cycles: Optional[int] = 0
     num_samples: Optional[int] = 0
-    offset_cycles: Optional[int] = 0
     offset_samples: Optional[int] = 0
-    target_clk_mult: Optional[int] = 0
     num_segments: Optional[int] = 1
     sparsing: Optional[int] = 1
     scope_gain: Optional[float] = 1
     pll_frequency: Optional[int] = 1
+    sampling_rate: Optional[int] = 0
+
+
+def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
+    """ Determine sampling rate.
+
+    If no sampling rate is provided, calculate for Husky or receive from
+    Waverunner.
+
+    Args:
+        dict: The scope configuration.
+        scope_type: The used scope (Husky or WaveRunner).
+
+    Returns:
+        Sampling rate
+    """
+    if not cfg[scope_type].get("sampling_rate"):
+        if scope_type == "husky":
+            # If no sampling rate is provided, calculte it. Max. sampling
+            # rate of Husky is 200e6. As adc_mul needs to be an integer,
+            # calculate the maximum possible sampling rate.
+            SAMPLING_RATE_MAX = 200e6
+            adc_mul = int(SAMPLING_RATE_MAX // cfg["target"]["pll_frequency"])
+            return (adc_mul * cfg["target"]["pll_frequency"])
+        else:
+            # TODO: Implement for Waverunner. Get sampling rate from scope and
+            # return.
+            return None
+    else:
+        return cfg[scope_type].get("sampling_rate")
 
 
 class Scope:
@@ -47,11 +74,11 @@ class Scope:
         """
         if self.scope_cfg.scope_type == "husky":
             scope = Husky(scope_gain = self.scope_cfg.scope_gain,
-                          num_cycles = self.scope_cfg.num_cycles,
+                          num_samples = self.scope_cfg.num_samples,
                           num_segments = self.scope_cfg.num_segments,
-                          offset_cycles = self.scope_cfg.offset_cycles,
-                          pll_frequency = self.scope_cfg.pll_frequency,
-                          target_clk_mult = self.scope_cfg.target_clk_mult
+                          offset_samples = self.scope_cfg.offset_samples,
+                          sampling_rate = self.scope_cfg.sampling_rate,
+                          pll_frequency = self.scope_cfg.pll_frequency
                           )
             scope.initialize_scope()
             scope.configure_batch_mode()

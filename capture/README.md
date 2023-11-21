@@ -12,7 +12,7 @@ When using OpenTitan on the CW310 and measuring traces using Husky, AES traces
 for a random key tests can be captured with the following command:
 ```console
 mkdir -p projects/
-./capture_aes.py --capture_config config/aes_sca_cw310.yaml --project projects/aes_sca_cw310_random
+./capture_aes.py --capture_config configs/aes_sca_cw310.yaml --project projects/aes_sca_cw310_random
 ```
 The traces are then stored in the database file in `projects/`.
 

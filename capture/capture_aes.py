@@ -387,9 +387,6 @@ def main(argv=None):
     with open(args.cfg) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-    # Setup the target, scope and project.
-    target, scope, project = setup(cfg, args.project)
-
     # Determine the capture mode and configure the current capture.
     mode = "aes_fsvr_key"
     batch = False
@@ -397,6 +394,15 @@ def main(argv=None):
         mode = "aes_random"
     if "batch" in cfg["test"]["which_test"]:
         batch = True
+    else:
+        # For non-batch mode, make sure that num_segments = 1.
+        cfg[cfg["capture"]["scope_select"]]["num_segments"] = 1
+        logger.info("num_segments needs to be 1 in non-batch mode. Setting num_segments=1.")
+
+    # Setup the target, scope and project.
+    target, scope, project = setup(cfg, args.project)
+
+    # Create capture config object.
     capture_cfg = CaptureConfig(capture_mode = mode,
                                 batch_mode = batch,
                                 num_traces = cfg["capture"]["num_traces"],

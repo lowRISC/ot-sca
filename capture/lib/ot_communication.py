@@ -93,3 +93,60 @@ class OTAES:
             The received ciphertext.
         """
         return self.target.simpleserial_read("r", len_bytes, ack=False)
+
+
+class OTKMAC:
+    def __init__(self, target) -> None:
+        self.target = target
+
+    def write_key(self, key):
+        """ Write the key to KMAC.
+        Args:
+            key: Bytearray containing the key.
+        """
+        self.target.simpleserial_write("k", key)
+
+    def fvsr_key_set(self, key):
+        """ Write the fixed key to KMAC.
+        Args:
+            key: Bytearray containing the key.
+        """
+        self.target.simpleserial_write("f", key)
+
+    def write_lfsr_seed(self, seed):
+        """ Seed the LFSR.
+        Args:
+            seed: The 4-byte seed.
+        """
+        self.target.simpleserial_write("l", seed)
+
+    def write_batch_prng_seed(self, seed):
+        """ Seed the PRNG.
+        Args:
+            seed: The 4-byte seed.
+        """
+        self.target.simpleserial_write("s", seed)
+
+    def absorb_batch(self, num_segments):
+        """ Start absorb for batch.
+        Args:
+            num_segments: Number of encryptions to perform.
+        """
+        self.target.simpleserial_write("b", num_segments)
+
+    def absorb(self, text):
+        """ Write plaintext to OpenTitan KMAC & start absorb.
+        Args:
+            text: The plaintext bytearray.
+        """
+        self.target.simpleserial_write("p", text)
+
+    def read_ciphertext(self, len_bytes):
+        """ Read ciphertext from OpenTitan KMAC.
+        Args:
+            len_bytes: Number of bytes to read.
+
+        Returns:
+            The received ciphertext.
+        """
+        return self.target.simpleserial_read("r", len_bytes, ack=False)

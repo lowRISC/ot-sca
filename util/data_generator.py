@@ -4,6 +4,7 @@
 
 import numpy as np
 from Crypto.Cipher import AES
+from Crypto.Hash import KMAC128
 
 
 class data_generator():
@@ -60,6 +61,27 @@ class data_generator():
         self.advance_random()
         return pt, ct, key
 
+    def get_kmac_fixed(self):
+        pt = np.asarray(self.text_fixed)
+        key = np.asarray(self.key_fixed)
+        mac_fixed = KMAC128.new(key=bytes(self.key_fixed), mac_len=32)
+        mac_fixed.update(bytes(self.text_fixed))
+        ct = np.asarray(bytearray(mac_fixed.digest()))
+        del (mac_fixed)
+        self.advance_fixed()
+        return pt, ct, key
+
+    def get_kmac_random(self):
+        pt = np.asarray(self.text_random)
+        key = np.asarray(self.key_random)
+        mac_random = KMAC128.new(key=bytes(self.key_random), mac_len=32)
+        mac_random.update(bytes(self.text_random))
+        ct = np.asarray(bytearray(mac_random.digest()))
+
+        del (mac_random)
+        self.advance_random()
+        return pt, ct, key
+
 
 # ----------------------------------------------------------------------
 # Create one instance, and export its methods as module-level functions.
@@ -69,3 +91,5 @@ _inst = data_generator()
 set_start = _inst.set_start
 get_fixed = _inst.get_fixed
 get_random = _inst.get_random
+get_kmac_fixed = _inst.get_kmac_fixed
+get_kmac_random = _inst.get_kmac_random

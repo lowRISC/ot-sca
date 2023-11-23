@@ -2,18 +2,21 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import sys
 import time
 
 import chipwhisperer as cw
 import numpy as np
 from scopes.chipwhisperer.cw_segmented import CwSegmented
 
-SAMPLING_RATE_MAX = 200e6
+sys.path.append("../../../")
+from util import check_version  # noqa: E402
 
 
 class Husky:
     def __init__(self, scope_gain, num_samples, num_segments, offset_samples,
                  sampling_rate, pll_frequency):
+        check_version.check_husky("1.5.0")
         self.scope = None
         self.scope_gain = scope_gain
         # In our setup, Husky operates on the PLL frequency of the target and

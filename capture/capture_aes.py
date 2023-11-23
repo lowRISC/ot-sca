@@ -25,8 +25,10 @@ from tqdm import tqdm
 
 sys.path.append("../")
 from target.cw_fpga import CWFPGA  # noqa: E402
+from util import check_version  # noqa: E402
 from util import data_generator as dg  # noqa: E402
 from util import plot  # noqa: E402
+
 
 logger = logging.getLogger()
 
@@ -341,6 +343,9 @@ def main(argv=None):
 
     # Parse the provided arguments.
     args = helpers.parse_arguments(argv)
+
+    # Check the ChipWhisperer version.
+    check_version.check_cw("5.7.0")
 
     # Load configuration from file.
     with open(args.cfg) as f:

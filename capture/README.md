@@ -16,6 +16,18 @@ mkdir -p projects/
 ```
 The traces are then stored in the database file in `projects/`.
 
+If the ChipWhisperer version check fails, please update the Python requirements:
+```console
+pip install -r python-requirements.txt
+```
+
+When the ChipWhisperer Husky firmware version check fails, update the firmware:
+```console
+./util/update_husky_fw.py
+```
+Make sure that you have the USB permissions. If the update fails, follow
+[this](../doc/getting_started.md#unreachable-husky-scope) guide.
+
 ## Capture Config
 
 The capture configs stored in `configs/` follow the following structure:

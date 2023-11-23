@@ -26,9 +26,8 @@ from tqdm import tqdm
 sys.path.append("../")
 from target.cw_fpga import CWFPGA  # noqa: E402
 from util import check_version  # noqa: E402
-from util import data_generator as dg  # noqa: E402
 from util import plot  # noqa: E402
-
+from util import data_generator as dg  # noqa: E402
 
 logger = logging.getLogger()
 

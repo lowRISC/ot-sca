@@ -273,6 +273,13 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
             else:
                 # Non batch mode.
                 if capture_cfg.capture_mode == "aes_fsvr_key":
+                    # Generate reference crypto material for aes_fvsr_key in non-batch mode
+                    text, key, ciphertext, sample_fixed = generate_ref_crypto(
+                        sample_fixed = sample_fixed,
+                        mode = capture_cfg.capture_mode,
+                        key = key,
+                        plaintext = text
+                    )
                     ot_aes.write_key(key)
                 ot_aes.encrypt(text)
 
@@ -280,14 +287,17 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
             waves = scope.capture_and_transfer_waves(cwtarget.target)
             assert waves.shape[0] == capture_cfg.num_segments
 
-            # Generate reference crypto material and store trace.
+            # Generate reference crypto material for all modes other than aes_fvsr_key
+            # non-batch mode.
+            # Store traces
             for i in range(capture_cfg.num_segments):
-                text, key, ciphertext, sample_fixed = generate_ref_crypto(
-                    sample_fixed = sample_fixed,
-                    mode = capture_cfg.capture_mode,
-                    key = key,
-                    plaintext = text
-                )
+                if capture_cfg.batch_mode or capture_cfg.capture_mode == "aes_random":
+                    text, key, ciphertext, sample_fixed = generate_ref_crypto(
+                        sample_fixed = sample_fixed,
+                        mode = capture_cfg.capture_mode,
+                        key = key,
+                        plaintext = text
+                    )
                 # Sanity check retrieved data (wave).
                 assert len(waves[i, :]) >= 1
                 # Store trace into database.

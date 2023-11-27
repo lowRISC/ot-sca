@@ -229,7 +229,7 @@ $ util/docker/run_container.sh -h
 Run OpenTitan SCA/FI image.
 
 Usage: util/docker/run_container.sh -d DEVICE [-d DEVICE] -m SHM_SIZE -w HOST_WORK_DIR [-h]
- 
+
   -d: Host device to be added to the container. This option can be used multiple times.
   -m: Shared memory size (/dev/shm) of the container. Should be at least 1/3 of total memory.
   -w: Host directory that will be mounted into the container as /repo
@@ -310,14 +310,15 @@ build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlg
 ```
    and will be loaded to the FPGA using the ChipWhisperer Python API.
 
-1. To generate the OpenTitan application binary, e.g., for recording AES power
-   traces on the CW310, run
+1. To generate the OpenTitan application binary, e.g., for recording AES power traces on the CW310, run
 ```console
 $ cd $REPO_TOP
-$ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_cw310_bin
+$ ./bazelisk.sh build //sw/device/sca:aes_serial
 ```
-The path to the generated binary will be printed to the terminal after running 
-the command.
+The path to the generated binary is:
+```
+$REPO_TOP/bazel-bin/sw/device/sca/
+```
 
 #### English Breakfast for CW305
 
@@ -359,7 +360,7 @@ build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_syste
 $ cd $REPO_TOP
 $ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_nexysvideo_bin --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
 ```
-The path to the generated binary will be printed to the terminal after running 
+The path to the generated binary will be printed to the terminal after running
 the command.
 
 If you need to generate binaries for CW310 after you generate binaries for
@@ -373,10 +374,10 @@ and clean the auto-generated files with a checkout.
 
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```
-cw/capture_aes_cw310.yaml
-cw/capture_kmac_cw310.yaml
+capture/configs/aes_sca_cw310.yaml
+capture/configs/aes_sca_cw305.yaml
 ```
-for AES and KMAC-128, respectively.
+for AES.
 
 For example, these files allow to specify the FPGA bitstream to be loaded, the
 OpenTitan application binary to execute, the default number of traces to
@@ -390,96 +391,77 @@ the specified file paths.
   Otherwise you might risk to end up with an incompatible combination of
   bitstream and application binary.
 * The default configurations target the CW310 board. When using
-  the CW305 FPGA board, the config file `cw/capture_aes_cw305.yaml`
+  the CW305 FPGA board, the config file `capture/configs/aes_sca_cw305.yaml`
   must be used to select a different bitstream and application binary, and
   adjust the ADC gain.
 
 
 ## Capturing Power Traces
 
-`capture.py`: Supports capturing AES and KMAC-128 power traces using a
-CW-Husky capture board. When using a CW-Husky board, the script 
-also supports capturing AES power traces in batches to achieve substantially 
-higher capture rates (ca. 1300 traces/s).
+Our setup supports capturing AES, KMAC, SHA3 and OTBN power traces using a CW-Husky capture board.
+The setup also supports capturing power traces in batches to achieve substantially higher capture rates.
 
-Before starting a long running capture, it is recommended to always perform
-a capture with fewer traces to make sure the setup is configured as expected
-(e.g. ADC gain).
+Before starting a long running capture, it is recommended to always perform a capture with fewer traces to make sure the setup is configured as expected (e.g. ADC gain).
 
 ### AES Capture
 
-To perform a capture `cw/capture.py` is used with default configurations
-set in the `*.yaml` files. When using this script configuration file and capture 
-mode need to be given as parameters. Also number of traces to be captured,
-number of traces to be plotted and scope type may be given as optional 
-parameters.
+To perform a capture `capture/capture_aes.py` is used with default configurations set in the `*.yaml` files.
+When using this script configuration file and project path need to be given as parameters.
 
-There are 5 capture modes for AES:
+There are 4 capture modes for AES:
 1. AES Random
 1. AES Random Batch
 1. AES Fixed vs Random Key
 1. AES Fixed vs Random Key Batch
-1. AES Mix Column
 
-To perform a non-batched random AES capture, you can use the following command:
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random --num-traces 5000 --plot-traces 10
+Modes `aes_fvsr_key_batch` and `aes_fvsr_key` capture data for fixed-vs-random key analysis.
+This analysis is described in DTR TVLA Section 5.3. "General Test: Fixed-vs.-Random Key Datasets".
+In this data set two types of traces are collected, namely fixed (using a constant key) and random (using a randomly selected key).
+Each measurement uses a randomly generated plaintext.
+Measurements alternate between fixed and random, in a random manner (depending on a randomly generated bit).
+
+Modes `aes_random_batch` and `aes_random` capture data for random data analysis.
+In this analysis, the key is constant for all measurements, and all plaintexts are randomly generated.
+
+The capture type can be configured by setting the `which test:` parameter in the configuration file.
+This can be done by uncommenting the corresponding line.
 ```
-This script will load the OpenTitan FPGA bitstream to the target board, load
-and start the application binary to the target via SPI, and then feed data in
-and out of the target while capturing power traces on the capture board. It 
-will send AES requests with a fixed key and random texts. It should produce 
-console output similar to the following output:
+  # which_test: aes_random_batch
+  # which_test: aes_random
+  which_test: aes_fsvr_key_batch
+  # which_test: aes_fsvr_key
+```
+
+To perform AES capture using any mode, you can use the following command:
+```console
+$ cd capture
+$ ./capture_aes.py -c config/aes_sca_cw310.yaml -p projects/aes_sca_cw310
+```
+
+This script will load the OpenTitan FPGA bitstream to the target board, load and start the application binary to the target via SPI, and then feed data in and out of the target while capturing power traces on the capture board.
+It should produce console output similar to the following output:
 
 ```console
+Initializing target cw310 ...
 Connecting and loading FPGA... Done!
 Initializing PLL1
-Programming OpenTitan with "objs/aes_serial_fpga_cw310.bin"...
-Transferring frame 0x00000000 @             0x00000000.
-Transferring frame 0x00000001 @             0x000007D8.
-Transferring frame 0x00000002 @             0x00000FB0.
-Transferring frame 0x00000003 @             0x00001788.
-Transferring frame 0x00000004 @             0x00001F60.
-Transferring frame 0x00000005 @             0x00002738.
-Transferring frame 0x80000006 @             0x00002F10.
-Scope setup with sampling rate 100004608.0 S/s
-Reading from FPGA using simpleserial protocol.
-Target simpleserial version: z01 (attempts: 2).
-Using key: b'2b7e151628aed2a6abf7158809cf4f3c'                                  
-Capturing: 100%|████████████████████████████| 5000/5000 [01:35<00:00, 52.15it/s]
-Created plot with 5000 traces: ~/ot-sca/cw/projects/sample_traces_aes.html
-```
-
-Following command may be used to capture random AES traces in batch mode: 
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-random-batch --num-traces 5000 --plot-traces 10
-```
-
-By default, this will capture 5000 traces which should be sufficient to make
-sure the setup is configured and working as expected before starting a long
-running capture. The plot should look very similar to the one of the
-non-batched AES capture.
-
-Following command may be used to capture traces for DTR TVLA Section 5.3: 
-"General Test: Fixed-vs.-Random Key Datasets":
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key --num-traces 5000 --plot-traces 10
-```
-
-Following command may be used to capture traces in batch mode for DTR TVLA 
-Section 5.3: "General Test: Fixed-vs.-Random Key Datasets":
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-fvsr-key-batch --num-traces 5000 --plot-traces 10
-```
-
-Following command may be used to capture AES traces for Mix Column HD CPA Attack: 
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_aes_cw310.yaml capture aes-mix-column --num-traces=6000 --plot-traces=10
+Programming 256 bytes at address 0x00000000.
+Programming 256 bytes at address 0x00000100.
+Programming 256 bytes at address 0x00000200.
+...
+Programming 112 bytes at address 0x00009000.
+Target simpleserial version: z01 (attempts: 1).
+INFO:root:Initializing scope husky with a sampling rate of 200000000...
+Initializing scope husky with a sampling rate of 200000000...
+(ChipWhisperer Scope WARNING|File ChipWhispererHuskyClock.py:378) ADC frequency must be between 1MHz and 300000000.0MHz - ADC mul has been adjusted to 2
+(ChipWhisperer Scope WARNING|File ChipWhispererHuskyClock.py:409) PLL unlocked after updating frequencies
+(ChipWhisperer Scope WARNING|File ChipWhispererHuskyClock.py:410) Target clock has dropped for a moment. You may need to reset your target
+Connected to ChipWhisperer (num_samples: 501, num_samples_actual: 501, num_segments_actual: 1)
+INFO:root:Setting up capture aes_random batch=True...
+Setting up capture aes_random batch=True...
+INFO:root:Initializing OT AES with key b'811e3731b0120a7842781e22b25cddf9' ...
+Initializing OT AES with key b'811e3731b0120a7842781e22b25cddf9' ...
+Capturing: 100%|██████████████████████| 1000/1000 [00:01<00:00, 807.02 traces/s]
 ```
 
 In case you see console output like
@@ -488,21 +470,18 @@ WARNING:root:Your firmware is outdated - latest is 0.20. Suggested to update fir
 See https://chipwhisperer.readthedocs.io/en/latest/api.html#firmware-update
 ```
 you should update the firmware of one or both of the ChipWhisperer boards.
-This process is straightforward and well documented online. Simply follow
-the link printed on the console.
+This process is straightforward and well documented online.
+Simply follow the link printed on the console.
 
-Once the power traces have been collected, a picture similar to the following
-should be shown in your browser.
+Once the power traces have been collected, a picture similar to the following should be shown in your browser.
 
-![](img/sample_traces_aes.png)
+![](img/aes_traces.jpg)
 
-Note the input data can range from `-0.5` to `+0.5` (this is just an arbitrary
-mapping in the current software). If our output value is exceeding those limits
-you are clipping and losing data. But if the range is too small you are not
-using the full dynamic range of the ADC. You can tune the `scope_gain` setting
-in the `.yaml` configuration file. Note that boards have some natural
-variation, and changes such as the clock frequency, core voltage, and device
-utilization (FPGA build) will all affect the safe maximum gain setting.
+Note the input data can range from `0` to `4095` (this is because ADC resolution on CW-Husky is 12 bits).
+If the output value is exceeding those limits you are clipping and losing data.
+But if the range is too small you are not using the full dynamic range of the ADC.
+You can tune the `scope_gain` setting in the `.yaml` configuration file.
+Note that boards have some natural variation, and changes such as the clock frequency, core voltage, and device utilization (FPGA build) will all affect the safe maximum gain setting.
 
 ### KMAC-128 Capture
 

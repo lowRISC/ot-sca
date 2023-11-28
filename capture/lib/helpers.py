@@ -32,7 +32,8 @@ def ap_check_dir_exists(path: str) -> Path:
     """
     path = Path(path)
     if not path.parent.exists():
-        raise argparse.ArgumentTypeError(f"Path {path.parent} does not exist")
+        print(f"Path {path.parent} does not exist, creating directory...")
+        path.parent.mkdir(parents=True, exist_ok=True)
     return path
 
 

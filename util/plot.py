@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import itertools
+from pathlib import Path
 
 import numpy as np
 from bokeh.io import output_file
@@ -53,5 +54,5 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=
                   line_width=2, legend_label='std')
         plot.line(xrange, mean, line_color='black', line_width=2, legend_label='mean')
 
-    output_file(outfile)
+    output_file(Path(str(outfile) + ".html"))
     show(plot)

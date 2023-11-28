@@ -83,6 +83,6 @@ jobs:
       ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
       popd
     displayName: "Capture AES Random Key traces"
-  - publish: ./ci/projects/aes_sca_fvsr_cw305.html
+  - publish: ./ci/projects/aes_sca_random_cw305.html
     artifact: traces_aes_random_cw305
     displayName: "Upload AES Random Key traces"

@@ -3,12 +3,12 @@ target:
   fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   force_program_bitstream: False
   fw_bin: ../objs/kmac_serial_fpga_cw310.bin
-  pll_frequency: 100000000
+  target_clk_mult: 0.24
+  target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 32
 husky:
-  pll_frequency: 100000000
-  target_clk_mult: 0.24
+  sampling_rate: 200000000
   num_segments: 20
   # Number of target clock cycles per trace - KMAC is doing 24 or 96 cycles
   # for the key absorb w/o or w/ DOM, respectively, as well as 23 cycles for
@@ -17,7 +17,6 @@ husky:
   #num_cycles: 80
   # w/ DOM
   num_cycles: 160
-  num_samples: 10 #fixme
   # Offset in target clock cycles - During the first activity block, KMAC
   # just absorbs the fixed prefix (23 cycles XORing + 24 or 96 cycles
   # absorbing w/o or w/ DOM, respectively). This first activity block can be
@@ -26,7 +25,6 @@ husky:
   #offset_cyles: 43
   # w/ DOM
   offset_cycles: 115
-  offset_samples: 1 #fixme
   scope_gain: 26
 capture:
   scope_select: husky

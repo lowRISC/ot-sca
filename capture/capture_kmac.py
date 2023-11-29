@@ -23,7 +23,8 @@ import yaml
 from Crypto.Hash import KMAC128
 from lib.ot_communication import OTKMAC
 from project_library.project import ProjectConfig, SCAProject
-from scopes.scope import Scope, ScopeConfig
+from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
+from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
 from tqdm import tqdm
 
 sys.path.append("../")
@@ -72,6 +73,11 @@ def setup(cfg: dict, project: Path):
     Returns:
         The target, scope, and project.
     """
+    # Calculate pll_frequency of the target.
+    # target_freq = pll_frequency * target_clk_mult
+    # target_clk_mult is a hardcoded constant in the FPGA bitstream.
+    cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
+
     # Init target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
     target = CWFPGA(
@@ -85,13 +91,24 @@ def setup(cfg: dict, project: Path):
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
-    logger.info(f"Initializing scope {scope_type} ...")
+
+    # Determine sampling rate, if necessary.
+    cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+    # Convert number of cycles into number of samples, if necessary.
+    cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
+    # Convert offset in cycles into offset in samples, if necessary.
+    cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+
+    logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
+
+    # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
         acqu_channel = cfg[scope_type].get("channel"),
         ip = cfg[scope_type].get("waverunner_ip"),
-        num_samples = cfg[scope_type].get("num_samples"),
-        offset_samples = cfg[scope_type].get("offset_samples"),
+        num_samples = cfg[scope_type]["num_samples"],
+        offset_samples = cfg[scope_type]["offset_samples"],
+        sampling_rate = cfg[scope_type].get("sampling_rate"),
         num_segments = cfg[scope_type]["num_segments"],
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),
@@ -230,7 +247,6 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
 
     Supports four different capture types:
     * kmac_random: Fixed key, random plaintext.
-    * kmac_random_batch: Fixed key, random plaintext in batch mode.
     * kmac_fvsr: Fixed vs. random key.
     * kmac_fvsr_batch: Fixed vs. random key batch.
 
@@ -270,6 +286,7 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
         while remaining_num_traces > 0:
             # Arm the scope.
             scope.arm()
+
             # Trigger encryption.
             if capture_cfg.batch_mode:
                 # Batch mode. Is always kmac_fvsr_key
@@ -340,7 +357,7 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
             pbar.update(capture_cfg.num_segments)
 
 
-def print_plot(project: SCAProject, config: dict) -> None:
+def print_plot(project: SCAProject, config: dict, file: Path) -> None:
     """ Print plot of traces.
 
     Printing the plot helps to adjust the scope gain and check for clipping.
@@ -348,15 +365,16 @@ def print_plot(project: SCAProject, config: dict) -> None:
     Args:
         project: The project containing the traces.
         config: The capture configuration.
+        file: The output file path.
     """
     if config["capture"]["show_plot"]:
         plot.save_plot_to_file(project.get_waves(0, config["capture"]["plot_traces"]),
                                set_indices = None,
                                num_traces = config["capture"]["plot_traces"],
-                               outfile = config["capture"]["trace_image_filename"],
+                               outfile = file,
                                add_mean_stddev=True)
         print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-              f'{Path(config["capture"]["trace_image_filename"]).resolve()}')
+              f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -409,7 +427,7 @@ def main(argv=None):
     capture(scope, ot_kmac, capture_cfg, project, target)
 
     # Print plot.
-    print_plot(project, cfg)
+    print_plot(project, cfg, args.project)
 
     # Save metadata.
     metadata = {}

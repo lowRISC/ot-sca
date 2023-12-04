@@ -12,12 +12,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 import lib.helpers as helpers
 import numpy as np
 import yaml
 from Crypto.Cipher import AES
-from lib.ot_communication import OTAES
+from lib.ot_communication import OTAES, OTPRNG, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
@@ -57,6 +58,8 @@ class CaptureConfig:
     key_fixed: bytearray
     key_len_bytes: int
     text_len_bytes: int
+    protocol: str
+    port: Optional[str] = "None"
 
 
 def setup(cfg: dict, project: Path):
@@ -83,6 +86,7 @@ def setup(cfg: dict, project: Path):
         pll_frequency = cfg["target"]["pll_frequency"],
         baudrate = cfg["target"]["baudrate"],
         output_len = cfg["target"]["output_len_bytes"],
+        protocol = cfg["target"]["protocol"]
     )
 
     # Init scope.
@@ -138,8 +142,16 @@ def configure_cipher(cfg, target, capture_cfg) -> OTAES:
     Returns:
         The communication interface to the AES cipher.
     """
+    # Establish UART for uJSON command interface. Returns None for simpleserial.
+    ot_uart = OTUART(protocol=capture_cfg.protocol, port=capture_cfg.port)
+
     # Create communication interface to OT AES.
-    ot_aes = OTAES(target.target)
+    ot_aes = OTAES(target=target.target, protocol=capture_cfg.protocol,
+                   port=ot_uart.uart)
+
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
 
     # If batch mode, configure PRNGs.
     if capture_cfg.batch_mode:
@@ -148,8 +160,8 @@ def configure_cipher(cfg, target, capture_cfg) -> OTAES:
 
         # Seed the target's PRNGs for initial key masking, and additionally
         # turn off masking when '0'.
-        ot_aes.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
-        ot_aes.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+        ot_prng.seed_prng(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+        ot_aes.seed_lfsr(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     return ot_aes
 
@@ -225,16 +237,16 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
         cwtarget: The CW FPGA target.
     """
     # Initial plaintext.
-    text_fixed = bytearray(capture_cfg.text_fixed)
+    text_fixed = capture_cfg.text_fixed
     text = text_fixed
     # Load fixed key.
-    key_fixed = bytearray(capture_cfg.key_fixed)
+    key_fixed = capture_cfg.key_fixed
     key = key_fixed
     logger.info(f"Initializing OT AES with key {binascii.b2a_hex(bytes(key))} ...")
     if capture_cfg.capture_mode == "aes_fvsr_key":
         dg.set_start()
     else:
-        ot_aes.write_key(key)
+        ot_aes.key_set(key)
 
     # Generate plaintexts and keys for first batch.
     if capture_cfg.batch_mode:
@@ -242,7 +254,7 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
             ot_aes.start_fvsr_batch_generate()
             ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
         elif capture_cfg.capture_mode == "aes_random":
-            ot_aes.write_init_text(text)
+            ot_aes.batch_plaintext_set(text)
 
     # FVSR setup.
     sample_fixed = 1
@@ -264,11 +276,11 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                 # Batch mode.
                 if capture_cfg.capture_mode == "aes_random":
                     # Fixed key, random plaintexts.
-                    ot_aes.encrypt_batch(
+                    ot_aes.batch_alternative_encrypt(
                         capture_cfg.num_segments.to_bytes(4, "little"))
                 else:
                     # Fixed vs random key test.
-                    ot_aes.encrypt_fvsr_key_batch(
+                    ot_aes.fvsr_key_batch_encrypt(
                         capture_cfg.num_segments.to_bytes(4, "little"))
             else:
                 # Non batch mode.
@@ -280,8 +292,8 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                         key = key,
                         plaintext = text
                     )
-                    ot_aes.write_key(key)
-                ot_aes.encrypt(text)
+                    ot_aes.key_set(key)
+                ot_aes.single_encrypt(text)
 
             # Capture traces.
             waves = scope.capture_and_transfer_waves(cwtarget.target)
@@ -302,14 +314,14 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                 assert len(waves[i, :]) >= 1
                 # Store trace into database.
                 project.append_trace(wave = waves[i, :],
-                                     plaintext = text,
-                                     ciphertext = ciphertext,
-                                     key = key)
+                                     plaintext = bytearray(text),
+                                     ciphertext = bytearray(ciphertext),
+                                     key = bytearray(key))
 
                 if capture_cfg.capture_mode == "aes_random":
                     # Use ciphertext as next text, first text is the initial
-                    # one.
-                    text = ciphertext
+                    # one. Convert byte list into int list.
+                    text = [x for x in ciphertext]
 
             # Compare received ciphertext with generated.
             compare_len = capture_cfg.output_len
@@ -385,7 +397,9 @@ def main(argv=None):
                                 text_fixed = cfg["test"]["text_fixed"],
                                 key_fixed = cfg["test"]["key_fixed"],
                                 key_len_bytes = cfg["test"]["key_len_bytes"],
-                                text_len_bytes = cfg["test"]["text_len_bytes"])
+                                text_len_bytes = cfg["test"]["text_len_bytes"],
+                                protocol = cfg["target"]["protocol"],
+                                port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
     # Configure cipher.

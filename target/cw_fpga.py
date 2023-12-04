@@ -50,7 +50,7 @@ class CWFPGA(object):
     """
 
     def __init__(self, bitstream, force_programming, firmware, pll_frequency,
-                 baudrate, output_len):
+                 baudrate, output_len, protocol):
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -64,6 +64,9 @@ class CWFPGA(object):
         else:
             raise ValueError(
                 'Could not infer target board type from bistream name')
+        self.prot_simple_serial = True
+        if protocol == "ujson":
+            self.prot_simple_serial = False
         # Initialize ChipWhisperer scope. This is needed to program the binary.
         # Note that the actual scope config for capturing traces is later
         # initialized.
@@ -74,8 +77,9 @@ class CWFPGA(object):
 
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
-
-        self._test_read_version_from_target()
+        # TODO: add version check also for uJson binary.
+        if self.prot_simple_serial:
+            self._test_read_version_from_target()
 
     def initialize_fpga(self, fpga, bitstream, force_programming,
                         pll_frequency):

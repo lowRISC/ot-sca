@@ -3,86 +3,223 @@
 # SPDX-License-Identifier: Apache-2.0
 """Communication interface for different OpenTitan ciphers.
 
-Currently, communication with each cipher happens over simpleserial. This file
-provides communication interface classes for each of these ciphers.
+Communication with OpenTitan either happens over simpleserial or the uJson
+command interface.
 """
+import json
+import time
+from typing import Optional
+
+import serial
+
+
+class OTUART:
+    def __init__(self, protocol: str, port: Optional[str] = "None",
+                 baudrate: Optional[int] = 115200) -> None:
+        self.uart = None
+        if protocol == "ujson":
+            if not port:
+                raise RuntimeError("Error: No uJson port provided!")
+            else:
+                self.uart = serial.Serial(port)
+                self.uart.baudrate = baudrate
 
 
 class OTAES:
-    def __init__(self, target) -> None:
+    def __init__(self, target, protocol: str,
+                 port: Optional[OTUART] = None) -> None:
         self.target = target
+        self.simple_serial = True
+        self.port = port
+        if protocol == "ujson":
+            self.simple_serial = False
+            # Init the AES core.
+            self.port.write(json.dumps("AesSca").encode("ascii"))
+            self.port.write(json.dumps("Init").encode("ascii"))
 
-    def write_key(self, key):
+    def _ujson_aes_sca_cmd(self):
+        # TODO: without the delay, the device uJSON command handler program
+        # does not recognize the commands.
+        time.sleep(0.01)
+        self.port.write(json.dumps("AesSca").encode("ascii"))
+
+    def key_set(self, key: list[int], key_length: Optional[int] = 16):
         """ Write key to AES.
         Args:
             key: Bytearray containing the key.
         """
-        self.target.simpleserial_write("k", key)
+        if self.simple_serial:
+            self.target.simpleserial_write("k", bytearray(key))
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # KeySet command.
+            self.port.write(json.dumps("KeySet").encode("ascii"))
+            # Key payload.
+            time.sleep(0.01)
+            key_data = {"key": key, "key_length": key_length}
+            self.port.write(json.dumps(key_data).encode("ascii"))
 
-    def fvsr_key_set(self, key):
+    def fvsr_key_set(self, key, key_length: Optional[int] = 16):
         """ Write key to AES.
         Args:
             key: Bytearray containing the key.
         """
-        self.target.simpleserial_write("f", key)
+        if self.simple_serial:
+            self.target.simpleserial_write("f", bytearray(key))
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # FvsrKeySet command.
+            self.port.write(json.dumps("FvsrKeySet").encode("ascii"))
+            # Key payload.
+            time.sleep(0.01)
+            key_data = {"key": key, "key_length": key_length}
+            self.port.write(json.dumps(key_data).encode("ascii"))
 
-    def write_lfsr_seed(self, seed):
+    def seed_lfsr(self, seed):
         """ Seed the LFSR.
         Args:
             seed: The 4-byte seed.
         """
-        self.target.simpleserial_write("l", seed)
-
-    def write_batch_prng_seed(self, seed):
-        """ Seed the PRNG.
-        Args:
-            seed: The 4-byte seed.
-        """
-        self.target.simpleserial_write("s", seed)
+        if self.simple_serial:
+            self.target.simpleserial_write("l", seed)
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # SeedLfsr command.
+            self.port.write(json.dumps("SeedLfsr").encode("ascii"))
+            # Seed payload.
+            time.sleep(0.01)
+            seed_data = {"seed": [x for x in seed]}
+            self.port.write(json.dumps(seed_data).encode("ascii"))
 
     def start_fvsr_batch_generate(self):
         """Set SW PRNG to starting values for FvsR data
         generation.
         """
         command = 1
-        self.target.simpleserial_write("d", command.to_bytes(4, "little"))
-        self.target.simpleserial_wait_ack()
+        if self.simple_serial:
+            self.target.simpleserial_write("d", command.to_bytes(4, "little"))
+            self.target.simpleserial_wait_ack()
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # FvsrKeyStartBatchGenerate command.
+            self.port.write(json.dumps("FvsrKeyStartBatchGenerate").encode("ascii"))
+            # Command.
+            time.sleep(0.01)
+            cmd = {"data": [command]}
+            self.port.write(json.dumps(cmd).encode("ascii"))
 
     def write_fvsr_batch_generate(self, num_segments):
         """ Generate random plaintexts for FVSR.
         Args:
             num_segments: Number of encryptions to perform.
         """
-        self.target.simpleserial_write("g", num_segments)
+        if self.simple_serial:
+            self.target.simpleserial_write("g", num_segments)
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # FvsrKeyBatchGenerate command.
+            self.port.write(json.dumps("FvsrKeyBatchGenerate").encode("ascii"))
+            # Number of encryptions.
+            time.sleep(0.01)
+            num_encryption_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_encryption_data).encode("ascii"))
 
-    def encrypt_batch(self, num_segments):
+    def batch_alternative_encrypt(self, num_segments):
+        """ Start encryption for batch (alternative).
+        Args:
+            num_segments: Number of encryptions to perform.
+        """
+        if self.simple_serial:
+            self.target.simpleserial_write("a", num_segments)
+            self.target.simpleserial_wait_ack()
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # BatchEncrypt command.
+            self.port.write(json.dumps("BatchAlternativeEncrypt").encode("ascii"))
+            # Number of encryptions.
+            time.sleep(0.01)
+            num_encryption_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_encryption_data).encode("ascii"))
+
+    def batch_encrypt(self, num_segments):
         """ Start encryption for batch.
         Args:
             num_segments: Number of encryptions to perform.
         """
-        self.target.simpleserial_write("a", num_segments)
-        self.target.simpleserial_wait_ack()
+        if self.simple_serial:
+            self.target.simpleserial_write("a", num_segments)
+            self.target.simpleserial_wait_ack()
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # BatchEncrypt command.
+            self.port.write(json.dumps("BatchEncrypt").encode("ascii"))
+            # Number of encryptions.
+            time.sleep(0.01)
+            num_encryption_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_encryption_data).encode("ascii"))
 
-    def encrypt_fvsr_key_batch(self, num_segments):
-        """ Start encryption for FVSR.
+    def fvsr_key_batch_encrypt(self, num_segments):
+        """ Start batch encryption for FVSR.
         Args:
             num_segments: Number of encryptions to perform.
         """
-        self.target.simpleserial_write("e", num_segments)
+        if self.simple_serial:
+            self.target.simpleserial_write("e", num_segments)
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # FvsrKeyBatchEncrypt command.
+            self.port.write(json.dumps("FvsrKeyBatchEncrypt").encode("ascii"))
+            # Number of encryptions.
+            time.sleep(0.01)
+            num_encryption_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_encryption_data).encode("ascii"))
 
-    def write_init_text(self, text):
+    def batch_plaintext_set(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan AES.
+
+        This command is designed to set the initial plaintext for
+        batch_alternative_encrypt.
+
         Args:
             text: The plaintext bytearray.
         """
-        self.target.simpleserial_write("i", text)
+        if self.simple_serial:
+            self.target.simpleserial_write("i", bytearray(text))
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # BatchPlaintextSet command.
+            self.port.write(json.dumps("BatchPlaintextSet").encode("ascii"))
+            # Text payload.
+            time.sleep(0.01)
+            text_int = [x for x in text]
+            text_data = {"text": text_int, "text_length": text_length}
+            self.port.write(json.dumps(text_data).encode("ascii"))
 
-    def encrypt(self, text):
+    def single_encrypt(self, text: list[int], text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan AES & start encryption.
         Args:
             text: The plaintext bytearray.
         """
-        self.target.simpleserial_write("p", text)
+        if self.simple_serial:
+            self.target.simpleserial_write("p", bytearray(text))
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # SingleEncrypt command.
+            self.port.write(json.dumps("SingleEncrypt").encode("ascii"))
+            # Text payload.
+            time.sleep(0.01)
+            text_data = {"text": text, "text_length": text_length}
+            self.port.write(json.dumps(text_data).encode("ascii"))
 
     def read_ciphertext(self, len_bytes):
         """ Read ciphertext from OpenTitan AES.
@@ -92,7 +229,50 @@ class OTAES:
         Returns:
             The received ciphertext.
         """
-        return self.target.simpleserial_read("r", len_bytes, ack=False)
+        if self.simple_serial:
+            return self.target.simpleserial_read("r", len_bytes, ack=False)
+        else:
+            while True:
+                read_line = str(self.port.readline())
+                if "RESP_OK" in read_line:
+                    json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                    try:
+                        ciphertext = json.loads(json_string)["ciphertext"]
+                        return bytearray(ciphertext[0:len_bytes])
+                    except Exception:
+                        pass  # noqa: E302
+
+
+class OTPRNG:
+    def __init__(self, target, protocol: str,
+                 port: Optional[OTUART] = None) -> None:
+        self.target = target
+        self.simple_serial = True
+        self.port = port
+        if protocol == "ujson":
+            self.simple_serial = False
+
+    def _ujson_prng_sca_cmd(self):
+        time.sleep(0.01)
+        self.port.write(json.dumps("PrngSca").encode("ascii"))
+
+    def seed_prng(self, seed, seed_length: Optional[int] = 4):
+        """ Seed the PRNG.
+        Args:
+            seed: The 4-byte seed.
+        """
+        if self.simple_serial:
+            self.target.simpleserial_write("s", seed)
+        else:
+            # PrngSca command.
+            self._ujson_prng_sca_cmd()
+            # SingleEncrypt command.
+            time.sleep(0.01)
+            self.port.write(json.dumps("SeedPrng").encode("ascii"))
+            # Text payload.
+            seed_int = [x for x in seed]
+            seed_data = {"seed": seed_int, "seed_length": seed_length}
+            self.port.write(json.dumps(seed_data).encode("ascii"))
 
 
 class OTKMAC:

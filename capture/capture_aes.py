@@ -172,7 +172,7 @@ def generate_ref_crypto(sample_fixed, mode, key, plaintext):
         ciphertext: The next ciphertext.
         sample_fixed: Is the next sample fixed or not?
     """
-    if mode == "aes_fsvr_key":
+    if mode == "aes_fvsr_key":
         if sample_fixed:
             plaintext, ciphertext, key = dg.get_fixed()
         else:
@@ -231,14 +231,14 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
     key_fixed = bytearray(capture_cfg.key_fixed)
     key = key_fixed
     logger.info(f"Initializing OT AES with key {binascii.b2a_hex(bytes(key))} ...")
-    if capture_cfg.capture_mode == "aes_fsvr_key":
+    if capture_cfg.capture_mode == "aes_fvsr_key":
         dg.set_start()
     else:
         ot_aes.write_key(key)
 
     # Generate plaintexts and keys for first batch.
     if capture_cfg.batch_mode:
-        if capture_cfg.capture_mode == "aes_fsvr_key":
+        if capture_cfg.capture_mode == "aes_fvsr_key":
             ot_aes.start_fvsr_batch_generate()
             ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
         elif capture_cfg.capture_mode == "aes_random":
@@ -272,7 +272,7 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                         capture_cfg.num_segments.to_bytes(4, "little"))
             else:
                 # Non batch mode.
-                if capture_cfg.capture_mode == "aes_fsvr_key":
+                if capture_cfg.capture_mode == "aes_fvsr_key":
                     # Generate reference crypto material for aes_fvsr_key in non-batch mode
                     text, key, ciphertext, sample_fixed = generate_ref_crypto(
                         sample_fixed = sample_fixed,
@@ -313,7 +313,7 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
 
             # Compare received ciphertext with generated.
             compare_len = capture_cfg.output_len
-            if capture_cfg.batch_mode and capture_cfg.capture_mode == "aes_fsvr_key":
+            if capture_cfg.batch_mode and capture_cfg.capture_mode == "aes_fvsr_key":
                 compare_len = 4
             check_ciphertext(ot_aes, ciphertext, compare_len)
 
@@ -362,7 +362,7 @@ def main(argv=None):
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
     # Determine the capture mode and configure the current capture.
-    mode = "aes_fsvr_key"
+    mode = "aes_fvsr_key"
     batch = False
     if "aes_random" in cfg["test"]["which_test"]:
         mode = "aes_random"

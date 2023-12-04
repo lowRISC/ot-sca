@@ -8,6 +8,8 @@ target:
   target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 16
+  # protocol: "ujson"
+  protocol: "simpleserial"
 husky:
   sampling_rate: 200000000
   num_segments: 20

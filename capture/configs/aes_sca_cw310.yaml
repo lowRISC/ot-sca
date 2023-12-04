@@ -1,13 +1,17 @@
 target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: True
+  force_program_bitstream: False
   fw_bin: "../objs/aes_serial_fpga_cw310.bin"
+  # fw_bin: "../objs/aes_ujson_fpga_cw310.bin"
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 16
+  protocol: "simpleserial"
+  # protocol: "ujson"
+  # port: "/dev/ttyACM4"
 husky:
   sampling_rate: 200000000
   num_segments: 20

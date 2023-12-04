@@ -51,16 +51,21 @@ class CWFPGA(object):
 
     def __init__(self, bitstream, force_programming, firmware, pll_frequency,
                  baudrate, output_len, protocol):
+        self.bitstream = bitstream
+        self.firmware = firmware
+        self.pll_frequency = pll_frequency
+        self.baudrate = baudrate
+        self.output_len = output_len
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
         if m:
             if m.group() == 'cw305':
-                fpga = cw.capture.targets.CW305()
+                self.fpga_type = cw.capture.targets.CW305()
             else:
                 assert m.group() == 'cw310'
-                fpga = cw.capture.targets.CW310()
-            programmer = SpiProgrammer(fpga)
+                self.fpga_type = cw.capture.targets.CW310()
+            programmer = SpiProgrammer(self.fpga_type)
         else:
             raise ValueError(
                 'Could not infer target board type from bistream name')
@@ -72,11 +77,12 @@ class CWFPGA(object):
         # initialized.
         self.scope = cw.scope()
 
-        self.fpga = self.initialize_fpga(fpga, bitstream, force_programming,
-                                         pll_frequency)
+        self.fpga = self.initialize_fpga(self.fpga_type, bitstream,
+                                         force_programming, pll_frequency)
 
         self.target = self.initialize_target(programmer, firmware, baudrate,
                                              output_len, pll_frequency)
+
         # TODO: add version check also for uJson binary.
         if self.prot_simple_serial:
             self._test_read_version_from_target()
@@ -181,3 +187,19 @@ class CWFPGA(object):
             self.fpga.pll.pll_outfreq_set(pll_frequency, 1)
 
         time.sleep(0.5)
+
+    def reset_target(self):
+        """Resets the target by re-programming the FPGA. """
+        programmer = SpiProgrammer(self.fpga_type)
+
+        self.scope = cw.scope()
+
+        self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream, True,
+                                         self.pll_frequency)
+
+        self.target = self.initialize_target(programmer, self.firmware,
+                                             self.baudrate, self.output_len,
+                                             self.pll_frequency)
+        # TODO: add version check also for uJson binary.
+        if self.prot_simple_serial:
+            self._test_read_version_from_target()

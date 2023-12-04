@@ -1,9 +1,10 @@
-# ot-sca - Side-Channel Analysis Setup for OpenTitan
+# ot-sca - Side-Channel Analysis & Fault Injection Setup for OpenTitan
 
 ## About the repository
 
 This repository contains infrastructure code useful for performing side-channel
-analsys (SCA) for [OpenTitan](https://github.com/lowRISC/OpenTitan).
+analysis (SCA) and fault injection (FI) attacks for
+[OpenTitan](https://github.com/lowRISC/OpenTitan).
 
 See [getting started](doc/getting_started.md) for instructions.
 

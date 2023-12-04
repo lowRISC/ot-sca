@@ -17,7 +17,6 @@ from functools import partial
 from pathlib import Path
 from typing import Optional
 
-import lib.helpers as helpers
 import numpy as np
 import yaml
 from Crypto.Hash import SHA3_256
@@ -28,6 +27,7 @@ from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
 from tqdm import tqdm
 
 sys.path.append("../")
+import util.helpers as helpers  # noqa: E402
 from target.cw_fpga import CWFPGA  # noqa: E402
 from util import check_version  # noqa: E402
 from util import plot  # noqa: E402

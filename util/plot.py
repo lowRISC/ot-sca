@@ -2,6 +2,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import dataclasses
 import itertools
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from bokeh.io import output_file
 from bokeh.models import tools
 from bokeh.palettes import Dark2_5 as palette
 from bokeh.plotting import figure, show
+
+from fault_injection.project_library.project import FISuccess
 
 
 def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=False):
@@ -55,4 +58,40 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=
         plot.line(xrange, mean, line_color='black', line_width=2, legend_label='mean')
 
     output_file(Path(str(outfile) + ".html"))
+    show(plot)
+
+
+def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
+    """ Print FI plot of traces.
+
+    Printing the plot helps to narrow down the fault injection parameters.
+
+    Args:
+        cfg: The capture configuration.
+        fi_results: The captured FI results.
+        outfile: The path of the html file.
+    """
+    output_file(Path(str(outfile) + ".html"))
+    x_axis = cfg["fiproject"]["plot_x_axis"]
+    y_axis = cfg["fiproject"]["plot_y_axis"]
+    plot = figure(plot_width=800,
+                  x_range=(cfg["fisetup"][x_axis + "_min"],
+                           cfg["fisetup"][x_axis + "_max"]),
+                  y_range=(cfg["fisetup"][y_axis + "_min"],
+                           cfg["fisetup"][y_axis + "_max"]))
+    plot.xaxis.axis_label = x_axis + " " + cfg["fiproject"]["plot_x_axis_legend"]
+    plot.yaxis.axis_label = y_axis + " " + cfg["fiproject"]["plot_y_axis_legend"]
+    for fi_result in fi_results:
+        color = "red"
+        label = "No response"
+        if fi_result.fi_result == FISuccess.SUCCESS:
+            color = "green"
+            label = "Unexpected response"
+        elif fi_result.fi_result == FISuccess.EXPRESPONSE:
+            color = "yellow"
+            label = "Expected response"
+        fi_result = dataclasses.asdict(fi_result)
+        plot.scatter(fi_result[x_axis], fi_result[y_axis], legend_label = label,
+                     line_color=color, fill_color=color)
+        plot.scatter()
     show(plot)

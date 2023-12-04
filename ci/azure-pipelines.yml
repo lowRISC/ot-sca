@@ -144,4 +144,31 @@ jobs:
   - publish: ./ci/projects/kmac_sca_random_cw310_ujson.html
     artifact: traces_kmac_random_cw310_ujson
     displayName: "Upload KMAC Random traces (uJSON)"
-
+- job: fi_cw310
+  displayName: "Dummy VCC glitching (CW310)"
+  timeoutInMinutes: 30
+  pool:
+    name: FPGA SCA
+    demands: BOARD -equals cw310
+  steps:
+  - checkout: self
+  - bash: |
+      python3 -m pip install --user -r python-requirements.txt
+    displayName: "Install python dependencies"
+  - bash: |
+      apt update
+      apt install git-lfs
+    displayName: "Install system dependencies"
+  - bash: |
+      git-lfs pull
+    displayName: "Pull LFS binaries"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../fault_injection/fi_ibex.py -c cfg/ci_ibex_fi_vcc_dummy.yaml -p projects/ibex_fi_cw310
+      popd
+    displayName: "Dummy VCC glitching on Ibex"
+  - publish: ./ci/projects/ibex_fi_cw310.html
+    artifact: fi_plot_ibex_cw310
+    displayName: "Upload FI Ibex CW310 plot"

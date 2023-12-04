@@ -425,8 +425,8 @@ This can be done by uncommenting the corresponding line.
 ```
   # which_test: aes_random_batch
   # which_test: aes_random
-  which_test: aes_fsvr_key_batch
-  # which_test: aes_fsvr_key
+  which_test: aes_fvsr_key_batch
+  # which_test: aes_fvsr_key
 ```
 
 To perform AES capture using any mode, you can use the following command:

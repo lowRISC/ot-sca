@@ -404,3 +404,69 @@ class OTKMAC:
                         return batch_digest[0:len_bytes]
                     except Exception:
                         pass  # noqa: E302
+        return self.target.simpleserial_read("r", len_bytes, ack=False)
+
+
+class OTSHA3:
+    def __init__(self, target) -> None:
+        self.target = target
+
+    def set_mask_off(self):
+        self.target.simpleserial_write("m", bytearray([0x01]))
+        ack_ret = self.target.simpleserial_wait_ack(5000)
+        if ack_ret is None:
+            raise Exception("Device and host not in sync")
+
+    def set_mask_on(self):
+        self.target.simpleserial_write("m", bytearray([0x00]))
+        ack_ret = self.target.simpleserial_wait_ack(5000)
+        if ack_ret is None:
+            raise Exception("Device and host not in sync")
+
+    def absorb(self, text):
+        """ Write plaintext to OpenTitan SHA3 & start absorb.
+        Args:
+            text: The plaintext bytearray.
+        """
+        self.target.simpleserial_write("p", text)
+
+    def absorb_batch(self, num_segments):
+        """ Start absorb for batch.
+        Args:
+            num_segments: Number of hashings to perform.
+        """
+        self.target.simpleserial_write("b", num_segments)
+        ack_ret = self.target.simpleserial_wait_ack(5000)
+        if ack_ret is None:
+            raise Exception("Batch mode acknowledge error: Device and host not in sync")
+
+    def write_lfsr_seed(self, seed):
+        """ Seed the LFSR.
+        Args:
+            seed: The 4-byte seed.
+        """
+        self.target.simpleserial_write("l", seed)
+
+    def write_batch_prng_seed(self, seed):
+        """ Seed the PRNG.
+        Args:
+            seed: The 4-byte seed.
+        """
+        self.target.simpleserial_write("s", seed)
+
+    def fvsr_fixed_msg_set(self, msg):
+        """ Write the fixed message to SHA3.
+        Args:
+            key: Bytearray containing the message.
+        """
+        self.target.simpleserial_write("f", msg)
+
+    def read_ciphertext(self, len_bytes):
+        """ Read ciphertext from OpenTitan SHA3.
+        Args:
+            len_bytes: Number of bytes to read.
+
+        Returns:
+            The received ciphertext.
+        """
+        return self.target.simpleserial_read("r", len_bytes, ack=False)

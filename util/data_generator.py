@@ -2,8 +2,9 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import numpy as np
 from Crypto.Cipher import AES
-from Crypto.Hash import KMAC128
+from Crypto.Hash import KMAC128, SHA3_256
 
 """Data generator.
 
@@ -99,6 +100,25 @@ class data_generator():
         self.advance_random()
         return pt, ct, key
 
+    def get_sha3_fixed(self):
+        pt = np.asarray(bytearray(self.text_fixed))
+        key = np.asarray(self.key_fixed)
+        sha3_fixed = SHA3_256.new(bytes(self.text_fixed))
+        ct = np.asarray(bytearray(sha3_fixed.digest()))
+        del (sha3_fixed)
+        self.advance_fixed()
+        return pt, ct, key
+
+    def get_sha3_random(self):
+        pt = np.asarray(bytearray(self.text_random))
+        key = np.asarray(self.key_random)
+        sha3_random = SHA3_256.new(bytes(self.text_random))
+        ct = np.asarray(bytearray(sha3_random.digest()))
+
+        del (sha3_random)
+        self.advance_random()
+        return pt, ct, key
+
 
 # ----------------------------------------------------------------------
 # Create one instance, and export its methods as module-level functions.
@@ -110,3 +130,5 @@ get_fixed = _inst.get_fixed
 get_random = _inst.get_random
 get_kmac_fixed = _inst.get_kmac_fixed
 get_kmac_random = _inst.get_kmac_random
+get_sha3_fixed = _inst.get_sha3_fixed
+get_sha3_random = _inst.get_sha3_random

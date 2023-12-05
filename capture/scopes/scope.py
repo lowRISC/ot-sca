@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import re
 from dataclasses import dataclass
 from typing import Optional
 
@@ -31,7 +32,7 @@ def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
     """ Determine sampling rate.
 
     If no sampling rate is provided, calculate for Husky or receive from
-    Waverunner.
+    WaveRunner.
 
     Args:
         dict: The scope configuration.
@@ -40,7 +41,7 @@ def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
     Returns:
         Sampling rate
     """
-    if not cfg[scope_type].get("sampling_rate"):
+    if cfg[scope_type].get("sampling_rate") is None:
         if scope_type == "husky":
             # If no sampling rate is provided, calculte it. Max. sampling
             # rate of Husky is 200e6. As adc_mul needs to be an integer,
@@ -49,9 +50,9 @@ def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
             adc_mul = int(SAMPLING_RATE_MAX // cfg["target"]["pll_frequency"])
             return (adc_mul * cfg["target"]["pll_frequency"])
         else:
-            # TODO: Implement for Waverunner. Get sampling rate from scope and
-            # return.
-            return None
+            # Waverunner init not done yet, so cannot be read from WaveRunner.
+            raise RuntimeError("WAVERUNNER: ERROR: Sampling rate for WaveRunner "
+                               "not given in configuration.")
     else:
         return cfg[scope_type].get("sampling_rate")
 
@@ -84,10 +85,18 @@ class Scope:
             scope.configure_batch_mode()
             return scope
         elif self.scope_cfg.scope_type == "waverunner":
-            # TODO WaveRunner needs to be adapted to new cycle-based config.
-            # (Issue lowrisc/ot-sca#210)
             if self.scope_cfg.ip:
                 scope = WaveRunner(self.scope_cfg.ip)
+
+                # Get current sampling rate from scope compare to cfg for sanity
+                setup_data = scope._ask("PANEL_SETUP?")
+                scope._get_and_print_cmd_error()
+                tmp_sampling_rate = int(re.findall(r'SampleRate = \d+', setup_data)[0][13:])
+                if self.scope_cfg.sampling_rate is not None:
+                    if self.scope_cfg.sampling_rate != tmp_sampling_rate:
+                        raise RuntimeError("WAVERUNNER: Error: WaveRunner sampling "
+                                           "rate does not match given configuration!")
+
                 scope.configure_waveform_transfer_general(
                     num_segments = self.scope_cfg.num_segments,
                     sparsing = self.scope_cfg.sparsing,

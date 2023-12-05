@@ -92,11 +92,11 @@ def setup(cfg: dict, project: Path):
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
 
-    # Determine sampling rate, if necessary.
+    # Will determine sampling rate (for Husky only), if not given in cfg.
     cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
-    # Convert number of cycles into number of samples, if necessary.
+    # Will convert number of cycles into number of samples if they are not given in cfg.
     cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
-    # Convert offset in cycles into offset in samples, if necessary.
+    # Will convert offset in cycles into offset in samples, if they are not given in cfg.
     cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
 
     logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501

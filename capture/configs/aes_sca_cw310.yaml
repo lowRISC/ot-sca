@@ -21,8 +21,15 @@ husky:
 waverunner:
   waverunner_ip: 100.107.71.10
   num_segments: 20
-  num_samples: 6000
-  sample_offset: 0
+  # num_samples: 6000
+  # offset_samples: 0
+  # cycles will only be used if not given in samples
+  num_cycles: 60
+  offset_cycles: 0
+  # sampling rate needed for cycle to sample conversion
+  sampling_rate: 2500000000
+  channel: C1
+  sparsing: 0
 capture:
   scope_select: husky
   # scope_select: waverunner

@@ -367,7 +367,12 @@ class WaveRunner:
         len_ = int(data[13:22])
         # Note: We use frombufer to minimize processing overhead.
         waves = np.frombuffer(data, np.int8, int(len_), 22)
-        waves = waves.reshape((self.num_segments, self.num_samples))
+        # Reshape
+        waves = waves.reshape((self.num_segments, int(waves.shape[0] / self.num_segments)))
+        if waves.shape[1] != self.num_samples:
+            print("WAVERUNNER: ERROR: scope returned too many samples per trace or segment")
+            # Truncate, but means scope returns more samples than expected!
+            waves = waves[:, 0:self.num_samples]
         return waves
 
     def capture_and_transfer_waves(self):
@@ -390,7 +395,7 @@ class WaveRunner:
         elif self.acqu_channel == "C4":
             data = self._ask_raw(b"C4:WF? DAT1")
         else:
-            print("WAVERUNNER: Error: Channel selection invalid")
+            raise RuntimeError("WAVERUNNER: Error: Channel selection invalid")
         waves = self._parse_waveform(data)
         # Put into uint8 range
         waves = waves + 128

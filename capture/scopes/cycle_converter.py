@@ -4,11 +4,12 @@
 
 
 def convert_num_cycles(cfg: dict, scope_type: str) -> int:
-    """ Convert number of cycles to number of samples.
+    """ Converts number of cycles to number of samples if samples not given.
 
-    As Husky is configured in number of samples, this function converts the
-    number of cycles to samples. The number of samples must be divisble by 3
-    for batch captures.
+    As the scopes are configured in number of samples, this function converts
+    the number of cycles to samples.
+    The number of samples must be divisble by 3 for batch captures on Husky
+    and is adjusted accordingly.
 
     Args:
         dict: The scope configuration.
@@ -17,15 +18,21 @@ def convert_num_cycles(cfg: dict, scope_type: str) -> int:
     Returns:
         The number of samples.
     """
-    sampling_target_ratio = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
-    num_samples = int(cfg[scope_type].get("num_cycles") * sampling_target_ratio)
-    if num_samples % 3:
-        num_samples = num_samples + 3 - (num_samples % 3)
-    return num_samples
+    if cfg[scope_type].get("num_samples") is None:
+        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
+        num_samples = int(cfg[scope_type].get("num_cycles") * sampl_target_rat)
+
+        if scope_type == "husky":
+            if num_samples % 3:
+                num_samples = num_samples + 3 - (num_samples % 3)
+
+        return num_samples
+    else:
+        return cfg[scope_type].get("num_samples")
 
 
 def convert_offset_cycles(cfg: dict, scope_type: str) -> int:
-    """ Convert offset in cycles to offset in samples.
+    """ Converts offset in cycles to offset in samples if not given in samples.
 
     Args:
         dict: The scope configuration.
@@ -34,5 +41,8 @@ def convert_offset_cycles(cfg: dict, scope_type: str) -> int:
     Returns:
         The offset in samples.
     """
-    sampling_target_ratio = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
-    return int(cfg[scope_type].get("offset_cycles") * sampling_target_ratio)
+    if cfg[scope_type].get("offset_samples") is None:
+        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
+        return int(cfg[scope_type].get("offset_cycles") * sampl_target_rat)
+    else:
+        return cfg[scope_type].get("offset_samples")

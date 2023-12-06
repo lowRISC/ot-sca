@@ -16,12 +16,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
 from pathlib import Path
+from typing import Optional
 
 import lib.helpers as helpers
 import numpy as np
 import yaml
 from Crypto.Hash import KMAC128
-from lib.ot_communication import OTKMAC
+from lib.ot_communication import OTKMAC, OTPRNG, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
@@ -32,6 +33,18 @@ from target.cw_fpga import CWFPGA  # noqa: E402
 from util import check_version  # noqa: E402
 from util import plot  # noqa: E402
 from util import data_generator as dg  # noqa: E402
+
+"""KMAC SCA capture script.
+
+Captures power traces during KMAC operations.
+
+The data format of the crypto material (ciphertext, plaintext, and key) inside
+the script is stored in plain integer arrays.
+
+Typical usage:
+>>> ./capture_kmac.py -c configs/kmac_sca_cw310.yaml -p projects/kmac_sca_capture
+"""
+
 
 logger = logging.getLogger()
 
@@ -61,6 +74,8 @@ class CaptureConfig:
     key_fixed: bytearray
     key_len_bytes: int
     text_len_bytes: int
+    protocol: str
+    port: Optional[str] = "None"
 
 
 def setup(cfg: dict, project: Path):
@@ -87,6 +102,7 @@ def setup(cfg: dict, project: Path):
         pll_frequency = cfg["target"]["pll_frequency"],
         baudrate = cfg["target"]["baudrate"],
         output_len = cfg["target"]["output_len_bytes"],
+        protocol = cfg["target"]["protocol"]
     )
 
     # Init scope.
@@ -142,8 +158,16 @@ def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
     Returns:
         The communication interface to the KMAC cipher.
     """
+    # Establish UART for uJSON command interface. Returns None for simpleserial.
+    ot_uart = OTUART(protocol=capture_cfg.protocol, port=capture_cfg.port)
+
     # Create communication interface to OT KMAC.
-    ot_kmac = OTKMAC(target.target)
+    ot_kmac = OTKMAC(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
+
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
 
     # If batch mode, configure PRNGs.
     if capture_cfg.batch_mode:
@@ -153,7 +177,7 @@ def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
         # Seed the target's PRNGs for initial key masking, and additionally
         # turn off masking when '0'.
         ot_kmac.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
-        ot_kmac.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+        ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     return ot_kmac
 
@@ -196,28 +220,29 @@ def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
             # returns pt, ct, key, needs key and pt as arguments
             mac = KMAC128.new(key=bytes(key), mac_len=32)
             mac.update(bytes(plaintext))
-            ciphertext = bytearray(mac.digest())
+            ciphertext_bytes = mac.digest()
+            ciphertext = [x for x in ciphertext_bytes]
         else:
             # returns random pt, ct, key, needs no arguments
             if sample_fixed:
                 # Use fixed_key as this key.
-                key = np.asarray(key_fixed)
+                key = key_fixed
             else:
                 # Generate this key from the PRNG.
-                key = bytearray(key_length)
+                key = []
                 for i in range(0, key_length):
-                    key[i] = random.randint(0, 255)
+                    key.append(random.randint(0, 255))
             # Always generate this plaintext from PRNG (including very first one).
-            plaintext = bytearray(16)
+            plaintext = []
             for i in range(0, 16):
-                plaintext[i] = random.randint(0, 255)
+                plaintext.append(random.randint(0, 255))
             # Compute ciphertext for this key and plaintext.
             mac = KMAC128.new(key=bytes(key), mac_len=32)
             mac.update(bytes(plaintext))
-            ciphertext = bytearray(mac.digest())
+            ciphertext_bytes = mac.digest()
+            ciphertext = [x for x in ciphertext_bytes]
             # Determine if next iteration uses fixed_key.
             sample_fixed = plaintext[0] & 0x1
-
     return plaintext, key, ciphertext, sample_fixed
 
 
@@ -258,10 +283,10 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
         cwtarget: The CW FPGA target.
     """
     # Initial plaintext.
-    text_fixed = bytearray(capture_cfg.text_fixed)
+    text_fixed = capture_cfg.text_fixed
     text = text_fixed
     # Load fixed key.
-    key_fixed = bytearray(capture_cfg.key_fixed)
+    key_fixed = capture_cfg.key_fixed
     key = key_fixed
 
     # FVSR setup.
@@ -329,9 +354,9 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
                 assert len(waves[i, :]) >= 1
                 # Store trace into database.
                 project.append_trace(wave = waves[i, :],
-                                     plaintext = text,
-                                     ciphertext = ciphertext,
-                                     key = key)
+                                     plaintext = bytearray(text),
+                                     ciphertext = bytearray(ciphertext),
+                                     key = bytearray(key))
 
                 if capture_cfg.capture_mode == "kmac_random":
                     plaintext = bytearray(16)
@@ -339,9 +364,11 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
                         plaintext[i] = random.randint(0, 255)
 
                 if capture_cfg.batch_mode:
-                    expected_ciphertext = (ciphertext if expected_ciphertext is None else
-                                           bytearray(a ^ b for (a, b) in zip(ciphertext,
-                                                                             expected_ciphertext)))
+                    exp_cipher_bytes = (ciphertext if expected_ciphertext is
+                                        None else (a ^ b for (a, b) in
+                                                   zip(ciphertext,
+                                                       expected_ciphertext)))
+                    expected_ciphertext = [x for x in exp_cipher_bytes]
                 else:
                     expected_ciphertext = ciphertext
 
@@ -373,8 +400,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
                                num_traces = config["capture"]["plot_traces"],
                                outfile = file,
                                add_mean_stddev=True)
-        print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-              f'{Path(str(file) + ".html").resolve()}')
+        logger.info(f'Created plot with {config["capture"]["plot_traces"]} traces: '
+                    f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -417,7 +444,9 @@ def main(argv=None):
                                 text_fixed = cfg["test"]["text_fixed"],
                                 key_fixed = cfg["test"]["key_fixed"],
                                 key_len_bytes = cfg["test"]["key_len_bytes"],
-                                text_len_bytes = cfg["test"]["text_len_bytes"])
+                                text_len_bytes = cfg["test"]["text_len_bytes"],
+                                protocol = cfg["target"]["protocol"],
+                                port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
     # Configure cipher.

@@ -230,7 +230,9 @@ class OTAES:
             The received ciphertext.
         """
         if self.simple_serial:
-            return self.target.simpleserial_read("r", len_bytes, ack=False)
+            response_byte = self.target.simpleserial_read("r", len_bytes, ack=False)
+            # Convert response into int array.
+            return [x for x in response_byte]
         else:
             while True:
                 read_line = str(self.port.readline())
@@ -238,7 +240,7 @@ class OTAES:
                     json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
                     try:
                         ciphertext = json.loads(json_string)["ciphertext"]
-                        return bytearray(ciphertext[0:len_bytes])
+                        return ciphertext[0:len_bytes]
                     except Exception:
                         pass  # noqa: E302
 
@@ -276,50 +278,109 @@ class OTPRNG:
 
 
 class OTKMAC:
-    def __init__(self, target) -> None:
+    def __init__(self, target, protocol: str,
+                 port: Optional[OTUART] = None) -> None:
         self.target = target
+        self.simple_serial = True
+        self.port = port
+        if protocol == "ujson":
+            self.simple_serial = False
+            # Init the KMAC core.
+            self.port.write(json.dumps("KmacSca").encode("ascii"))
+            self.port.write(json.dumps("Init").encode("ascii"))
 
-    def write_key(self, key):
+    def _ujson_kmac_sca_cmd(self):
+        # TODO: without the delay, the device uJSON command handler program
+        # does not recognize the commands.
+        time.sleep(0.01)
+        self.port.write(json.dumps("KmacSca").encode("ascii"))
+
+    def write_key(self, key: list[int]):
         """ Write the key to KMAC.
         Args:
             key: Bytearray containing the key.
         """
-        self.target.simpleserial_write("k", key)
+        if self.simple_serial:
+            self.target.simpleserial_write("k", bytearray(key))
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # SetKey command.
+            self.port.write(json.dumps("SetKey").encode("ascii"))
+            # Key payload.
+            time.sleep(0.01)
+            key_data = {"key": key, "key_length": 16}
+            self.port.write(json.dumps(key_data).encode("ascii"))
 
-    def fvsr_key_set(self, key):
+    def fvsr_key_set(self, key: list[int], key_length: Optional[int] = 16):
         """ Write the fixed key to KMAC.
         Args:
             key: Bytearray containing the key.
         """
-        self.target.simpleserial_write("f", key)
+        if self.simple_serial:
+            self.target.simpleserial_write("f", bytearray(key))
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # SetKey command.
+            self.port.write(json.dumps("FixedKeySet").encode("ascii"))
+            # FixedKeySet payload.
+            time.sleep(0.01)
+            key_data = {"key": key, "key_length": key_length}
+            self.port.write(json.dumps(key_data).encode("ascii"))
 
     def write_lfsr_seed(self, seed):
         """ Seed the LFSR.
         Args:
             seed: The 4-byte seed.
         """
-        self.target.simpleserial_write("l", seed)
-
-    def write_batch_prng_seed(self, seed):
-        """ Seed the PRNG.
-        Args:
-            seed: The 4-byte seed.
-        """
-        self.target.simpleserial_write("s", seed)
+        if self.simple_serial:
+            self.target.simpleserial_write("l", seed)
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # SeedLfsr command.
+            self.port.write(json.dumps("SeedLfsr").encode("ascii"))
+            # Seed payload.
+            time.sleep(0.01)
+            seed_int = [x for x in seed]
+            seed_data = {"seed": seed_int}
+            self.port.write(json.dumps(seed_data).encode("ascii"))
 
     def absorb_batch(self, num_segments):
         """ Start absorb for batch.
         Args:
             num_segments: Number of encryptions to perform.
         """
-        self.target.simpleserial_write("b", num_segments)
+        if self.simple_serial:
+            self.target.simpleserial_write("b", num_segments)
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # Batch command.
+            self.port.write(json.dumps("Batch").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            num_segments_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_segments_data).encode("ascii"))
 
-    def absorb(self, text):
+    def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan KMAC & start absorb.
         Args:
             text: The plaintext bytearray.
         """
-        self.target.simpleserial_write("p", text)
+        if self.simple_serial:
+            self.target.simpleserial_write("p", text)
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # SingleAbsorb command.
+            self.port.write(json.dumps("SingleAbsorb").encode("ascii"))
+            # Msg payload.
+            time.sleep(0.01)
+            text_int = [x for x in text]
+            text_data = {"msg": text_int, "msg_length": text_length}
+            self.port.write(json.dumps(text_data).encode("ascii"))
 
     def read_ciphertext(self, len_bytes):
         """ Read ciphertext from OpenTitan KMAC.
@@ -329,4 +390,17 @@ class OTKMAC:
         Returns:
             The received ciphertext.
         """
-        return self.target.simpleserial_read("r", len_bytes, ack=False)
+        if self.simple_serial:
+            response_byte = self.target.simpleserial_read("r", len_bytes, ack=False)
+            # Convert response into int array.
+            return [x for x in response_byte]
+        else:
+            while True:
+                read_line = str(self.port.readline())
+                if "RESP_OK" in read_line:
+                    json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                    try:
+                        batch_digest = json.loads(json_string)["batch_digest"]
+                        return batch_digest[0:len_bytes]
+                    except Exception:
+                        pass  # noqa: E302

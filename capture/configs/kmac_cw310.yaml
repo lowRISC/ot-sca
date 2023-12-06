@@ -3,10 +3,15 @@ target:
   fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   force_program_bitstream: False
   fw_bin: ../objs/kmac_serial_fpga_cw310.bin
+  # fw_bin: "../objs/kmac_ujson_fpga_cw310.bin"
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 32
+  protocol: "simpleserial"
+  # protocol: "ujson"
+  # port: "/dev/ttyACM1"
 husky:
   sampling_rate: 200000000
   num_segments: 20
@@ -35,8 +40,8 @@ capture:
   trace_db: ot_trace_library
   trace_threshold: 10000
 test:
-  #which_test: kmac_random
-  #which_test: kmac_fvsr_key
+  # which_test: kmac_random
+  # which_test: kmac_fvsr_key
   which_test: kmac_fvsr_key_batch
   key_len_bytes: 16
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]

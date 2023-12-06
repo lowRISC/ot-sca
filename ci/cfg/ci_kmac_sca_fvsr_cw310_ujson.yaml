@@ -1,0 +1,59 @@
+target:
+  target_type: cw310
+  fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
+  force_program_bitstream: False
+  # fw_bin: ../objs/kmac_serial_fpga_cw310.bin
+  fw_bin: "../objs/kmac_ujson_fpga_cw310.bin"
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+  output_len_bytes: 32
+  # protocol: "simpleserial"
+  protocol: "ujson"
+  port: "/dev/ttyACM_CW310_1"
+husky:
+  sampling_rate: 200000000
+  num_segments: 20
+  # Number of target clock cycles per trace - KMAC is doing 24 or 96 cycles
+  # for the key absorb w/o or w/ DOM, respectively, as well as 23 cycles for
+  # XORing the key into the state.
+  # w/o DOM
+  #num_cycles: 80
+  # w/ DOM
+  num_cycles: 160
+  # Offset in target clock cycles - During the first activity block, KMAC
+  # just absorbs the fixed prefix (23 cycles XORing + 24 or 96 cycles
+  # absorbing w/o or w/ DOM, respectively). This first activity block can be
+  # skipped
+  # w/o DOM
+  #offset_cyles: 43
+  # w/ DOM
+  offset_cycles: 115
+  scope_gain: 26
+capture:
+  scope_select: husky
+  num_traces: 1000
+  show_plot: True
+  plot_traces: 100
+  trace_image_filename: projects/sample_traces_kmac.html
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  # which_test: kmac_random
+  # which_test: kmac_fvsr_key
+  which_test: kmac_fvsr_key_batch
+  key_len_bytes: 16
+  key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
+  text_len_bytes: 16
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # For unprotected implemetation, lfsr_seed should be set to 0. This will
+  # effectively switch off the masking. For masked implementation, any seed
+  # other than 0 should be used.
+  # w/o DOM
+  #lfsr_seed: 0
+  # w/ DOM
+  lfsr_seed: 0xdeadbeef
+  # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
+  batch_prng_seed: 0

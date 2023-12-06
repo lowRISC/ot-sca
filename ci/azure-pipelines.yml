@@ -4,8 +4,8 @@ pr:
     - "*"
 
 jobs:
-- job: sca_capture_cw310
-  displayName: "Capture SCA traces (CW310)"
+- job: aes_sca_capture_cw310
+  displayName: "Capture AES SCA traces (CW310)"
   timeoutInMinutes: 30
   pool:
     name: FPGA SCA
@@ -59,7 +59,7 @@ jobs:
       popd
     displayName: "Compare AES Random Key traces against golden trace"
 - job: sca_capture_cw305
-  displayName: "Capture SCA traces (CW305)"
+  displayName: "Capture AES SCA traces (CW305)"
   timeoutInMinutes: 30
   pool:
     name: FPGA SCA
@@ -86,3 +86,62 @@ jobs:
   - publish: ./ci/projects/aes_sca_random_cw305.html
     artifact: traces_aes_random_cw305
     displayName: "Upload AES Random Key traces"
+- job: kmac_sca_capture_cw310
+  displayName: "Capture KMAC SCA traces (CW310)"
+  timeoutInMinutes: 30
+  pool:
+    name: FPGA SCA
+    demands: BOARD -equals cw310
+  steps:
+  - checkout: self
+  - bash: |
+      python3 -m pip install --user -r python-requirements.txt
+    displayName: "Install python dependencies"
+  - bash: |
+      apt update
+      apt install git-lfs
+    displayName: "Install system dependencies"
+  - bash: |
+      git-lfs pull
+    displayName: "Pull LFS binaries"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_simpleserial.yaml -p projects/kmac_sca_fvsr_cw310_simpleserial
+      popd
+    displayName: "Capture KMAC FVSR traces (simpleserial)"
+  - publish: ./ci/projects/kmac_sca_fvsr_cw310_simpleserial.html
+    artifact: traces_kmac_fvsr_cw310_simpleserial
+    displayName: "Upload KMAC FVSR traces (simpleserial)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_ujson.yaml -p projects/kmac_sca_fvsr_cw310_ujson
+      popd
+    displayName: "Capture KMAC FVSR traces (uJSON)"
+  - publish: ./ci/projects/kmac_sca_fvsr_cw310_ujson.html
+    artifact: traces_kmac_fvsr_cw310_ujson
+    displayName: "Upload KMAC FVSR traces (uJSON)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_simpleserial.yaml -p projects/kmac_sca_random_cw310_simpleserial
+      popd
+    displayName: "Capture KMAC Random traces (simpleserial)"
+  - publish: ./ci/projects/kmac_sca_random_cw310_simpleserial.html
+    artifact: traces_kmac_random_cw310_simpleserial
+    displayName: "Upload KMAC Random traces (simpleserial)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_ujson.yaml -p projects/kmac_sca_random_cw310_ujson
+      popd
+    displayName: "Capture KMAC Random traces (uJSON)"
+  - publish: ./ci/projects/kmac_sca_random_cw310_ujson.html
+    artifact: traces_kmac_random_cw310_ujson
+    displayName: "Upload KMAC Random traces (uJSON)"
+

@@ -2,9 +2,16 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import numpy as np
 from Crypto.Cipher import AES
 from Crypto.Hash import KMAC128
+
+"""Data generator.
+
+Generates crypto material for the SCA tests.
+
+Input and output data format of the crypto material (ciphertext, plaintext,
+and key) is plain integer arrays.
+"""
 
 
 class data_generator():
@@ -37,17 +44,24 @@ class data_generator():
                            0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53, 0x53]
 
     def advance_fixed(self):
-        self.text_fixed = self.cipher_gen.encrypt(bytes(self.text_fixed))
+        text_fixed_bytes = self.cipher_gen.encrypt(bytes(self.text_fixed))
+        # Convert bytearray into int array.
+        self.text_fixed = [x for x in text_fixed_bytes]
 
     def advance_random(self):
-        self.text_random = self.cipher_gen.encrypt(bytes(self.text_random))
-        self.key_random = self.cipher_gen.encrypt(bytes(self.key_random))
+        text_random_bytes = self.cipher_gen.encrypt(bytes(self.text_random))
+        # Convert bytearray into int array.
+        self.text_random = [x for x in text_random_bytes]
+        key_random_bytes = self.cipher_gen.encrypt(bytes(self.key_random))
+        # Convert bytearray into int array.
+        self.key_random = [x for x in key_random_bytes]
 
     def get_fixed(self):
         pt = self.text_fixed
         key = self.key_fixed
         cipher_fixed = AES.new(bytes(self.key_fixed), AES.MODE_ECB)
-        ct = cipher_fixed.encrypt(bytes(self.text_fixed))
+        ct_bytes = cipher_fixed.encrypt(bytes(self.text_fixed))
+        ct = [x for x in ct_bytes]
         del (cipher_fixed)
         self.advance_fixed()
         return pt, ct, key
@@ -56,27 +70,30 @@ class data_generator():
         pt = self.text_random
         key = self.key_random
         cipher_random = AES.new(bytes(self.key_random), AES.MODE_ECB)
-        ct = cipher_random.encrypt(bytes(self.text_random))
+        ct_bytes = cipher_random.encrypt(bytes(self.text_random))
+        ct = [x for x in ct_bytes]
         del (cipher_random)
         self.advance_random()
         return pt, ct, key
 
     def get_kmac_fixed(self):
-        pt = np.asarray(self.text_fixed)
-        key = np.asarray(self.key_fixed)
+        pt = self.text_fixed
+        key = self.key_fixed
         mac_fixed = KMAC128.new(key=bytes(self.key_fixed), mac_len=32)
         mac_fixed.update(bytes(self.text_fixed))
-        ct = np.asarray(bytearray(mac_fixed.digest()))
+        ct_bytes = mac_fixed.digest()
+        ct = [x for x in ct_bytes]
         del (mac_fixed)
         self.advance_fixed()
         return pt, ct, key
 
     def get_kmac_random(self):
-        pt = np.asarray(self.text_random)
-        key = np.asarray(self.key_random)
+        pt = self.text_random
+        key = self.key_random
         mac_random = KMAC128.new(key=bytes(self.key_random), mac_len=32)
         mac_random.update(bytes(self.text_random))
-        ct = np.asarray(bytearray(mac_random.digest()))
+        ct_bytes = mac_random.digest()
+        ct = [x for x in ct_bytes]
 
         del (mac_random)
         self.advance_random()

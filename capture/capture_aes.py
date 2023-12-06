@@ -30,6 +30,18 @@ from util import check_version  # noqa: E402
 from util import plot  # noqa: E402
 from util import data_generator as dg  # noqa: E402
 
+"""AES SCA capture script.
+
+Captures power traces during AES operations.
+
+The data format of the crypto material (ciphertext, plaintext, and key) inside
+the script is stored in plain integer arrays.
+
+Typical usage:
+>>> ./capture_aes.py -c configs/aes_sca_cw310.yaml -p projects/aes_sca_capture
+"""
+
+
 logger = logging.getLogger()
 
 
@@ -194,7 +206,8 @@ def generate_ref_crypto(sample_fixed, mode, key, plaintext):
     else:
         if mode == "aes_random":
             cipher = AES.new(bytes(key), AES.MODE_ECB)
-            ciphertext = bytearray(cipher.encrypt(bytes(plaintext)))
+            ciphertext_bytes = cipher.encrypt(bytes(plaintext))
+            ciphertext = [x for x in ciphertext_bytes]
 
     return plaintext, key, ciphertext, sample_fixed
 
@@ -353,8 +366,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
                                num_traces = config["capture"]["plot_traces"],
                                outfile = file,
                                add_mean_stddev=True)
-        print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-              f'{Path(str(file) + ".html").resolve()}')
+        logger.info(f'Created plot with {config["capture"]["plot_traces"]} traces: '
+                    f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):

@@ -1,0 +1,53 @@
+target:
+  target_type: cw310
+  fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
+  force_program_bitstream: False
+  fw_bin: ../objs/sha3_serial_fpga_cw310.bin
+  # fw_bin: ../objs/sha3_ujson_fpga_cw310.bin
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+  output_len_bytes: 32
+  protocol: "simpleserial"
+  # protocol: "ujson"
+  # port: "/dev/ttyACM4"
+husky:
+  samling_rate: 200000000
+  num_segments: 1
+  # Number of target clock cycles per trace - SHA3 with DOM is doing 120
+  # cycles (24 for loading and padding, 96 for processing) with 320 delay
+  # cycles between loading the plaintext and adding the padding. The plaintext
+  # loading and the delay cycles can be ignored.
+  num_cycles: 125
+  offset_cycles: 320
+  scope_gain: 27
+capture:
+  scope_select: husky
+  #key_len_bytes: 16
+  plain_text_len_bytes: 16
+  num_traces: 100
+  show_plot: True
+  plot_traces: 100
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  which_test: sha3_random
+  # which_test: sha3_fvsr_data
+  # which_test: sha3_fvsr_data_batch
+  # Switch the masking on or off. When off, messages aren't masked upon loading
+  # into the SHA3 core and the PRNG isn't advanced during SHA3 processing.
+  # Works for SHA3 only. Doesn't work when processing key material.
+  masks_off: true
+  text_len_bytes: 16
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # For unprotected implemetation, lfsr_seed should be set to 0. This will
+  # effectively switch off the masking. For masked implementation, any seed
+  # other than 0 should be used.
+  # w/o DOM
+  #lfsr_seed: 0
+  # w/ DOM
+  # 32-bit LFSR seed - Currently not used by the target for SHA3 captures.
+  lfsr_seed: 0xdeadbeef
+  # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
+  batch_prng_seed: 0

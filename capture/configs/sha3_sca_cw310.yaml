@@ -3,11 +3,14 @@ target:
   fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
   force_program_bitstream: False
   fw_bin: ../objs/sha3_serial_fpga_cw310.bin
+  # fw_bin: ../objs/sha3_ujson_fpga_cw310.bin
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 32
   protocol: "simpleserial"
+  # protocol: "ujson"
+  # port: "/dev/ttyACM4"
 husky:
   samling_rate: 200000000
   num_segments: 20
@@ -25,7 +28,6 @@ capture:
   num_traces: 5000
   show_plot: True
   plot_traces: 100
-  trace_image_filename: projects/sample_traces_sha3.html
   trace_db: ot_trace_library
   trace_threshold: 10000
 test:

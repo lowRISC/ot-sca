@@ -20,7 +20,7 @@ from typing import Optional
 import numpy as np
 import yaml
 from Crypto.Hash import SHA3_256
-from lib.ot_communication import OTSHA3
+from lib.ot_communication import OTPRNG, OTSHA3, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
@@ -143,8 +143,16 @@ def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
     Returns:
         The communication interface to the SHA3 cipher.
     """
+    # Establish UART for uJSON command interface. Returns None for simpleserial.
+    ot_uart = OTUART(protocol=capture_cfg.protocol, port=capture_cfg.port)
+
     # Create communication interface to OT SHA3.
-    ot_sha3 = OTSHA3(target.target)
+    ot_sha3 = OTSHA3(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
+
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
 
     if cfg["test"]["masks_off"] is True:
         logger.info("Configure device to use constant, fast entropy!")
@@ -158,7 +166,7 @@ def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
         random.seed(cfg["test"]["batch_prng_seed"])
 
         ot_sha3.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
-        ot_sha3.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+        ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     return ot_sha3
 
@@ -197,27 +205,28 @@ def generate_ref_crypto(sample_fixed, mode, batch, plaintext,
         if mode == "sha3_random":
             # returns pt, ct, needs pt as arguments
             sha3 = SHA3_256.new(bytes(plaintext))
-            ciphertext = bytearray(sha3.digest())
+            ciphertext_bytes = sha3.digest()
+            ciphertext = [x for x in ciphertext_bytes]
         else:  # mode = sha3_fvsr_data_batch
             # returns random pt, ct, needs no arguments
             if sample_fixed:
                 plaintext = plaintext_fixed
             else:
-                random_plaintext = bytearray(text_len_bytes)
+                random_plaintext = []
                 for i in range(0, text_len_bytes):
-                    random_plaintext[i] = random.randint(0, 255)
+                    random_plaintext.append(random.randint(0, 255))
                 plaintext = random_plaintext
 
             # needed to be in sync with ot lfsr and for sample_fixed generation
-            dummy_plaintext = bytearray(16)
+            dummy_plaintext = []
             for i in range(0, 16):
-                dummy_plaintext[i] = random.randint(0, 255)
+                dummy_plaintext.append(random.randint(0, 255))
             # Compute ciphertext for this plaintext.
-            sha3 = SHA3_256.new(plaintext)
-            ciphertext = bytearray(sha3.digest())
+            sha3 = SHA3_256.new(bytes(plaintext))
+            ciphertext_bytes = sha3.digest()
+            ciphertext = [x for x in ciphertext_bytes]
             # Determine if next iteration uses fixed_key.
             sample_fixed = dummy_plaintext[0] & 0x1
-
     return plaintext, ciphertext, sample_fixed
 
 
@@ -258,7 +267,7 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
         cwtarget: The CW FPGA target.
     """
     # Initial plaintext.
-    text_fixed = bytearray(capture_cfg.text_fixed)
+    text_fixed = capture_cfg.text_fixed
     text = text_fixed
 
     # FVSR setup.
@@ -317,8 +326,8 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
                 assert len(waves[i, :]) >= 1
                 # Store trace into database.
                 project.append_trace(wave = waves[i, :],
-                                     plaintext = text,
-                                     ciphertext = ciphertext,
+                                     plaintext = bytearray(text),
+                                     ciphertext = bytearray(ciphertext),
                                      key = None)
 
                 if capture_cfg.capture_mode == "sha3_random":
@@ -327,9 +336,11 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
                         plaintext[i] = random.randint(0, 255)
 
                 if capture_cfg.batch_mode:
-                    expected_ciphertext = (ciphertext if expected_ciphertext is None else
-                                           bytearray(a ^ b for (a, b) in zip(ciphertext,
-                                                                             expected_ciphertext)))
+                    exp_cipher_bytes = (ciphertext if expected_ciphertext is
+                                        None else (a ^ b for (a, b) in
+                                                   zip(ciphertext,
+                                                       expected_ciphertext)))
+                    expected_ciphertext = [x for x in exp_cipher_bytes]
                 else:
                     expected_ciphertext = ciphertext
 

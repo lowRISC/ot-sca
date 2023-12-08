@@ -58,6 +58,64 @@ jobs:
       ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
       popd
     displayName: "Compare AES Random Key traces against golden trace"
+- job: sha3_sca_capture_cw310
+  displayName: "Capture SHA3 SCA traces (CW310)"
+  timeoutInMinutes: 30
+  pool:
+    name: FPGA SCA
+    demands: BOARD -equals cw310
+  steps:
+  - checkout: self
+  - bash: |
+      python3 -m pip install --user -r python-requirements.txt
+    displayName: "Install python dependencies"
+  - bash: |
+      apt update
+      apt install git-lfs
+    displayName: "Install system dependencies"
+  - bash: |
+      git-lfs pull
+    displayName: "Pull LFS binaries"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_simpleserial.yaml -p projects/sha3_sca_fvsr_cw310_simpleserial
+      popd
+    displayName: "Capture SHA3 FVSR traces (simpleserial)"
+  - publish: ./ci/projects/sha3_sca_fvsr_cw310_simpleserial.html
+    artifact: traces_sha3_fvsr_cw310_simpleserial
+    displayName: "Upload SHA3 FVSR traces (simpleserial)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_ujson.yaml -p projects/sha3_sca_fvsr_cw310_ujson
+      popd
+    displayName: "Capture SHA3 FVSR traces (uJSON)"
+  - publish: ./ci/projects/sha3_sca_fvsr_cw310_ujson.html
+    artifact: traces_sha3_fvsr_cw310_ujson
+    displayName: "Upload SHA3 FVSR traces (uJSON)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_simpleserial.yaml -p projects/sha3_sca_random_cw310_simpleserial
+      popd
+    displayName: "Capture SHA3 Random traces (simpleserial)"
+  - publish: ./ci/projects/sha3_sca_random_cw310_simpleserial.html
+    artifact: traces_sha3_random_cw310_simpleserial
+    displayName: "Upload SHA3 Random traces (simpleserial)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_ujson.yaml -p projects/sha3_sca_random_cw310_ujson
+      popd
+    displayName: "Capture SHA3 Random traces (uJSON)"
+  - publish: ./ci/projects/sha3_sca_random_cw310_ujson.html
+    artifact: traces_sha3_random_cw310_ujson
+    displayName: "Upload SHA3 Random traces (uJSON)"
 - job: sca_capture_cw305
   displayName: "Capture AES SCA traces (CW305)"
   timeoutInMinutes: 30

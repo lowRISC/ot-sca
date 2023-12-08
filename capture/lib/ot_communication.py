@@ -39,7 +39,7 @@ class OTAES:
 
     def _ujson_aes_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
-        # does not recognize the commands.
+        # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.port.write(json.dumps("AesSca").encode("ascii"))
 
@@ -291,7 +291,7 @@ class OTKMAC:
 
     def _ujson_kmac_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
-        # does not recognize the commands.
+        # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.port.write(json.dumps("KmacSca").encode("ascii"))
 
@@ -420,7 +420,7 @@ class OTSHA3:
 
     def _ujson_sha_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
-        # does not recognize the commands.
+        # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.port.write(json.dumps("ShaSca").encode("ascii"))
 
@@ -433,12 +433,12 @@ class OTSHA3:
                 try:
                     status = json.loads(json_string)["status"]
                     if status[0] != 0:
-                        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+                        raise Exception("Acknowledge error: Device and host not in sync")
                     return status
                 except Exception:
-                    raise Exception("Batch mode acknowledge error: Device and host not in sync")
+                    raise Exception("Acknowledge error: Device and host not in sync")
             else:
-                raise Exception("Batch mode acknowledge error: Device and host not in sync")
+                raise Exception("Acknowledge error: Device and host not in sync")
 
     def set_mask_off(self):
         if self.simple_serial:

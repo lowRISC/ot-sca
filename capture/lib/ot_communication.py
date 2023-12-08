@@ -404,62 +404,153 @@ class OTKMAC:
                         return batch_digest[0:len_bytes]
                     except Exception:
                         pass  # noqa: E302
-        return self.target.simpleserial_read("r", len_bytes, ack=False)
 
 
 class OTSHA3:
-    def __init__(self, target) -> None:
+    def __init__(self, target, protocol: str,
+                 port: Optional[OTUART] = None) -> None:
         self.target = target
+        self.simple_serial = True
+        self.port = port
+        if protocol == "ujson":
+            self.simple_serial = False
+            # Init the SHA3 core.
+            self.port.write(json.dumps("ShaSca").encode("ascii"))
+            self.port.write(json.dumps("Init").encode("ascii"))
+
+    def _ujson_sha_sca_cmd(self):
+        # TODO: without the delay, the device uJSON command handler program
+        # does not recognize the commands.
+        time.sleep(0.01)
+        self.port.write(json.dumps("ShaSca").encode("ascii"))
+
+    def _ujson_sha_sca_ack(self):
+        # Wait for ack.
+        while True:
+            read_line = str(self.port.readline())
+            if "RESP_OK" in read_line:
+                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                try:
+                    status = json.loads(json_string)["status"]
+                    if status[0] != 0:
+                        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+                    return status
+                except Exception:
+                    raise Exception("Batch mode acknowledge error: Device and host not in sync")
+            else:
+                raise Exception("Batch mode acknowledge error: Device and host not in sync")
 
     def set_mask_off(self):
-        self.target.simpleserial_write("m", bytearray([0x01]))
-        ack_ret = self.target.simpleserial_wait_ack(5000)
-        if ack_ret is None:
-            raise Exception("Device and host not in sync")
+        if self.simple_serial:
+            self.target.simpleserial_write("m", bytearray([0x01]))
+            ack_ret = self.target.simpleserial_wait_ack(5000)
+            if ack_ret is None:
+                raise Exception("Device and host not in sync")
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # DisableMasking command.
+            self.port.write(json.dumps("DisableMasking").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            mask = {"masks_off": [1]}
+            self.port.write(json.dumps(mask).encode("ascii"))
+            # Wait for ack.
+            self._ujson_sha_sca_ack()
 
     def set_mask_on(self):
-        self.target.simpleserial_write("m", bytearray([0x00]))
-        ack_ret = self.target.simpleserial_wait_ack(5000)
-        if ack_ret is None:
-            raise Exception("Device and host not in sync")
+        if self.simple_serial:
+            self.target.simpleserial_write("m", bytearray([0x00]))
+            ack_ret = self.target.simpleserial_wait_ack(5000)
+            if ack_ret is None:
+                raise Exception("Device and host not in sync")
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # DisableMasking command.
+            self.port.write(json.dumps("DisableMasking").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            mask = {"masks_off": [0]}
+            self.port.write(json.dumps(mask).encode("ascii"))
+            # Wait for ack.
+            self._ujson_sha_sca_ack()
 
-    def absorb(self, text):
+    def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan SHA3 & start absorb.
         Args:
             text: The plaintext bytearray.
         """
-        self.target.simpleserial_write("p", text)
+        if self.simple_serial:
+            self.target.simpleserial_write("p", text)
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # SingleAbsorb command.
+            self.port.write(json.dumps("SingleAbsorb").encode("ascii"))
+            # SingleAbsorb payload.
+            time.sleep(0.01)
+            text_int = [x for x in text]
+            text_data = {"msg": text_int, "msg_length": text_length}
+            self.port.write(json.dumps(text_data).encode("ascii"))
 
     def absorb_batch(self, num_segments):
         """ Start absorb for batch.
         Args:
             num_segments: Number of hashings to perform.
         """
-        self.target.simpleserial_write("b", num_segments)
-        ack_ret = self.target.simpleserial_wait_ack(5000)
-        if ack_ret is None:
-            raise Exception("Batch mode acknowledge error: Device and host not in sync")
+        if self.simple_serial:
+            self.target.simpleserial_write("b", num_segments)
+            ack_ret = self.target.simpleserial_wait_ack(5000)
+            if ack_ret is None:
+                raise Exception("Batch mode acknowledge error: Device and host not in sync")
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # Batch command.
+            self.port.write(json.dumps("Batch").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            num_segments_data = {"data": [x for x in num_segments]}
+            self.port.write(json.dumps(num_segments_data).encode("ascii"))
+            # Wait for ack.
+            self._ujson_sha_sca_ack()
 
     def write_lfsr_seed(self, seed):
         """ Seed the LFSR.
         Args:
             seed: The 4-byte seed.
         """
-        self.target.simpleserial_write("l", seed)
+        if self.simple_serial:
+            self.target.simpleserial_write("l", seed)
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # SeedLfsr command.
+            self.port.write(json.dumps("SeedLfsr").encode("ascii"))
+            # Seed payload.
+            time.sleep(0.01)
+            seed_int = [x for x in seed]
+            seed_data = {"seed": seed_int}
+            self.port.write(json.dumps(seed_data).encode("ascii"))
 
-    def write_batch_prng_seed(self, seed):
-        """ Seed the PRNG.
-        Args:
-            seed: The 4-byte seed.
-        """
-        self.target.simpleserial_write("s", seed)
-
-    def fvsr_fixed_msg_set(self, msg):
+    def fvsr_fixed_msg_set(self, msg, msg_length: Optional[int] = 16):
         """ Write the fixed message to SHA3.
         Args:
-            key: Bytearray containing the message.
+            msg: Bytearray containing the message.
         """
-        self.target.simpleserial_write("f", msg)
+        if self.simple_serial:
+            self.target.simpleserial_write("f", bytearray(msg))
+        else:
+            # ShaSca command.
+            self._ujson_sha_sca_cmd()
+            # FixedMessageSet command.
+            self.port.write(json.dumps("FixedMessageSet").encode("ascii"))
+            # Msg payload.
+            time.sleep(0.01)
+            msg_int = [x for x in msg]
+            msg_data = {"msg": msg_int, "msg_length": msg_length}
+            self.port.write(json.dumps(msg_data).encode("ascii"))
 
     def read_ciphertext(self, len_bytes):
         """ Read ciphertext from OpenTitan SHA3.
@@ -469,4 +560,17 @@ class OTSHA3:
         Returns:
             The received ciphertext.
         """
-        return self.target.simpleserial_read("r", len_bytes, ack=False)
+        if self.simple_serial:
+            response_byte = self.target.simpleserial_read("r", len_bytes, ack=False)
+            # Convert response into int array.
+            return [x for x in response_byte]
+        else:
+            while True:
+                read_line = str(self.port.readline())
+                if "RESP_OK" in read_line:
+                    json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                    try:
+                        batch_digest = json.loads(json_string)["batch_digest"]
+                        return batch_digest[0:len_bytes]
+                    except Exception:
+                        pass  # noqa: E302

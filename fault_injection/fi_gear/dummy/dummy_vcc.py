@@ -13,7 +13,9 @@ class DummyVCC:
     def __init__(self, glitch_voltage_min: float, glitch_voltage_max: float,
                  glitch_voltage_step: float, glitch_width_min: float,
                  glitch_width_max: float, glitch_width_step: float,
-                 trigger_delay_min: int, trigger_delay_max: int, trigger_step: int):
+                 trigger_delay_min: int, trigger_delay_max: int,
+                 trigger_step: int, num_iterations: int,
+                 parameter_generation: str):
         self.glitch_voltage_min = glitch_voltage_min
         self.glitch_voltage_max = glitch_voltage_max
         self.glitch_voltage_step = glitch_voltage_step
@@ -23,6 +25,8 @@ class DummyVCC:
         self.trigger_delay_min = trigger_delay_min
         self.trigger_delay_max = trigger_delay_max
         self.trigger_step = trigger_step
+        self.num_iterations = num_iterations
+        self.parameter_generation = parameter_generation
 
     def arm_trigger(self, fault_parameters: dict) -> None:
         """ Arm the trigger.
@@ -39,19 +43,34 @@ class DummyVCC:
         Returns:
             A dict containing the FI parameters.
         """
-        parameters = {}
-        parameters["glitch_voltage"] = random_float_range(self.glitch_voltage_min,
-                                                          self.glitch_voltage_max,
-                                                          self.glitch_voltage_step)
-        parameters["glitch_width"] = random_float_range(self.glitch_width_min,
-                                                        self.glitch_width_max,
-                                                        self.glitch_width_step)
-        parameters["trigger_delay"] = random_float_range(self.trigger_delay_min,
-                                                         self.trigger_delay_max,
-                                                         self.trigger_step)
+        if self.parameter_generation == "random":
+            parameters = {}
+            parameters["glitch_voltage"] = random_float_range(self.glitch_voltage_min,
+                                                              self.glitch_voltage_max,
+                                                              self.glitch_voltage_step)
+            parameters["glitch_width"] = random_float_range(self.glitch_width_min,
+                                                            self.glitch_width_max,
+                                                            self.glitch_width_step)
+            parameters["trigger_delay"] = random_float_range(self.trigger_delay_min,
+                                                             self.trigger_delay_max,
+                                                             self.trigger_step)
+        else:
+            raise Exception("DummyVCC only supports random parameter generation")
+
         return parameters
 
     def reset(self) -> None:
         """ No reset is required for dummy VCC glitch gear.
         """
         pass
+
+    def get_num_fault_injections(self) -> int:
+        """ Get number of fault injections.
+
+        Returns: The total number of fault injections performed with the
+                DummyVCCFI gear.
+        """
+        if self.parameter_generation == "random":
+            return self.num_iterations
+        else:
+            raise Exception("DummyVCC only supports random parameter generation")

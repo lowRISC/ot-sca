@@ -12,6 +12,13 @@ target:
 fisetup:
   fi_gear: "dummy"
   fi_type: "voltage_glitch"
+  # Parameter generation.
+  parameter_generation: "random"
+  # Number of randomized iterations for the parameter sweep.
+  # For parameter_generation: "random", this is the number of iterations.
+  # For parameter_generation: "deterministic", this is the number of iterations
+  # per fixed parameter.
+  num_iterations: 100
   # Voltage glitch width in ns.
   glitch_voltage_min: 2.7
   glitch_voltage_max: 3.3
@@ -24,8 +31,6 @@ fisetup:
   trigger_delay_min: 0
   trigger_delay_max: 500
   trigger_step: 10
-  # Number of iterations for the parameter sweep.
-  num_iterations: 100
 fiproject:
   # Project database type and memory threshold.
   project_db: "ot_fi_project"

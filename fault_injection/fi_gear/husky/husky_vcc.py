@@ -25,7 +25,9 @@ class HuskyVCC:
     """
     def __init__(self, pll_frequency: int, glitch_width_min: float,
                  glitch_width_max: float, glitch_width_step: float,
-                 trigger_delay_min: int, trigger_delay_max: int, trigger_step: int):
+                 trigger_delay_min: int, trigger_delay_max: int,
+                 trigger_step: int, num_iterations: int,
+                 parameter_generation: str):
         # Set Husky parameters.
         self.scope = None
         self.pll_frequency = pll_frequency
@@ -37,6 +39,14 @@ class HuskyVCC:
         self.trigger_delay_min = trigger_delay_min
         self.trigger_delay_max = trigger_delay_max
         self.trigger_step = trigger_step
+        self.num_iterations = num_iterations
+        self.parameter_generation = parameter_generation
+
+        # Current glitch_width.
+        self.curr_glitch_width = self.glitch_width = self.glitch_width_min
+
+        # Current FI parameter iteration.
+        self.curr_iteration = 0
 
         # Init husky.
         self.init_husky()
@@ -81,13 +91,28 @@ class HuskyVCC:
         """ Generate random voltage glitch parameters within the provided
             limits.
 
+        Random generation: randomly generate glitch_width & trigger_delay.
+        Deterministic generation: step glitch width and randomly generate
+                                  num_iterations trigger delays per step.
+
         Returns:
             A dict containing the FI parameters.
         """
         parameters = {}
-        parameters["glitch_width"] = random_float_range(self.glitch_width_min,
-                                                        self.glitch_width_max,
-                                                        self.glitch_width_step)
+        if self.parameter_generation == "random":
+            parameters["glitch_width"] = random_float_range(self.glitch_width_min,
+                                                            self.glitch_width_max,
+                                                            self.glitch_width_step)
+        elif self.parameter_generation == "deterministic":
+            if self.curr_iteration == self.num_iterations:
+                self.curr_iteration = 0
+                self.curr_glitch_width += self.glitch_width_step
+            parameters["glitch_width"] = self.curr_glitch_width
+            self.curr_iteration += 1
+        else:
+            raise Exception("HuskyVCC only supports random/deterministic parameter generation")
+
+        # Randomly generate the trigger delay for both cases.
         parameters["trigger_delay"] = random_float_range(self.trigger_delay_min,
                                                          self.trigger_delay_max,
                                                          self.trigger_step)
@@ -99,3 +124,17 @@ class HuskyVCC:
         If the target crashes, Husky needs to be again initialized.
         """
         self.init_husky()
+
+    def get_num_fault_injections(self) -> int:
+        """ Get number of fault injections.
+
+        Returns: The total number of fault injections performed with the Husky
+                 glitcher.
+        """
+        if self.parameter_generation == "random":
+            return self.num_iterations
+        elif self.parameter_generation == "deterministic":
+            return ((self.glitch_width_max - self.glitch_width_min) /
+                    self.glitch_width_step) * self.num_iterations
+        else:
+            raise Exception("HuskyVCC only supports random/deterministic parameter generation")

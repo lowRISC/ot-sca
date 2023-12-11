@@ -81,7 +81,7 @@ def fi_parameter_sweep(cfg: dict, cwtarget: CWFPGA, fi_gear,
     # Configure the trigger.
     ot_communication.init_trigger()
     # Start the parameter sweep.
-    remaining_iterations = cfg["fisetup"]["num_iterations"]
+    remaining_iterations = fi_gear.get_num_fault_injections()
     with tqdm(total=remaining_iterations, desc="Injecting", ncols=80,
               unit=" different faults") as pbar:
         while remaining_iterations > 0:

@@ -27,7 +27,9 @@ class FIGear:
                 glitch_width_step = cfg["fisetup"]["glitch_width_step"],
                 trigger_delay_min = cfg["fisetup"]["trigger_delay_min"],
                 trigger_delay_max = cfg["fisetup"]["trigger_delay_max"],
-                trigger_step = cfg["fisetup"]["trigger_step"])
+                trigger_step = cfg["fisetup"]["trigger_step"],
+                num_iterations = cfg["fisetup"]["num_iterations"],
+                parameter_generation = cfg["fisetup"]["parameter_generation"])
         elif self.gear_type == "husky" and self.fi_type == "voltage_glitch":
             self.gear = HuskyVCC(
                 pll_frequency = cfg["target"]["pll_frequency"],
@@ -36,7 +38,9 @@ class FIGear:
                 glitch_width_step = cfg["fisetup"]["glitch_width_step"],
                 trigger_delay_min = cfg["fisetup"]["trigger_delay_min"],
                 trigger_delay_max = cfg["fisetup"]["trigger_delay_max"],
-                trigger_step = cfg["fisetup"]["trigger_step"])
+                trigger_step = cfg["fisetup"]["trigger_step"],
+                num_iterations = cfg["fisetup"]["num_iterations"],
+                parameter_generation = cfg["fisetup"]["parameter_generation"])
 
     def arm_trigger(self, fi_parameters: dict) -> None:
         """ Arm the trigger.
@@ -58,6 +62,12 @@ class FIGear:
         """ Reset the FI gear.
 
         Some FI gear (Husky) needs to be resettet.
-
         """
         self.gear.reset()
+
+    def get_num_fault_injections(self) -> int:
+        """ Get number of fault injections.
+
+        Returns: The total number of fault injections performed with the FI gear.
+        """
+        return self.gear.get_num_fault_injections()

@@ -34,7 +34,10 @@ class DummyVCC:
         Args:
             A dict containing the FI parameters.
         """
-        print(f"Arming DummyVCC trigger with glitch_voltage={fault_parameters['glitch_voltage']} glitch_width={fault_parameters['glitch_width']}, and trigger_delay={fault_parameters['trigger_delay']}")  # noqa: E501
+        print(f"Arming DummyVCC trigger with"
+              f"glitch_voltage={fault_parameters['glitch_voltage']}, "
+              f"glitch_width={fault_parameters['glitch_width']}, and "
+              f"trigger_delay={fault_parameters['trigger_delay']}")
 
     def generate_fi_parameters(self) -> dict:
         """ Generate random voltage glitch parameters within the provided

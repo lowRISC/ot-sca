@@ -51,6 +51,33 @@ class OTFIIbex:
         time.sleep(0.01)
         self.uart.write(json.dumps("CharUnrolledRegOpLoop").encode("ascii"))
 
+    def ibex_char_unrolled_mem_op_loop(self) -> None:
+        """ Starts the ibex.char.unrolled_mem_op_loop test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharUnrolledMemOpLoop command.
+        time.sleep(0.01)
+        self.uart.write(json.dumps("CharUnrolledMemOpLoop").encode("ascii"))
+
+    def ibex_char_reg_op_loop(self) -> None:
+        """ Starts the ibex.char.reg_op_loop test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharRegOpLoop command.
+        time.sleep(0.01)
+        self.uart.write(json.dumps("CharRegOpLoop").encode("ascii"))
+
+    def ibex_char_mem_op_loop(self) -> None:
+        """ Starts the ibex.char.mem_op_loop test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharMemOpLoop command.
+        time.sleep(0.01)
+        self.uart.write(json.dumps("CharMemOpLoop").encode("ascii"))
+
     def init_trigger(self) -> None:
         """ Initialize the FI trigger on the chip.
 

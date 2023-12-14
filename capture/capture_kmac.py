@@ -27,12 +27,11 @@ from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
 from tqdm import tqdm
 
-sys.path.append("../")
-import util.helpers as helpers  # noqa: E402
-from target.cw_fpga import CWFPGA  # noqa: E402
-from util import check_version  # noqa: E402
-from util import plot  # noqa: E402
-from util import data_generator as dg  # noqa: E402
+import util.helpers as helpers
+from target.cw_fpga import CWFPGA
+from util import check_version
+from util import data_generator as dg
+from util import plot
 
 """KMAC SCA capture script.
 

@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -13,12 +12,10 @@ from fi_gear.fi_gear import FIGear
 from project_library.project import FIProject, FISuccess, ProjectConfig
 from tqdm import tqdm
 
-sys.path.append("../")
-import util.helpers as helpers  # noqa: E402
-from target.communication.fi_ibex_commands import OTUART  # noqa: E402
-from target.communication.fi_ibex_commands import OTFIIbex  # noqa: E402
-from target.cw_fpga import CWFPGA  # noqa: E402
-from util import plot  # noqa: E402
+import util.helpers as helpers
+from target.communication.fi_ibex_commands import OTUART, OTFIIbex
+from target.cw_fpga import CWFPGA
+from util import plot
 
 logger = logging.getLogger()
 

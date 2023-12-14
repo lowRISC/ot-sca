@@ -9,7 +9,7 @@ import chipwhisperer as cw
 import numpy as np
 from scopes.chipwhisperer.cw_segmented import CwSegmented
 
-sys.path.append("../../../")
+sys.path.append("../")
 from util import check_version  # noqa: E402
 
 

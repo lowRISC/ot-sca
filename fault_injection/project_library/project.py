@@ -3,14 +3,12 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
 from typing import Optional
 
-sys.path.append("../")
-from fault_injection.project_library.ot_fi_library.fi_library import (  # noqa: E402
+from fault_injection.project_library.ot_fi_library.fi_library import (
     FILibrary, FIResult)
 
 

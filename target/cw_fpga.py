@@ -189,17 +189,35 @@ class CWFPGA(object):
         time.sleep(0.5)
 
     def reset_target(self):
-        """Resets the target by re-programming the FPGA. """
-        programmer = SpiProgrammer(self.fpga_type)
+        """Resets the target. """
+        # Check if FPGA bitstream is corrupted by reading the state of INITB.
+        if self.fpga.INITB_state() is not True:
+            print("Reprogram the FPGA.")
+            # Reprogram the bitstream.
+            programmer = SpiProgrammer(self.fpga_type)
 
-        self.scope = cw.scope()
+            self.scope = cw.scope()
 
-        self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream, True,
-                                         self.pll_frequency)
+            self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream,
+                                             True, self.pll_frequency)
 
-        self.target = self.initialize_target(programmer, self.firmware,
-                                             self.baudrate, self.output_len,
-                                             self.pll_frequency)
-        # TODO: add version check also for uJson binary.
-        if self.prot_simple_serial:
-            self._test_read_version_from_target()
+            self.target = self.initialize_target(programmer, self.firmware,
+                                                 self.baudrate, self.output_len,
+                                                 self.pll_frequency)
+            # TODO: add version check also for uJson binary.
+            if self.prot_simple_serial:
+                self._test_read_version_from_target()
+        else:
+            # Bitstream seems to be OK, reset OpenTitan.
+            print("Reset OpenTitan.")
+            # POR_N (OpenTitan) is connected to USB_A14 (CW310 SAM3X)
+            io = self.fpga.gpio_mode()
+            io.pin_set_output("USB_A14")
+            io.pin_set_state("USB_A14", 1)
+            # Trigger reset for 100ms.
+            io.pin_set_state("USB_A14", 0)
+            time.sleep(0.1)
+            # Deactivate reset.
+            io.pin_set_state("USB_A14", 1)
+            # Add a small delay to allow OpenTitan to boot up.
+            time.sleep(0.1)

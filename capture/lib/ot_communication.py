@@ -415,16 +415,16 @@ class OTSHA3:
         if protocol == "ujson":
             self.simple_serial = False
             # Init the SHA3 core.
-            self.port.write(json.dumps("ShaSca").encode("ascii"))
+            self.port.write(json.dumps("Sha3Sca").encode("ascii"))
             self.port.write(json.dumps("Init").encode("ascii"))
 
-    def _ujson_sha_sca_cmd(self):
+    def _ujson_sha3_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
         # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
-        self.port.write(json.dumps("ShaSca").encode("ascii"))
+        self.port.write(json.dumps("Sha3Sca").encode("ascii"))
 
-    def _ujson_sha_sca_ack(self):
+    def _ujson_sha3_sca_ack(self):
         # Wait for ack.
         while True:
             read_line = str(self.port.readline())
@@ -447,8 +447,8 @@ class OTSHA3:
             if ack_ret is None:
                 raise Exception("Device and host not in sync")
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.port.write(json.dumps("DisableMasking").encode("ascii"))
             # Num_segments payload.
@@ -456,7 +456,7 @@ class OTSHA3:
             mask = {"masks_off": [1]}
             self.port.write(json.dumps(mask).encode("ascii"))
             # Wait for ack.
-            self._ujson_sha_sca_ack()
+            self._ujson_sha3_sca_ack()
 
     def set_mask_on(self):
         if self.simple_serial:
@@ -465,8 +465,8 @@ class OTSHA3:
             if ack_ret is None:
                 raise Exception("Device and host not in sync")
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.port.write(json.dumps("DisableMasking").encode("ascii"))
             # Num_segments payload.
@@ -474,7 +474,7 @@ class OTSHA3:
             mask = {"masks_off": [0]}
             self.port.write(json.dumps(mask).encode("ascii"))
             # Wait for ack.
-            self._ujson_sha_sca_ack()
+            self._ujson_sha3_sca_ack()
 
     def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan SHA3 & start absorb.
@@ -484,8 +484,8 @@ class OTSHA3:
         if self.simple_serial:
             self.target.simpleserial_write("p", text)
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # SingleAbsorb command.
             self.port.write(json.dumps("SingleAbsorb").encode("ascii"))
             # SingleAbsorb payload.
@@ -505,8 +505,8 @@ class OTSHA3:
             if ack_ret is None:
                 raise Exception("Batch mode acknowledge error: Device and host not in sync")
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # Batch command.
             self.port.write(json.dumps("Batch").encode("ascii"))
             # Num_segments payload.
@@ -514,7 +514,7 @@ class OTSHA3:
             num_segments_data = {"data": [x for x in num_segments]}
             self.port.write(json.dumps(num_segments_data).encode("ascii"))
             # Wait for ack.
-            self._ujson_sha_sca_ack()
+            self._ujson_sha3_sca_ack()
 
     def write_lfsr_seed(self, seed):
         """ Seed the LFSR.
@@ -524,8 +524,8 @@ class OTSHA3:
         if self.simple_serial:
             self.target.simpleserial_write("l", seed)
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # SeedLfsr command.
             self.port.write(json.dumps("SeedLfsr").encode("ascii"))
             # Seed payload.
@@ -542,8 +542,8 @@ class OTSHA3:
         if self.simple_serial:
             self.target.simpleserial_write("f", bytearray(msg))
         else:
-            # ShaSca command.
-            self._ujson_sha_sca_cmd()
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # FixedMessageSet command.
             self.port.write(json.dumps("FixedMessageSet").encode("ascii"))
             # Msg payload.

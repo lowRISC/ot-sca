@@ -6,6 +6,7 @@
 bokeh==2.4.3
 cffi==1.16.0
 codetiming==1.4.0
+gitpython==3.1.40
 libusb1==3.1.0
 matplotlib==3.8.1
 more-itertools==10.1.0

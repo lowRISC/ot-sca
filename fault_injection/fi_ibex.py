@@ -178,12 +178,21 @@ def main(argv=None):
     # Save metadata.
     metadata = {}
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    metadata["cfg"] = cfg
-    metadata["fpga_bitstream"] = cfg["target"]["fpga_bitstream"]
-    # TODO: Store binary into database instead of binary path.
-    # (Issue lowrisc/ot-sca#214)
-    metadata["fw_bin"] = cfg["target"]["fw_bin"]
+    # Store bitstream information.
+    metadata["fpga_bitstream_path"] = cfg["target"]["fpga_bitstream"]
+    metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
+    if args.save_bitstream:
+        metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
+    # Store binary information.
+    metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
+    metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
+    if args.save_binary:
+        metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+    # Store user provided notes.
     metadata["notes"] = args.notes
+    # Store the Git hash.
+    metadata["git_hash"] = helpers.get_git_hash()
+    # Write metadata into project database.
     project.write_metadata(metadata)
 
     # Save and close project.

@@ -469,9 +469,7 @@ def main(argv=None):
     # TODO: Store binary into database instead of binary path.
     # (Issue lowrisc/ot-sca#214)
     metadata["fw_bin"] = cfg["target"]["fw_bin"]
-    # TODO: Allow user to enter notes via CLI.
-    # (Issue lowrisc/ot-sca#213)
-    metadata["notes"] = ""
+    metadata["notes"] = args.notes
     project.write_metadata(metadata)
 
     # Save and close project.

@@ -60,6 +60,13 @@ def parse_arguments(argv):
                         required=True,
                         help="Path of the output project directory")
 
+    parser.add_argument("-n",
+                        "--note",
+                        dest="notes",
+                        type=str,
+                        required=False,
+                        help="Notes to be stored in the project database")
+
     args = parser.parse_args(argv)
 
     return args

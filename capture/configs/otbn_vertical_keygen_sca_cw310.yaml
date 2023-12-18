@@ -1,0 +1,55 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: True
+  fw_bin: "../objs/otbn_vertical_serial_fpga_cw310.bin"
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
+  target_clk_mult: 0.24
+  # For non-batch mode max. 21.84MHz/0.24 = 91 MHz, otherwise serial communication fails
+  #target_freq: 21840000
+  target_freq: 24000000
+  baudrate: 115200
+  output_len_bytes: 40
+  protocol: "simpleserial"
+  # protocol: "ujson"
+  # port: "/dev/ttyACM4"
+husky:
+  sampling_rate: 200000000
+  num_segments: 20
+  num_cycles: 200
+  offset_cycles: 0
+  scope_gain: 24
+  adc_mul: 1
+  decimate: 1
+waverunner:
+  waverunner_ip: 100.107.71.10
+  num_segments: 20
+  num_samples: 6000
+  sample_offset: 0
+capture:
+  scope_select: husky
+  show_plot: True
+  plot_traces: 100
+  num_cycles: 200
+  offset_cycles: 0
+  num_traces: 1000
+  trace_threshold: 10000
+  trace_image_filename: "projects/simple_capture_otbn_vertical_keygen_sca_sample_traces.html"
+  trace_db: ot_trace_library
+test:
+  batch_prng_seed: 6
+  # These byte-lengths are passed to the chipwhisperer key/plaintext generator.
+  # Since this is not encryption, they don't correspond to key/plaintext, but
+  # rather seed/mask.
+  key_len_bytes: 40
+  text_len_bytes: 40
+  plain_text_len_bytes: 40
+  masks_off: False
+  # Currently, 'p256' is the only supported curve.
+  curve: p256
+  # Select the OTBN app to analyze. Currently available: 'keygen', 'modinv'
+  app: keygen
+  # For app = keygen: There are two fixed-vs-random test types, KEY and SEED
+  # Currently batch-mode capture only works with SEED
+  test_type: SEED
+  batch_mode: False

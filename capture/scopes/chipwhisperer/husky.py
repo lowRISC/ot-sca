@@ -81,6 +81,13 @@ class Husky:
                                      clkgen_freq=self.scope.clock.clkgen_freq,
                                      adc_mul=self.adc_mul)
             self.scope.num_segments = self.num_segments
+            # Sanity check manually set num_segments. Check, if we can keep the
+            # num_segements * num_samples in memory.
+            num_segments_max = (self.scope._scope.adc.oa.hwMaxSegmentSamples //
+                                self.scope._scope.adc.samples)
+            if (self.num_segments > num_segments_max):
+                raise RuntimeError("num_segments too large, cannot keep\
+                                   samples in CW Husky sample memory.")
 
     def arm(self):
         self.scope.arm()

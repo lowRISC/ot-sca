@@ -3,13 +3,10 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
-import binascii
 import logging
 import random
 import signal
 import sys
-import time
-import typer
 from dataclasses import dataclass
 from datetime import datetime
 from functools import partial
@@ -24,12 +21,23 @@ from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
 from tqdm import tqdm
 
-sys.path.append("../")
 import util.helpers as helpers
-from target.cw_fpga import CWFPGA  # noqa: E402
-from util import check_version  # noqa: E402
-from util import plot  # noqa: E402
-from util import data_generator as dg  # noqa: E402
+from target.cw_fpga import CWFPGA
+from util import check_version
+from util import data_generator as dg
+from util import plot
+
+"""OTBN vertical SCA capture script.
+
+Captures power traces during OTBN operations.
+
+The data format of the crypto material (ciphertext, plaintext, and key) inside
+the script is stored in plain integer arrays.
+
+Typical usage:
+>>> ./capture_otbn.py -c configs/otbn_vertical_keygen_sca_cw310.yaml \
+        -p projects/otbn_vertical_sca_cw310_keygen
+"""
 
 logger = logging.getLogger()
 
@@ -116,8 +124,8 @@ def setup(cfg: dict, project: Path):
     cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
 
     logger.info(
-        f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}..."
-    )  # noqa: E501
+        f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}..."  # noqa: E501
+    )
 
     # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
@@ -145,7 +153,7 @@ def setup(cfg: dict, project: Path):
         if "decimate" in cfg["husky"]:
             scope.scope.scope.adc.decimate = cfg["husky"]["decimate"]
         # Print final scope parameter
-        print(
+        logger.info(
             f'Scope setup with final sampling rate of {scope.scope.scope.clock.adc_freq} S/s'
         )
 
@@ -220,7 +228,7 @@ def configure_cipher(cfg: dict, target,
     if capture_cfg.capture_mode == "keygen":
         if capture_cfg.batch_mode:
             # TODO: add support for batch mode
-            raise NotImplementedError(f'Batch mode not yet supported.')
+            raise NotImplementedError('Batch mode not yet supported.')
         else:
             # Generate fixed constants for all traces of the keygen operation.
             if cfg["test"]["test_type"] == 'KEY':
@@ -258,7 +266,7 @@ def configure_cipher(cfg: dict, target,
     elif capture_cfg.capture_mode == "modinv":
         if capture_cfg.batch_mode:
             # TODO: add support for batch mode
-            raise NotImplementedError(f'Batch mode not supported.')
+            raise NotImplementedError('Batch mode not supported.')
         else:
             # set fixed key and share inputs
             # (uncomment the desired fixed shares depending on whether
@@ -297,7 +305,7 @@ def generate_ref_crypto_keygen(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
 
     if capture_cfg.batch_mode:
         # TODO: add support for batch mode
-        raise NotImplementedError(f'Batch mode not yet supported.')
+        raise NotImplementedError('Batch mode not yet supported.')
     else:
         if cfg["test"]["masks_off"] == 'True':
             # Use a constant mask for each trace
@@ -372,7 +380,7 @@ def generate_ref_crypto_modinv(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
 
     if capture_cfg.batch_mode:
         # TODO: add support for batch mode
-        raise NotImplementedError(f'Batch mode not yet supported.')
+        raise NotImplementedError('Batch mode not yet supported.')
     else:
         if sample_fixed:
             # Compute the fixed input shares:
@@ -468,7 +476,7 @@ def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
         ot_otbn_vert: The OpenTitan OTBN vertical communication interface.
         expected_key: The pre-computed key.
         curve_cfg: The curve config.
-    
+
     Returns:
         actual_output: The received output of the modinv operation.
     """
@@ -537,7 +545,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
             # Trigger encryption.
             if capture_cfg.batch_mode:
                 # TODO: add support for batch mode
-                raise NotImplementedError(f'Batch mode not yet supported.')
+                raise NotImplementedError('Batch mode not yet supported.')
             else:
                 # Send the seed to ibex.
                 # Ibex receives the seed and the mask and computes the two shares as:
@@ -607,13 +615,13 @@ def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
             # Arm the scope.
             scope.arm()
 
-            k_used, input_k0_used, input_k1_used, expected_output, sample_fixed = generate_ref_crypto_modinv(
-                cfg, sample_fixed, curve_cfg, capture_cfg)
+            k_used, input_k0_used, input_k1_used, expected_output, sample_fixed = \
+                generate_ref_crypto_modinv(cfg, sample_fixed, curve_cfg, capture_cfg)
 
             # Trigger encryption.
             if capture_cfg.batch_mode:
                 # TODO: add support for batch mode
-                raise NotImplementedError(f'Batch mode not supported.')
+                raise NotImplementedError('Batch mode not supported.')
             else:
                 # Start modinv device computation
                 ot_otbn_vert.start_modinv(input_k0_used, input_k1_used)
@@ -643,7 +651,7 @@ def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
             pbar.update(capture_cfg.num_segments)
 
 
-def print_plot(project: SCAProject, config: dict) -> None:
+def print_plot(project: SCAProject, config: dict, file: Path) -> None:
     """ Print plot of traces.
 
     Printing the plot helps to adjust the scope gain and check for clipping.
@@ -651,16 +659,16 @@ def print_plot(project: SCAProject, config: dict) -> None:
     Args:
         project: The project containing the traces.
         config: The capture configuration.
+        file: The output file path.
     """
     if config["capture"]["show_plot"]:
-        plot.save_plot_to_file(
-            project.get_waves(0, config["capture"]["plot_traces"]),
-            set_indices=None,
-            num_traces=config["capture"]["plot_traces"],
-            outfile=config["capture"]["trace_image_filename"],
-            add_mean_stddev=True)
-        print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-              f'{Path(config["capture"]["trace_image_filename"]).resolve()}')
+        plot.save_plot_to_file(project.get_waves(0, config["capture"]["plot_traces"]),
+                               set_indices = None,
+                               num_traces = config["capture"]["plot_traces"],
+                               outfile = file,
+                               add_mean_stddev=True)
+        logger.info(f'Created plot with {config["capture"]["plot_traces"]} traces: '
+                    f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -682,7 +690,7 @@ def main(argv=None):
     # Determine the capture mode and configure the current capture.
     mode = cfg["test"]["app"]
     batch = cfg["test"]["batch_mode"]
-    if batch == False:
+    if batch is False:
         # For non-batch mode, make sure that num_segments = 1.
         cfg[cfg["capture"]["scope_select"]]["num_segments"] = 1
         logger.info(
@@ -725,10 +733,10 @@ def main(argv=None):
                        project, target)
     else:
         # TODO: add support for modinv app
-        raise NotImplementedError(f'Cofigured OTBN app not yet supported.')
+        raise NotImplementedError('Cofigured OTBN app not yet supported.')
 
     # Print plot.
-    print_plot(project, cfg)
+    print_plot(project, cfg, args.project)
 
     # Save metadata.
     metadata = {}
@@ -738,13 +746,21 @@ def main(argv=None):
     metadata["offset_samples"] = scope.scope_cfg.offset_samples
     metadata["scope_gain"] = scope.scope_cfg.scope_gain
     metadata["cfg_file"] = str(args.cfg)
-    metadata["fpga_bitstream"] = cfg["target"]["fpga_bitstream"]
-    # TODO: Store binary into database instead of binary path.
-    # (Issue lowrisc/ot-sca#214)
-    metadata["fw_bin"] = cfg["target"]["fw_bin"]
-    # TODO: Allow user to enter notes via CLI.
-    # (Issue lowrisc/ot-sca#213)
-    metadata["notes"] = ""
+    # Store bitstream information.
+    metadata["fpga_bitstream_path"] = cfg["target"]["fpga_bitstream"]
+    metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
+    if args.save_bitstream:
+        metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
+    # Store binary information.
+    metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
+    metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
+    if args.save_binary:
+        metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+    # Store user provided notes.
+    metadata["notes"] = args.notes
+    # Store the Git hash.
+    metadata["git_hash"] = helpers.get_git_hash()
+    # Write metadata into project database.
     project.write_metadata(metadata)
 
     # Save and close project.

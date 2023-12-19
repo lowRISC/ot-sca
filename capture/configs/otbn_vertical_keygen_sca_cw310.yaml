@@ -32,7 +32,6 @@ capture:
   offset_cycles: 0
   num_traces: 1000
   trace_threshold: 10000
-  trace_image_filename: "projects/simple_capture_otbn_vertical_keygen_sca_sample_traces.html"
   trace_db: ot_trace_library
 test:
   batch_prng_seed: 6

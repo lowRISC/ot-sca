@@ -575,6 +575,7 @@ class OTSHA3:
                     except Exception:
                         pass  # noqa: E302
 
+
 class OTOTBNVERT:
     def __init__(self, target, protocol: str,
                  port: Optional[OTUART] = None) -> None:
@@ -583,19 +584,19 @@ class OTOTBNVERT:
         self.port = port
         if protocol == "ujson":
             self.simple_serial = False
-    
+
     def choose_otbn_app(self, app):
         """ Select the OTBN application.
         Args:
             app: OTBN application
         """
         if self.simple_serial:
-            # select the otbn app on the device (0 -> keygen, 1 -> modinv)
+            # Select the otbn app on the device (0 -> keygen, 1 -> modinv).
             if app == 'keygen':
                 self.target.simpleserial_write("a", bytearray([0x00]))
             if app == 'modinv':
                 self.target.simpleserial_write("a", bytearray([0x01]))
-    
+
     def write_batch_prng_seed(self, seed):
         """ Seed the PRNG.
         Args:
@@ -603,8 +604,7 @@ class OTOTBNVERT:
         """
         if self.simple_serial:
             self.target.simpleserial_write("s", seed)
-        
-    
+
     def write_keygen_seed(self, seed):
         """ Write the seed used for the keygen app.
         Args:
@@ -612,7 +612,7 @@ class OTOTBNVERT:
         """
         if self.simple_serial:
             self.target.simpleserial_write('x', seed)
-    
+
     def write_keygen_key_constant_redundancy(self, const):
         """ Write the constant redundancy value for the keygen app.
         Args:
@@ -620,19 +620,19 @@ class OTOTBNVERT:
         """
         if self.simple_serial:
             self.target.simpleserial_write("c", const)
-    
+
     def config_keygen_masking(self, off):
         """ Disable/enable masking.
         Args:
             off: boolean value.
         """
         if self.simple_serial:
-            # enable/disable masking
+            # Enable/disable masking.
             if off is True:
                 self.target.simpleserial_write("m", bytearray([0x00]))
             else:
                 self.target.simpleserial_write("m", bytearray([0x01]))
-    
+
     def start_keygen(self, mask):
         """ Write the seed mask and start the keygen app.
         Args:
@@ -641,7 +641,7 @@ class OTOTBNVERT:
         if self.simple_serial:
             # Send the mask and start the keygen operation.
             self.target.simpleserial_write('k', mask)
-    
+
     def start_modinv(self, scalar_k0, scalar_k1):
         """ Write the two scalar shares and start the modinv app.
         Args:
@@ -649,9 +649,9 @@ class OTOTBNVERT:
             scalar_k1: byte array containing the second scalar share.
         """
         if self.simple_serial:
-            # Start modinv device computation
+            # Start modinv device computation.
             self.target.simpleserial_write('q', scalar_k0 + scalar_k1)
-    
+
     def start_keygen_batch(self, test_type, num_segments):
         """ Start the keygen app in batch mode.
         Args:
@@ -659,7 +659,7 @@ class OTOTBNVERT:
             num_segments: number of keygen executions to perform.
         """
         if self.simple_serial:
-            # Start batch keygen
+            # Start batch keygen.
             if test_type == 'KEY':
                 self.target.simpleserial_write("e", num_segments)
             else:

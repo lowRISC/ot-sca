@@ -28,11 +28,11 @@ capture:
   scope_select: husky
   show_plot: True
   plot_traces: 100
-  num_cycles: 200
+  num_cycles: 100000
   offset_cycles: 0
   num_traces: 1000
   trace_threshold: 10000
-  trace_image_filename: "projects/simple_capture_otbn_vertical_keygen_sca_sample_traces.html"
+  trace_image_filename: "projects/simple_capture_otbn_vertical_modinv_sca_sample_traces.html"
   trace_db: ot_trace_library
 test:
   batch_prng_seed: 6
@@ -43,7 +43,7 @@ test:
   # Currently, 'p256' is the only supported curve.
   curve: p256
   # Select the OTBN app to analyze. Currently available: 'keygen', 'modinv'
-  app: keygen
+  app: modinv
   # For app = keygen: There are two fixed-vs-random test types, KEY and SEED
   # Currently batch-mode capture only works with SEED
   test_type: SEED

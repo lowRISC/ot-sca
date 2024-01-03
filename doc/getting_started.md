@@ -291,27 +291,27 @@ OpenTitan using the CW310, follow these steps:
 
 1. Go to the root directory of the OpenTitan repository.
 1. Build the regular binaries with
-```console
-$ cd $REPO_TOP
-$ ./bazelisk.sh build //sw/...
-```
+    ```console
+    $ cd $REPO_TOP
+    $ ./bazelisk.sh build //sw/...
+    ```
 1. Then, the bitstream generation can be started by running
-```console
-$ . /tools/xilinx/Vivado/2020.2/settings64.sh
-$ cd $REPO_TOP
-$ fusesoc --cores-root . run --flag=fileset_top --target=synth lowrisc:systems:chip_earlgrey_cw310
-```
+    ```console
+    $ . /tools/xilinx/Vivado/2020.2/settings64.sh
+    $ cd $REPO_TOP
+    $ fusesoc --cores-root . run --flag=fileset_top --target=synth lowrisc:systems:chip_earlgrey_cw310
+    ```
    The generated bitstream can be found in
-```
-build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
-```
+    ```
+    build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
+    ```
    and will be loaded to the FPGA using the ChipWhisperer Python API.
 
 1. To generate the OpenTitan application binary, e.g., for recording AES power traces on the CW310, run
-```console
-$ cd $REPO_TOP
-$ ./bazelisk.sh build //sw/device/sca:aes_serial
-```
+    ```console
+    $ cd $REPO_TOP
+    $ ./bazelisk.sh build //sw/device/sca:aes_serial
+    ```
 The path to the generated binary is:
 ```
 $REPO_TOP/bazel-bin/sw/device/sca/
@@ -323,40 +323,39 @@ To build the binaries for performing SCA of e.g. AES on the reduced English
 Breakfast top level of OpenTitan using the CW305, follow these steps:
 
 1. Go to the root directory of the OpenTitan repository.
-1. Before generating the OpenTitan FPGA bitstream for the CW305 target board,
-   you first have to run
-```console
-$ cd $REPO_TOP
-$ ./util/topgen-fusesoc.py --files-root=. --topname=top_englishbreakfast
-```
+1. Before generating the OpenTitan FPGA bitstream for the CW305 target board, you first have to run:
+      ```console
+      $ cd $REPO_TOP
+      $ ./util/topgen-fusesoc.py --files-root=. --topname=top_englishbreakfast
+      ```
    to generate top-level specific versions of some IP cores such as RV_PLIC,
    TL-UL crossbars etc.
 1. Then run
-```console
-$ cd $REPO_TOP
-$ ./hw/top_englishbreakfast/util/prepare_sw.py --build
-```
+      ```console
+      $ cd $REPO_TOP
+      $ ./hw/top_englishbreakfast/util/prepare_sw.py --build
+      ```
    in order to prepare the OpenTitan software build flow for English
    Breakfast and build the required binaries. More precisely, this script
    runs some code generators, patches some auto-generated source files and
    finally generates the boot ROM needed for bitstream generation.
 1. Finally, the bitstream generation can be started by running
-```console
-$ cd $REPO_TOP
-$ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:chip_englishbreakfast_cw305
-```
+    ```console
+    $ cd $REPO_TOP
+    $ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:chip_englishbreakfast_cw305
+    ```
    The generated bitstream can be found in
-```
-build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
-```
+    ```
+    build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
+    ```
    and will be loaded to the FPGA using the ChipWhisperer Python API.
 
 1. To generate the OpenTitan application binary for recording AES power traces,
    make sure the `prepare_sw.py` script has been run before executing
-```console
-$ cd $REPO_TOP
-$ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_nexysvideo_bin --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
-```
+    ```console
+    $ cd $REPO_TOP
+    $ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_nexysvideo_bin --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
+    ```
 The path to the generated binary will be printed to the terminal after running
 the command.
 
@@ -432,7 +431,7 @@ This can be done by uncommenting the corresponding line.
 To perform AES capture using any mode, you can use the following command:
 ```console
 $ cd capture
-$ ./capture_aes.py -c config/aes_sca_cw310.yaml -p projects/aes_sca_cw310
+$ ./capture_aes.py -c configs/aes_sca_cw310.yaml -p projects/aes_sca_cw310
 ```
 
 This script will load the OpenTitan FPGA bitstream to the target board, load and start the application binary to the target via SPI, and then feed data in and out of the target while capturing power traces on the capture board.
@@ -482,46 +481,49 @@ Note that boards have some natural variation, and changes such as the clock freq
 
 ### KMAC-128 Capture
 
+There are 3 capture modes for KMAC:
+1. KMAC Random
+1. KMAC Fixed vs Random Key
+1. KMAC Fixed vs Random Key Batch
+
+The capture type can be configured by setting the `which test:` parameter in the configuration file.
+This can be done by uncommenting the corresponding line.
+```
+  # which_test: kmac_random
+  # which_test: kmac_fvsr_key
+  which_test: kmac_fvsr_key_batch
+```
+
 To perform a KMAC-128 capture, use this command:
 ```console
-$ cd cw
-$ ./capture.py --cfg-file capture_kmac_cw310.yaml capture kmac-random --num-traces 100 --plot-traces 10
+$ cd capture
+$ ./capture_kmac.py -c configs/kmac_sca_cw310.yaml -p projects/kmac_sca_cw310
 ```
 
-The above command will send KMAC-128 requests with a fixed key and random
-texts. In order to capture traces for DTR TVLA Section 5.3: "General Test:
-Fixed-vs.-Random Key Datasets", following command may be used:
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_kmac_cw310.yaml capture kmac-fvsr-key --num-traces 100 --plot-traces 10
-```
 
-You should see similar output as in the AES example. Once the power traces have
-been collected, a picture similar to the following should be shown in your
-browser.
+You should see similar output as in the AES example.
+Once the power traces have been collected, a picture similar to the following should be shown in your browser.
 
-![](img/sample_traces_kmac.png)
+![](img/kmac_traces.jpg)
 
 ### SHA3 Capture
 
+There are 3 capture modes for SHA3:
+1. SHA3 Random
+1. SHA3 Fixed vs Random Data
+1. SHA3 Fixed vs Random Data Batch
+
 To perform a SHA3 capture, use this command:
 ```console
-$ cd cw
-$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-random --num-traces 100 --plot-traces 10
-```
-
-The above command will send SHA3 requests with random texts.
-In order to capture traces for Fixed-vs.-Random Datasets, the following command may be used:
-```console
-$ cd cw
-$ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-data --num-traces 100 --plot-traces 10
+$ cd capture
+$ ./capture_sha3.py -c configs/sha3_sca_cw310.yaml -p projects/sha3_sca_cw310
 ```
 
 You should see similar output as in the KMAC example. Once the power traces have
 been collected, a picture similar to the following should be shown in your
 browser.
 
-![](img/sample_traces_sha3.png)
+![](img/sha3_traces.jpg)
 
 
 You can also use the batch mode with
@@ -530,10 +532,10 @@ $ cd cw
 $ ./capture.py --cfg-file capture_sha3_cw310.yaml capture sha3-fvsr-data-batch --num-traces 100 --plot-traces 10
 ```
 
-However, there might occur errors due to synchronization issues. In this case try to reset the board and
+Errors might occur due to synchronization issues. In this case try to reset the board and
 try again.
 
-To disable masking use the ```capture_sha3_masks_off_cw310.yaml``` file. The capture commands stay the same.
+To disable masking use the ```sha3_sca_cw310_masks_off_cw310.yaml``` file. The capture commands stay the same.
 
 
 

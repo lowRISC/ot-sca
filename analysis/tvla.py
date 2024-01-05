@@ -5,6 +5,7 @@
 
 import inspect
 import logging as log
+import math
 import multiprocessing
 import os
 import sys
@@ -12,7 +13,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
-import math
 import numpy as np
 import typer
 import yaml
@@ -163,7 +163,8 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
     return histograms
 
 
-def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata):
+def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold,
+                      num_samples, sample_start, metadata):
     """Plotting trace in different colors, depending on where the trigger is high
     """
     c = np.ones(num_samples)
@@ -204,17 +205,17 @@ def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num
         axs[1 + i_order].plot(xaxs, c * threshold, "r")
         axs[1 + i_order].plot(xaxs, -threshold * c, "r")
         if trigger_high > 0:
-            axs[1 + i_order].plot(
-                xaxs[:trigger_high],
-                ttest_trace[i_order, 0, 0][:trigger_high], "grey")
+            axs[1 + i_order].plot(xaxs[:trigger_high],
+                                  ttest_trace[i_order, 0,
+                                              0][:trigger_high], "grey")
         if trigger_low > trigger_high:
             axs[1 + i_order].plot(
                 xaxs[trigger_high:trigger_low],
                 ttest_trace[i_order, 0, 0][trigger_high:trigger_low], "k")
         if trigger_low < num_samples:
-            axs[1 + i_order].plot(
-                xaxs[trigger_low:],
-                ttest_trace[i_order, 0, 0][trigger_low:], "grey")
+            axs[1 + i_order].plot(xaxs[trigger_low:],
+                                  ttest_trace[i_order, 0,
+                                              0][trigger_low:], "grey")
 
     return axs
 
@@ -524,7 +525,10 @@ def run_tvla(ctx: typer.Context):
                     # Eventually, we can drop this.
                     if i_step == 0:
                         if OTTraceLib:
-                            keys_nparrays = project.get_keys()
+                            if cfg["mode"] == "sha3":
+                                keys_nparrays = project.get_plaintexts()
+                            else:
+                                keys_nparrays = project.get_keys()
                         else:
                             # Convert all keys from the project file to numpy
                             # arrays once.
@@ -758,7 +762,8 @@ def run_tvla(ctx: typer.Context):
         # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
         try:
             sampling_rate = float(metadata['sampling_rate']) / 1e6
-            textbox = textbox + "Sample rate:\n" + str(math.floor(sampling_rate)) + " MS/s\n\n"
+            textbox = textbox + "Sample rate:\n" + str(
+                math.floor(sampling_rate)) + " MS/s\n\n"
         except KeyError:
             textbox = textbox
         try:
@@ -766,15 +771,18 @@ def run_tvla(ctx: typer.Context):
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Samples:\n" + str(metadata['num_samples']) + "\n\n"
+            textbox = textbox + "Samples:\n" + str(
+                metadata['num_samples']) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Offset:\n" + str(metadata['offset_samples']) + "\n\n"
+            textbox = textbox + "Offset:\n" + str(
+                metadata['offset_samples']) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Scope gain:\n" + str(metadata['scope_gain']) + "\n\n"
+            textbox = textbox + "Scope gain:\n" + str(
+                metadata['scope_gain']) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
@@ -793,9 +801,13 @@ def run_tvla(ctx: typer.Context):
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
 
-                    axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata)
+                    axs = tvla_plotting_fnc(axs, num_orders, ttest_trace,
+                                            single_trace, threshold,
+                                            num_samples, sample_start,
+                                            metadata)
 
-                    # Catch case where datetime data isn't saved to project file (e.g. older measurement)
+                    # Catch case where datetime data isn't saved
+                    # to project file (e.g. older measurement)
                     try:
                         axs[0].set_title("TVLA of " + "aes_t_test_round_" +
                                          str(rnd_list[i_rnd]) + "_byte_" +
@@ -813,14 +825,14 @@ def run_tvla(ctx: typer.Context):
                         right = left + width
                         top = bottom + height
                         plt.gcf().text(0.5 * (left + right),
-                                    0.5 * (bottom + top),
-                                    textbox,
-                                    fontsize=9,
-                                    horizontalalignment='center',
-                                    verticalalignment='center',
-                                    bbox=dict(boxstyle='round',
-                                                facecolor='w',
-                                                linewidth=0.6))
+                                       0.5 * (bottom + top),
+                                       textbox,
+                                       fontsize=9,
+                                       horizontalalignment='center',
+                                       verticalalignment='center',
+                                       bbox=dict(boxstyle='round',
+                                                 facecolor='w',
+                                                 linewidth=0.6))
                         plt.subplots_adjust(right=0.84)
                     plt.xlabel("time [samples]")
 
@@ -833,7 +845,9 @@ def run_tvla(ctx: typer.Context):
                         plt.close()
 
         else:
-            axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata)
+            axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace,
+                                    threshold, num_samples, sample_start,
+                                    metadata)
 
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
             try:

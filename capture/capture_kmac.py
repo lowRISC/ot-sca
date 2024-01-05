@@ -463,6 +463,8 @@ def main(argv=None):
     metadata["cfg"] = cfg
     metadata["num_samples"] = scope.scope_cfg.num_samples
     metadata["offset_samples"] = scope.scope_cfg.offset_samples
+    metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
+    metadata["num_traces"] = capture_cfg.num_traces
     metadata["scope_gain"] = scope.scope_cfg.scope_gain
     metadata["cfg_file"] = str(args.cfg)
     # Store bitstream information.

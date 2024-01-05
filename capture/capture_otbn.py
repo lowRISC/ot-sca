@@ -746,7 +746,8 @@ def main(argv=None):
     metadata["offset_samples"] = scope.scope_cfg.offset_samples
     metadata["scope_gain"] = scope.scope_cfg.scope_gain
     if cfg["capture"]["scope_select"] == "husky":
-        metadata["sampling_rate"] = scope.scope.scope.clock.adc_freq / scope.scope.scope.adc.decimate
+        metadata[
+            "sampling_rate"] = scope.scope.scope.clock.adc_freq / scope.scope.scope.adc.decimate
         metadata["samples_trigger_high"] = scope.scope.scope.adc.trig_count
     else:
         metadata["sampling_rate"] = scope.scope_cfg.sampling_rate

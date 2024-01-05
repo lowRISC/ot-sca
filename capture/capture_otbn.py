@@ -745,6 +745,12 @@ def main(argv=None):
     metadata["num_samples"] = scope.scope_cfg.num_samples
     metadata["offset_samples"] = scope.scope_cfg.offset_samples
     metadata["scope_gain"] = scope.scope_cfg.scope_gain
+    if cfg["capture"]["scope_select"] == "husky":
+        metadata["sampling_rate"] = scope.scope.scope.clock.adc_freq / scope.scope.scope.adc.decimate
+        metadata["samples_trigger_high"] = scope.scope.scope.adc.trig_count
+    else:
+        metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
+    metadata["num_traces"] = capture_cfg.num_traces
     metadata["cfg_file"] = str(args.cfg)
     # Store bitstream information.
     metadata["fpga_bitstream_path"] = cfg["target"]["fpga_bitstream"]

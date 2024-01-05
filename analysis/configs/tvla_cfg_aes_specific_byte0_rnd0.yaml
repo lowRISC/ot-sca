@@ -1,4 +1,4 @@
-project_file: projects/simple_capture_aes_sca
+project_file: ../capture/projects/simple_capture_aes_sca
 trace_file: null
 trace_start: null
 trace_end: null

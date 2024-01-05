@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import matplotlib.pyplot as plt
+import math
 import numpy as np
 import typer
 import yaml
@@ -160,6 +161,62 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
                     bins=[np.append(range(num_leakages), 9), range(trace_resolution + 1)])[0]
 
     return histograms
+
+
+def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata):
+    """Plotting trace in different colors, depending on where the trigger is high
+    """
+    c = np.ones(num_samples)
+    xaxs = range(sample_start, sample_start + num_samples)
+    offset = int(metadata["offset_samples"])
+    # Catch case where trigger data isn't saved to project file (e.g. older measurement)
+    try:
+        trigger_samples = int(metadata["samples_trigger_high"])
+    except KeyError:
+        trigger_samples = num_samples + offset
+    trigger_low = trigger_samples - (sample_start + offset)
+    trigger_high = 0
+    if offset < 0:
+        trigger_high = abs(offset)
+    if trigger_low < 0:
+        trigger_low = 0
+    if trigger_low > num_samples:
+        trigger_low = num_samples
+    axs[0].set_ylabel("trace")
+    if trigger_high > 0:
+        axs[0].plot(xaxs[:trigger_high],
+                    single_trace[:trigger_high],
+                    "grey",
+                    label='trigger low')
+    if trigger_low > trigger_high:
+        axs[0].plot(xaxs[trigger_high:trigger_low],
+                    single_trace[trigger_high:trigger_low],
+                    "k",
+                    label='trigger high')
+    if trigger_low < num_samples:
+        axs[0].plot(xaxs[trigger_low:],
+                    single_trace[trigger_low:],
+                    "grey",
+                    label='trigger low')
+    axs[0].legend(loc='upper right', prop={'size': 7})
+    for i_order in range(num_orders):
+        axs[1 + i_order].set_ylabel('t-test ' + str(i_order + 1))
+        axs[1 + i_order].plot(xaxs, c * threshold, "r")
+        axs[1 + i_order].plot(xaxs, -threshold * c, "r")
+        if trigger_high > 0:
+            axs[1 + i_order].plot(
+                xaxs[:trigger_high],
+                ttest_trace[i_order, 0, 0][:trigger_high], "grey")
+        if trigger_low > trigger_high:
+            axs[1 + i_order].plot(
+                xaxs[trigger_high:trigger_low],
+                ttest_trace[i_order, 0, 0][trigger_high:trigger_low], "k")
+        if trigger_low < num_samples:
+            axs[1 + i_order].plot(
+                xaxs[trigger_low:],
+                ttest_trace[i_order, 0, 0][trigger_low:], "grey")
+
+    return axs
 
 
 @app.command()
@@ -698,72 +755,73 @@ def run_tvla(ctx: typer.Context):
 
         # Metadata text variable for plot
         textbox = ""
-        # Metadata currently not implemented for OTTraceLib
-        if not OTTraceLib:
-            # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
-            try:
-                pll_freq = float(metadata['ChipWhisperer']
-                                 ['General Settings']['pll_frequency']) / 1e6
-                textbox = textbox + "PLL:\n" + str(pll_freq) + " MHz\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                pll_freq = float(metadata['ChipWhisperer']
-                                 ['General Settings']['sample_rate']) / 1e6
-                textbox = textbox + "ADC:\n" + str(pll_freq) + " MS/s\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                textbox = textbox + "Masks off:\n" + metadata[
-                    'ChipWhisperer']['General Settings']['masks_off'] + "\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                textbox = textbox + "Samples:\n" + metadata['ChipWhisperer'][
-                    'General Settings']['num_samples'] + "\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                textbox = textbox + "Offset:\n" + metadata['ChipWhisperer'][
-                    'General Settings']['offset'] + "\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                textbox = textbox + "Scope gain:\n" + metadata[
-                    'ChipWhisperer']['General Settings']['scope_gain'] + "\n\n"
-            except KeyError:
-                textbox = textbox
-            try:
-                textbox = textbox + "Traces:\n" + metadata['ChipWhisperer'][
-                    'General Settings']['num_traces'] + "\n\n"
-            except KeyError:
-                textbox = textbox
-            if textbox != "":
-                # remove last two linebreaks
-                textbox = textbox[:-2]
+        # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
+        try:
+            sampling_rate = float(metadata['sampling_rate']) / 1e6
+            textbox = textbox + "Sample rate:\n" + str(math.floor(sampling_rate)) + " MS/s\n\n"
+        except KeyError:
+            textbox = textbox
+        try:
+            textbox = textbox + "Masks off:\n" + metadata['masks_off'] + "\n\n"
+        except KeyError:
+            textbox = textbox
+        try:
+            textbox = textbox + "Samples:\n" + str(metadata['num_samples']) + "\n\n"
+        except KeyError:
+            textbox = textbox
+        try:
+            textbox = textbox + "Offset:\n" + str(metadata['offset_samples']) + "\n\n"
+        except KeyError:
+            textbox = textbox
+        try:
+            textbox = textbox + "Scope gain:\n" + str(metadata['scope_gain']) + "\n\n"
+        except KeyError:
+            textbox = textbox
+        try:
+            textbox = textbox + "Traces:\n" + str(num_traces) + "\n\n"
+        except KeyError:
+            textbox = textbox
+        if textbox != "":
+            # remove last two linebreaks
+            textbox = textbox[:-2]
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
-        xaxs = range(sample_start, sample_start + num_samples)
+        fig, axs = plt.subplots(num_orders + 1, 1, sharex=True)
         if cfg["mode"] == "aes" and general_test is False:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
 
-                    c = np.ones(num_samples)
-                    fig, axs = plt.subplots(num_orders + 1,
-                                            1,
-                                            sharex=True)
+                    axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata)
 
-                    axs[0].plot(xaxs, single_trace, "k")
-                    axs[0].set_ylabel("trace")
-                    for i_order in range(num_orders):
-                        axs[i_order + 1].plot(
-                            ttest_trace[i_order, rnd_ext[i_rnd],
-                                        byte_ext[i_byte]], 'k')
-                        axs[i_order + 1].plot(c * threshold, 'r')
-                        axs[i_order + 1].plot(-threshold * c, 'r')
-                        axs[i_order + 1].set_ylabel('t-test ' + str(i_order + 1))
+                    # Catch case where datetime data isn't saved to project file (e.g. older measurement)
+                    try:
+                        axs[0].set_title("TVLA of " + "aes_t_test_round_" +
+                                         str(rnd_list[i_rnd]) + "_byte_" +
+                                         str(byte_list[i_byte]) + "\n" +
+                                         "Captured: " + metadata['datetime'])
+                    except KeyError:
+                        axs[0].set_title("TVLA of " + "aes_t_test_round_" +
+                                         str(rnd_list[i_rnd])
+                                         ) + "_byte_" + str(byte_list[i_byte])
+
+                    # Add metadata to plot
+                    if textbox != "":
+                        left, width = .67, .5
+                        bottom, height = .25, .5
+                        right = left + width
+                        top = bottom + height
+                        plt.gcf().text(0.5 * (left + right),
+                                    0.5 * (bottom + top),
+                                    textbox,
+                                    fontsize=9,
+                                    horizontalalignment='center',
+                                    verticalalignment='center',
+                                    bbox=dict(boxstyle='round',
+                                                facecolor='w',
+                                                linewidth=0.6))
+                        plt.subplots_adjust(right=0.84)
                     plt.xlabel("time [samples]")
 
                     filename = "aes_t_test_round_" + str(rnd_list[i_rnd])
@@ -775,66 +833,16 @@ def run_tvla(ctx: typer.Context):
                         plt.close()
 
         else:
-            c = np.ones(num_samples)
-            fig, axs = plt.subplots(3, sharex=True)
+            axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold, num_samples, sample_start, metadata)
 
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
             try:
                 axs[0].set_title("TVLA of " +
-                                 (cfg["project_file"]).rsplit('/')[1] + "\n" +
-                                 "Captured: " + project.config['ChipWhisperer']
-                                 ['General Settings']['datetime'])
+                                 (cfg["project_file"]).rsplit('/')[3] + "\n" +
+                                 "Captured: " + metadata["datetime"])
             except KeyError:
                 axs[0].set_title("TVLA of " +
-                                 (cfg["project_file"]).rsplit('/')[1])
-
-            # Catch case where trigger data isn't saved to project file (e.g. older measurement)
-            try:
-                # Plot trace in different colors, depending on where the trigger is high
-                trigger_samples = int(
-                    project.config['ChipWhisperer']['General Settings']
-                    ['samples_trigger_high'])
-                offset = int(project.config['ChipWhisperer']
-                             ['General Settings']['offset'])
-                trigger_high = trigger_samples - (sample_start + offset)
-                if trigger_high < 0:
-                    trigger_high = 0
-                axs[0].set_ylabel("trace")
-                if trigger_high >= num_samples:
-                    axs[0].plot(xaxs, single_trace, "k")
-                else:
-                    axs[0].plot(xaxs[:trigger_high],
-                                single_trace[:trigger_high],
-                                "k",
-                                label='trigger high')
-                    axs[0].plot(xaxs[trigger_high:],
-                                single_trace[trigger_high:],
-                                "grey",
-                                label='trigger low')
-                    axs[0].legend(loc='upper right', prop={'size': 7})
-                for i_order in range(num_orders):
-                    axs[1 + i_order].set_ylabel('t-test ' + str(i_order + 1))
-                    axs[1 + i_order].plot(xaxs, c * threshold, "r")
-                    axs[1 + i_order].plot(xaxs, -threshold * c, "r")
-                    if trigger_high >= num_samples:
-                        axs[1 + i_order].plot(xaxs, ttest_trace[i_order, 0, 0],
-                                              "k")
-                    else:
-                        axs[1 + i_order].plot(
-                            xaxs[:trigger_high],
-                            ttest_trace[i_order, 0, 0][:trigger_high], "k")
-                        axs[1 + i_order].plot(
-                            xaxs[trigger_high:],
-                            ttest_trace[i_order, 0, 0][trigger_high:], "grey")
-            except KeyError:
-                axs[0].plot(xaxs, single_trace, "k")
-                axs[0].set_ylabel("trace")
-                for i_order in range(num_orders):
-                    axs[1 + i_order].plot(xaxs, ttest_trace[i_order, 0, 0],
-                                          "k")
-                    axs[1 + i_order].plot(xaxs, c * threshold, "r")
-                    axs[1 + i_order].plot(xaxs, -threshold * c, "r")
-                    axs[1 + i_order].set_ylabel('t-test ' + str(i_order + 1))
+                                 (cfg["project_file"]).rsplit('/')[3])
 
             # Add metadata to plot
             if textbox != "":
@@ -852,6 +860,7 @@ def run_tvla(ctx: typer.Context):
                                          facecolor='w',
                                          linewidth=0.6))
                 plt.subplots_adjust(right=0.84)
+
             plt.xlabel("time [samples]")
             plt.savefig('tmp/figures/' + cfg["mode"] + '_fixed_vs_random.png')
             plt.show()

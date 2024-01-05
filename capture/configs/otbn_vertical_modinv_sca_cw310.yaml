@@ -14,7 +14,7 @@ target:
 husky:
   sampling_rate: 200000000
   num_segments: 20
-  num_cycles: 200
+  num_cycles: 1000
   offset_cycles: 0
   scope_gain: 24
   adc_mul: 1
@@ -28,8 +28,6 @@ capture:
   scope_select: husky
   show_plot: True
   plot_traces: 100
-  num_cycles: 100000
-  offset_cycles: 0
   num_traces: 1000
   trace_threshold: 10000
   trace_db: ot_trace_library

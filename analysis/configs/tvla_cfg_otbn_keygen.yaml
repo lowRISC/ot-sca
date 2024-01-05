@@ -1,4 +1,4 @@
-project_file: projects/opentitan_otbn_vertical_keygen.cwp
+project_file: ../capture/projects/otbn_vertical_sca_cw310_keygen
 trace_file: null
 trace_start: null
 trace_end: null
@@ -16,4 +16,7 @@ general_test: true
 mode: otbn
 key_len_bytes: 40
 sample_start: null
-num_samples : 3500
+num_samples : null
+filter_traces: true
+trace_threshold: 1000
+trace_db: ot_trace_library

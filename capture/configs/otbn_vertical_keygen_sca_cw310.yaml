@@ -28,8 +28,6 @@ capture:
   scope_select: husky
   show_plot: True
   plot_traces: 100
-  num_cycles: 200
-  offset_cycles: 0
   num_traces: 1000
   trace_threshold: 10000
   trace_db: ot_trace_library

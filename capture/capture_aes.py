@@ -450,6 +450,8 @@ def main(argv=None):
     # Write metadata into project database.
     project.write_metadata(metadata)
 
+    # Finale the capture.
+    project.finalize_capture(capture_cfg.num_traces)
     # Save and close project.
     project.save()
 

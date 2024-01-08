@@ -159,8 +159,21 @@ class SCAProject:
             # See:
             # - _updateRanges() in chipwhisperer/common/api/TraceManager.py.
             # - https://github.com/newaetech/chipwhisperer/issues/344
+            #
+            # Before saving the CW project to disk, all trace storage segments need to be
+            # re-enabled using finalize_capture().
             if num_segments_storage != len(self.project.segments):
                 if num_segments_storage >= 2:
                     self.project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2, False)
                 num_segments_storage = len(self.project.segments)
             return num_segments_storage
+
+    def finalize_capture(self, num_traces):
+        """Before saving the CW project to disk, re-enable all trace storage segments."""
+        # The function optimize_capture above disables all but the most recent two trace storage
+        # segments to maintain the capture rate. Before saving the CW project to disk, this
+        # needs to be undone.
+        if self.project_cfg.type == "cw":
+            for s in range(len(self.project.segments)):
+                self.project.traces.tm.setTraceSegmentStatus(s, True)
+            assert len(self.project.traces) == num_traces

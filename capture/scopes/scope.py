@@ -28,35 +28,6 @@ class ScopeConfig:
     sampling_rate: Optional[int] = 0
 
 
-def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
-    """ Determine sampling rate.
-
-    If no sampling rate is provided, calculate for Husky or receive from
-    WaveRunner.
-
-    Args:
-        dict: The scope configuration.
-        scope_type: The used scope (Husky or WaveRunner).
-
-    Returns:
-        Sampling rate
-    """
-    if cfg[scope_type].get("sampling_rate") is None:
-        if scope_type == "husky":
-            # If no sampling rate is provided, calculte it. Max. sampling
-            # rate of Husky is 200e6. As adc_mul needs to be an integer,
-            # calculate the maximum possible sampling rate.
-            SAMPLING_RATE_MAX = 200e6
-            adc_mul = int(SAMPLING_RATE_MAX // cfg["target"]["pll_frequency"])
-            return (adc_mul * cfg["target"]["pll_frequency"])
-        else:
-            # Waverunner init not done yet, so cannot be read from WaveRunner.
-            raise RuntimeError("WAVERUNNER: ERROR: Sampling rate for WaveRunner "
-                               "not given in configuration.")
-    else:
-        return cfg[scope_type].get("sampling_rate")
-
-
 class Scope:
     """ Scope class.
 
@@ -122,3 +93,77 @@ class Scope:
             return self.scope.capture_and_transfer_waves(target)
         else:
             return self.scope.capture_and_transfer_waves()
+
+
+def convert_num_cycles(cfg: dict, scope_type: str) -> int:
+    """ Converts number of cycles to number of samples if samples not given.
+
+    As the scopes are configured in number of samples, this function converts
+    the number of cycles to samples.
+    The number of samples must be divisble by 3 for batch captures on Husky
+    and is adjusted accordingly.
+
+    Args:
+        dict: The scope configuration.
+        scope_type: The used scope (Husky or WaveRunner).
+
+    Returns:
+        The number of samples.
+    """
+    if cfg[scope_type].get("num_samples") is None:
+        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
+        num_samples = int(cfg[scope_type].get("num_cycles") * sampl_target_rat)
+
+        if scope_type == "husky":
+            if num_samples % 3:
+                num_samples = num_samples + 3 - (num_samples % 3)
+
+        return num_samples
+    else:
+        return cfg[scope_type].get("num_samples")
+
+
+def convert_offset_cycles(cfg: dict, scope_type: str) -> int:
+    """ Converts offset in cycles to offset in samples if not given in samples.
+
+    Args:
+        dict: The scope configuration.
+        scope_type: The used scope (Husky or WaveRunner).
+
+    Returns:
+        The offset in samples.
+    """
+    if cfg[scope_type].get("offset_samples") is None:
+        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get("target_freq")
+        return int(cfg[scope_type].get("offset_cycles") * sampl_target_rat)
+    else:
+        return cfg[scope_type].get("offset_samples")
+
+
+def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
+    """ Determine sampling rate.
+
+    If no sampling rate is provided, calculate for Husky or receive from
+    WaveRunner.
+
+    Args:
+        dict: The scope configuration.
+        scope_type: The used scope (Husky or WaveRunner).
+
+    Returns:
+        Sampling rate
+    """
+    if cfg[scope_type].get("sampling_rate") is None:
+        if scope_type == "husky":
+            # If no sampling rate is provided, calculte it. Max. sampling
+            # rate of Husky is 200e6. As adc_mul needs to be an integer,
+            # calculate the maximum possible sampling rate.
+            SAMPLING_RATE_MAX = 200e6
+            adc_mul = int(SAMPLING_RATE_MAX // cfg["target"]["pll_frequency"])
+            return (adc_mul * cfg["target"]["pll_frequency"])
+        else:
+            # Waverunner init not done yet, so cannot be read from WaveRunner.
+            raise RuntimeError("WAVERUNNER: ERROR: Sampling rate for WaveRunner "
+                               "not given in configuration.")
+    else:
+        return cfg[scope_type].get("sampling_rate")

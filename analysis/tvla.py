@@ -163,8 +163,9 @@ def compute_histograms_aes(trace_resolution, rnd_list, byte_list, traces, leakag
     return histograms
 
 
-def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold,
-                      num_samples, sample_start, metadata):
+def tvla_plotting_fnc(axs, num_orders, i_rnd, i_byte, ttest_trace,
+                      single_trace, threshold, num_samples, sample_start,
+                      metadata):
     """Plotting trace in different colors, depending on where the trigger is high
     """
     c = np.ones(num_samples)
@@ -205,17 +206,18 @@ def tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace, threshold,
         axs[1 + i_order].plot(xaxs, c * threshold, "r")
         axs[1 + i_order].plot(xaxs, -threshold * c, "r")
         if trigger_high > 0:
-            axs[1 + i_order].plot(xaxs[:trigger_high],
-                                  ttest_trace[i_order, 0,
-                                              0][:trigger_high], "grey")
+            axs[1 + i_order].plot(
+                xaxs[:trigger_high],
+                ttest_trace[i_order, i_rnd, i_byte][:trigger_high], "grey")
         if trigger_low > trigger_high:
             axs[1 + i_order].plot(
                 xaxs[trigger_high:trigger_low],
-                ttest_trace[i_order, 0, 0][trigger_high:trigger_low], "k")
+                ttest_trace[i_order, i_rnd,
+                            i_byte][trigger_high:trigger_low], "k")
         if trigger_low < num_samples:
-            axs[1 + i_order].plot(xaxs[trigger_low:],
-                                  ttest_trace[i_order, 0,
-                                              0][trigger_low:], "grey")
+            axs[1 + i_order].plot(
+                xaxs[trigger_low:], ttest_trace[i_order, i_rnd,
+                                                i_byte][trigger_low:], "grey")
 
     return axs
 
@@ -795,16 +797,17 @@ def run_tvla(ctx: typer.Context):
 
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
-        fig, axs = plt.subplots(num_orders + 1, 1, sharex=True)
+
         if cfg["mode"] == "aes" and general_test is False:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
 
-                    axs = tvla_plotting_fnc(axs, num_orders, ttest_trace,
-                                            single_trace, threshold,
-                                            num_samples, sample_start,
-                                            metadata)
+                    fig, axs = plt.subplots(num_orders + 1, 1, sharex=True)
+                    axs = tvla_plotting_fnc(axs, num_orders, i_rnd, i_byte,
+                                            ttest_trace, single_trace,
+                                            threshold, num_samples,
+                                            sample_start, metadata)
 
                     # Catch case where datetime data isn't saved
                     # to project file (e.g. older measurement)
@@ -845,9 +848,10 @@ def run_tvla(ctx: typer.Context):
                         plt.close()
 
         else:
-            axs = tvla_plotting_fnc(axs, num_orders, ttest_trace, single_trace,
-                                    threshold, num_samples, sample_start,
-                                    metadata)
+            fig, axs = plt.subplots(num_orders + 1, 1, sharex=True)
+            axs = tvla_plotting_fnc(axs, num_orders, 0, 0, ttest_trace,
+                                    single_trace, threshold, num_samples,
+                                    sample_start, metadata)
 
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
             try:

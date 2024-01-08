@@ -22,8 +22,8 @@ import yaml
 from Crypto.Hash import SHA3_256
 from lib.ot_communication import OTPRNG, OTSHA3, OTUART
 from project_library.project import ProjectConfig, SCAProject
-from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
-from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
+from scopes.scope import (Scope, ScopeConfig, convert_num_cycles,
+                          convert_offset_cycles, determine_sampling_rate)
 from tqdm import tqdm
 
 import util.helpers as helpers

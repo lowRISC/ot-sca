@@ -164,15 +164,17 @@ def configure_cipher(cfg, target, capture_cfg) -> OTAES:
     ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
                      port=ot_uart.uart)
 
-    # If batch mode, configure PRNGs.
+    # Configure PRNGs.
+    # Seed the software LFSR used for initial key masking and additionally
+    # turning off the masking when '0'.
+    ot_aes.seed_lfsr(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+
+    # Seed the PRNG used for generating keys and plaintexts in batch mode.
     if capture_cfg.batch_mode:
         # Seed host's PRNG.
         random.seed(cfg["test"]["batch_prng_seed"])
-
-        # Seed the target's PRNGs for initial key masking, and additionally
-        # turn off masking when '0'.
-        ot_prng.seed_prng(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
-        ot_aes.seed_lfsr(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+        # Seed the target's PRNG.
+        ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     return ot_aes
 

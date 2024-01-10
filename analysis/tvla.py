@@ -170,7 +170,11 @@ def tvla_plotting_fnc(axs, num_orders, i_rnd, i_byte, ttest_trace,
     """
     c = np.ones(num_samples)
     xaxs = range(sample_start, sample_start + num_samples)
-    offset = int(metadata["offset_samples"])
+    # Catch case where offset data isn't saved to project file (e.g. older measurement)
+    try:
+        offset = int(metadata["offset_samples"])
+    except KeyError:
+        offset = 0
     # Catch case where trigger data isn't saved to project file (e.g. older measurement)
     try:
         trigger_samples = int(metadata["samples_trigger_high"])
@@ -809,17 +813,16 @@ def run_tvla(ctx: typer.Context):
                                             threshold, num_samples,
                                             sample_start, metadata)
 
+                    title = "TVLA of " + "aes_t_test_round_" + str(
+                        rnd_list[i_rnd]) + "_byte_" + str(byte_list[i_byte])
                     # Catch case where datetime data isn't saved
                     # to project file (e.g. older measurement)
                     try:
-                        axs[0].set_title("TVLA of " + "aes_t_test_round_" +
-                                         str(rnd_list[i_rnd]) + "_byte_" +
-                                         str(byte_list[i_byte]) + "\n" +
-                                         "Captured: " + metadata['datetime'])
+                        title = title + "\n" + "Captured: " + metadata[
+                            'datetime']
                     except KeyError:
-                        axs[0].set_title("TVLA of " + "aes_t_test_round_" +
-                                         str(rnd_list[i_rnd])
-                                         ) + "_byte_" + str(byte_list[i_byte])
+                        title = title
+                    axs[0].set_title(title)
 
                     # Add metadata to plot
                     if textbox != "":
@@ -853,14 +856,13 @@ def run_tvla(ctx: typer.Context):
                                     single_trace, threshold, num_samples,
                                     sample_start, metadata)
 
+            title = "TVLA of " + (cfg["project_file"]).rsplit('/')[3]
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
             try:
-                axs[0].set_title("TVLA of " +
-                                 (cfg["project_file"]).rsplit('/')[3] + "\n" +
-                                 "Captured: " + metadata["datetime"])
+                title = title + "\n" + "Captured: " + metadata['datetime']
             except KeyError:
-                axs[0].set_title("TVLA of " +
-                                 (cfg["project_file"]).rsplit('/')[3])
+                title = title
+            axs[0].set_title(title)
 
             # Add metadata to plot
             if textbox != "":

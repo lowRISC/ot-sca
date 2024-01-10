@@ -15,7 +15,7 @@ from typing import Optional
 
 import numpy as np
 import yaml
-from lib.ot_communication import OTOTBNVERT, OTUART
+from lib.ot_communication import OTOTBNVERT, OTPRNG, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.cycle_converter import convert_num_cycles, convert_offset_cycles
 from scopes.scope import Scope, ScopeConfig, determine_sampling_rate
@@ -194,12 +194,15 @@ def configure_cipher(cfg: dict, target,
                               protocol=capture_cfg.protocol,
                               port=ot_uart.uart)
 
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
+                     port=ot_uart.uart)
+
     # Seed host's PRNG.
     random.seed(cfg["test"]["batch_prng_seed"])
 
     # Seed the target's PRNGs
-    ot_otbn_vert.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(
-        4, "little"))
+    ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     # select the otbn app on the device (0 -> keygen, 1 -> modinv)
     ot_otbn_vert.choose_otbn_app(cfg["test"]["app"])
@@ -450,21 +453,13 @@ def check_ciphertext_keygen(ot_otbn_vert: OTOTBNVERT, expected_key,
     """
     # Read the output, unmask the key, and check if it matches
     # expectations.
-    share0 = ot_otbn_vert.read_output(curve_cfg.seed_bytes)
-    share1 = ot_otbn_vert.read_output(curve_cfg.seed_bytes)
-    if share0 is None:
-        raise RuntimeError('Random share0 is none')
-    if share1 is None:
-        raise RuntimeError('Random share1 is none')
-
+    share0, share1 = ot_otbn_vert.read_seeds(curve_cfg.seed_bytes)
     d0 = int.from_bytes(share0, byteorder='little')
     d1 = int.from_bytes(share1, byteorder='little')
     actual_key = (d0 + d1) % curve_cfg.curve_order_n
-
     assert actual_key == expected_key, (f"Incorrect encryption result!\n"
                                         f"actual: {actual_key}\n"
                                         f"expected: {expected_key}")
-
     return share0, share1
 
 
@@ -481,8 +476,7 @@ def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
         actual_output: The received output of the modinv operation.
     """
     # Read the output, unmask it, and check if it matches expectations.
-    kalpha_inv = ot_otbn_vert.read_output(curve_cfg.key_bytes)
-    alpha = ot_otbn_vert.read_output(curve_cfg.modinv_mask_bytes)
+    kalpha_inv, alpha = ot_otbn_vert.read_alpha(curve_cfg.key_bytes, curve_cfg.modinv_mask_bytes)
     if kalpha_inv is None:
         raise RuntimeError('kaplpha_inv is none')
     if alpha is None:
@@ -552,6 +546,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
                 #     Share0 = seed XOR mask
                 #     Share1 = mask
                 # These shares are then forwarded to OTBN.
+                #ToDo: the write_keygen_seed makes problems
                 ot_otbn_vert.write_keygen_seed(seed_used)
                 ot_otbn_vert.start_keygen(mask)
 
@@ -699,7 +694,7 @@ def main(argv=None):
 
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)
-
+    
     # Create capture config object.
     capture_cfg = CaptureConfig(
         capture_mode=mode,
@@ -712,6 +707,7 @@ def main(argv=None):
         key_len_bytes=cfg["test"]["key_len_bytes"],
         text_len_bytes=cfg["test"]["text_len_bytes"],
         protocol=cfg["target"]["protocol"],
+        port = cfg["target"].get("port"),
         C=bytearray(),
         seed_fixed=bytearray(),
         expected_fixed_key=bytearray(),

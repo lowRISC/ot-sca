@@ -159,12 +159,16 @@ def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
     else:
         ot_sha3.set_mask_on()
 
-    # If batch mode, configure PRNGs.
+    # Configure PRNGs.
+    # Seed the software LFSR.
+    ot_sha3.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+
+    # Seed the PRNG used for generating plaintexts in batch mode.
     if capture_cfg.batch_mode:
         # Seed host's PRNG.
         random.seed(cfg["test"]["batch_prng_seed"])
 
-        ot_sha3.write_lfsr_seed(cfg["test"]["lfsr_seed"].to_bytes(4, "little"))
+        # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     return ot_sha3

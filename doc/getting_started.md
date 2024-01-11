@@ -333,7 +333,7 @@ Breakfast top level of OpenTitan using the CW305, follow these steps:
 1. Then run
       ```console
       $ cd $REPO_TOP
-      $ ./hw/top_englishbreakfast/util/prepare_sw.py --build
+      $ ./hw/top_englishbreakfast/util/prepare_sw.py --build --top=englishbreakfast
       ```
    in order to prepare the OpenTitan software build flow for English
    Breakfast and build the required binaries. More precisely, this script
@@ -354,10 +354,13 @@ Breakfast top level of OpenTitan using the CW305, follow these steps:
    make sure the `prepare_sw.py` script has been run before executing
     ```console
     $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/sca:aes_serial_fpga_nexysvideo_bin --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
+    $ ./bazelisk.sh build //sw/device/sca:aes_serial --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
     ```
-The path to the generated binary will be printed to the terminal after running
-the command.
+1. The path to the generated binary will be printed to the terminal after running
+   ```console
+   $ cd $REPO_TOP
+   $ ci/scripts/target-location.sh //sw/device/sca:aes_serial
+   ```
 
 If you need to generate binaries for CW310 after you generate binaries for
 CW305, use the following command:

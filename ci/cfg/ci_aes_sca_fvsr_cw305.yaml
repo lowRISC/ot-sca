@@ -26,11 +26,11 @@ capture:
   num_traces: 4000
   show_plot: True
   plot_traces: 100
-  # trace_db: ot_trace_library
-  trace_db: cw
+  trace_db: ot_trace_library
+  # trace_db: cw
   trace_threshold: 10000
 test:
-  which_test: aes_random_batch
+  which_test: aes_fvsr_key_batch
   key_len_bytes: 16
   text_len_bytes: 16
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]

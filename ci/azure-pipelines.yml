@@ -48,16 +48,16 @@ jobs:
       mkdir -p projects
       ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310.yaml -p projects/aes_sca_random_cw310
       popd
-    displayName: "Capture AES Random Key traces"
+    displayName: "Capture AES Random traces"
   - publish: ./ci/projects/aes_sca_random_cw310.html
     artifact: traces_aes_random_key
-    displayName: "Upload AES Random Key traces"
+    displayName: "Upload AES Random traces"
   - bash: |
       set -e
       pushd ci
       ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
       popd
-    displayName: "Compare AES Random Key traces against golden trace"
+    displayName: "Compare AES Random traces against golden trace"
 - job: sha3_sca_capture_cw310
   displayName: "Capture SHA3 SCA traces (CW310)"
   timeoutInMinutes: 30
@@ -138,12 +138,22 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw305.yaml -p projects/aes_sca_fvsr_cw305
+      popd
+    displayName: "Capture AES FVSR traces"
+  - publish: ./ci/projects/aes_sca_fvsr_cw305.html
+    artifact: traces_aes_fvsr_key_cw305
+    displayName: "Upload AES FVSR traces"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
       ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
       popd
-    displayName: "Capture AES Random Key traces"
+    displayName: "Capture AES Random traces"
   - publish: ./ci/projects/aes_sca_random_cw305.html
     artifact: traces_aes_random_cw305
-    displayName: "Upload AES Random Key traces"
+    displayName: "Upload AES Random traces"
 - job: kmac_sca_capture_cw310
   displayName: "Capture KMAC SCA traces (CW310)"
   timeoutInMinutes: 30

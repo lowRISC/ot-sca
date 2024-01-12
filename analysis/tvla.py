@@ -255,22 +255,25 @@ def run_tvla(ctx: typer.Context):
     general_test = (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
                     cfg["general_test"] is True)
 
+    aes_num_rnds = 11
+    aes_num_bytes = 16
+
     if general_test:
         # We don't care about the round select or byte select in this mode.
         # Set them to 0 for code compatibility.
         rnd_list = [0]
         byte_list = [0]
     else:
-        if cfg["round_select"] is None:
-            rnd_list = list(range(11))
+        if not cfg["round_select"]:
+            rnd_list = list(range(aes_num_rnds))
         else:
-            rnd_list = [int(cfg["round_select"])]
-        if cfg["byte_select"] is None:
-            byte_list = list(range(16))
+            rnd_list = cfg["round_select"]
+        if not cfg["byte_select"]:
+            byte_list = list(range(aes_num_bytes))
         else:
-            byte_list = [int(cfg["byte_select"])]
-    assert all(rnd >= 0 and rnd < 11 for rnd in rnd_list)
-    assert all(byte >= 0 and byte < 16 for byte in byte_list)
+            byte_list = cfg["byte_select"]
+    assert all(rnd >= 0 and rnd < aes_num_rnds for rnd in rnd_list)
+    assert all(byte >= 0 and byte < aes_num_bytes for byte in byte_list)
 
     num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
@@ -1021,11 +1024,13 @@ help_save_to_disk = inspect.cleandoc("""Save trace and leakage files to disk. Ig
 help_save_to_disk_ttest = inspect.cleandoc("""Save t-test files to disk. Ignored when
     ttset-step-file is not None. Default: """ + str(default_save_to_disk_ttest))
 help_round_select = inspect.cleandoc("""Index of the AES round for which the histograms are to be
-    computed: 0-10. If not provided, the histograms for all AES rounds are computed. Default:
-    """ + str(default_round_select))
+    computed: 0-10. If not provided, the histograms for all AES rounds are computed. To select
+    multiple but not all rounds, specify the argument once per selected round, e.g.,
+    "--round-select 0 --round-select 1". Default: """ + str(default_round_select))
 help_byte_select = inspect.cleandoc("""Index of the AES state byte for which the histograms are to
-    be computed: 0-15. If not provided, the histograms for all AES state bytes are computed.
-    Default: """ + str(default_byte_select))
+    be computed: 0-15. If not provided, the histograms for all AES state bytes are computed. To
+    select multiple but not all bytes, specify the argument once per selected byte, e.g.,
+    "--byte-select 0 --byte-select 1". Default: """ + str(default_byte_select))
 help_input_histogram_file = inspect.cleandoc("""Name of the input file containing the histograms.
     Not required. If both -input_histogram_file and -output_histogram_file are provided, the input
     file is appended with more data to produce the output file.
@@ -1066,8 +1071,8 @@ def main(ctx: typer.Context,
          leakage_file: str = typer.Option(None, help=help_leakage_file),
          save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
          save_to_disk_ttest: bool = typer.Option(None, help=help_save_to_disk_ttest),
-         round_select: int = typer.Option(None, help=help_round_select),
-         byte_select: int = typer.Option(None, help=help_byte_select),
+         round_select: list[int] = typer.Option(None, help=help_round_select),
+         byte_select: list[int] = typer.Option(None, help=help_byte_select),
          input_histogram_file: str = typer.Option(None, help=help_input_histogram_file),
          output_histogram_file: str = typer.Option(None, help=help_output_histogram_file),
          number_of_steps: int = typer.Option(None, help=help_number_of_steps),
@@ -1098,10 +1103,14 @@ def main(ctx: typer.Context,
 
     # Overwrite options from CLI, if provided.
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
-              'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
+              'save_to_disk', 'save_to_disk_ttest',
               'input_histogram_file', 'output_histogram_file', 'number_of_steps',
               'ttest_step_file', 'plot_figures', 'general_test', 'mode', 'filter_traces']:
         run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
+        exec(run_cmd)
+    # The list arguments need to be handled a bit differently.
+    for v in ['round_select', 'byte_select']:
+        run_cmd = f'''if {v}: cfg[v] = {v}'''
         exec(run_cmd)
 
     if not os.path.exists(str(script_dir) + "/tmp"):

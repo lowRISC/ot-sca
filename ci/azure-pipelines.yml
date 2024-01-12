@@ -154,6 +154,16 @@ jobs:
   - publish: ./ci/projects/aes_sca_random_cw305.html
     artifact: traces_aes_random_cw305
     displayName: "Upload AES Random traces"
+  - bash: |
+      set -e
+      pushd ci
+      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte_0_15_rnd_0_1.yaml run-tvla
+      popd
+    displayName: "Perform specific TVLA on AES Random traces"
+    continueOnError: True
+  - publish: ./ci/tmp/figures
+    artifact: tvla_figures_aes_specific
+    displayName: "Upload figures of specific TVLA for AES."
 - job: kmac_sca_capture_cw310
   displayName: "Capture KMAC SCA traces (CW310)"
   timeoutInMinutes: 30

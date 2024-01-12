@@ -1,0 +1,19 @@
+project_file: projects/aes_sca_random_cw305
+trace_file: null
+trace_start: null
+trace_end: null
+leakage_file: null
+save_to_disk: null
+save_to_disk_ttest: true
+round_select: [0, 1]
+byte_select: [0, 15]
+input_histogram_file: null
+output_histogram_file: null
+number_of_steps: 4
+ttest_step_file: null
+plot_figures: true
+general_test: false
+mode: aes
+filter_traces: false
+sample_start: 0
+num_samples: 300

@@ -101,7 +101,12 @@ class SCAProject:
         """ Get waves from project.
         """
         if self.project_cfg.type == "cw":
-            return self.project.waves[start:end]
+            if (start is not None) and (end is not None):
+                return self.project.waves[start:end]
+            elif start is not None:
+                return self.project.waves[start]
+            else:
+                return self.project.waves
         elif self.project_cfg.type == "ot_trace_library":
             return self.project.get_waves(start, end)
 
@@ -109,8 +114,10 @@ class SCAProject:
         """ Get keys[start, end] from project.
         """
         if self.project_cfg.type == "cw":
-            if start and end:
+            if (start is not None) and (end is not None):
                 return self.project.keys[start:end]
+            elif start is not None:
+                return self.project.keys[start]
             else:
                 return self.project.keys
         elif self.project_cfg.type == "ot_trace_library":
@@ -120,8 +127,10 @@ class SCAProject:
         """ Get plaintexts[start, end] from project.
         """
         if self.project_cfg.type == "cw":
-            if start and end:
+            if (start is not None) and (end is not None):
                 return self.project.textins[start:end]
+            elif start is not None:
+                return self.project.textins[start]
             else:
                 return self.project.textins
         elif self.project_cfg.type == "ot_trace_library":

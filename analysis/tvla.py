@@ -524,7 +524,7 @@ def run_tvla(ctx: typer.Context):
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
 
                 if general_test is False:
-                    keys[:] = project.get_keys()[trace_start:trace_end + 1]
+                    keys[:] = project.get_keys(trace_start, trace_end + 1)
                 else:
                     # Existing KMAC trace sets use a mix of bytes strings and ChipWhisperer byte
                     # arrays. For compatiblity, we need to convert everything to numpy arrays.

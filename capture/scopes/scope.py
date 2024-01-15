@@ -17,11 +17,12 @@ class ScopeConfig:
     Stores information about the scope.
     """
     scope_type: str
+    num_segments: int
+    batch_mode: bool
     acqu_channel: Optional[str] = None
     ip: Optional[str] = None
     num_samples: Optional[int] = 0
     offset_samples: Optional[int] = 0
-    num_segments: Optional[int] = 1
     sparsing: Optional[int] = 1
     scope_gain: Optional[float] = 1
     pll_frequency: Optional[int] = 1
@@ -44,8 +45,12 @@ class Scope:
         Configure Husky or WaveRunner scope with the user provided scope
         settings.
         """
+        # Check if num_segments is 1 in non-batch mode.
+        self._sanitize_num_segments()
+        # Configure Scopes.
         if self.scope_cfg.scope_type == "husky":
             scope = Husky(scope_gain = self.scope_cfg.scope_gain,
+                          batch_mode = self.scope_cfg.batch_mode,
                           num_samples = self.scope_cfg.num_samples,
                           num_segments = self.scope_cfg.num_segments,
                           offset_samples = self.scope_cfg.offset_samples,
@@ -54,6 +59,8 @@ class Scope:
                           )
             scope.initialize_scope()
             scope.configure_batch_mode()
+            # Update num_segments.
+            self.scope_cfg.num_segments = scope.num_segments
             return scope
         elif self.scope_cfg.scope_type == "waverunner":
             if self.scope_cfg.ip:
@@ -63,11 +70,15 @@ class Scope:
                 setup_data = scope._ask("PANEL_SETUP?")
                 scope._get_and_print_cmd_error()
                 tmp_sampling_rate = int(re.findall(r'SampleRate = \d+', setup_data)[0][13:])
+                # Sanitize inputs.
                 if self.scope_cfg.sampling_rate is not None:
                     if self.scope_cfg.sampling_rate != tmp_sampling_rate:
                         raise RuntimeError("WAVERUNNER: Error: WaveRunner sampling "
                                            "rate does not match given configuration!")
-
+                if self.scope_cfg.num_segments is None:
+                    raise RuntimeError("WAVERUNNER: Error: num_segments needs to "
+                                       "be provided!")
+                # Configure WaveRunner.
                 scope.configure_waveform_transfer_general(
                     num_segments = self.scope_cfg.num_segments,
                     sparsing = self.scope_cfg.sparsing,
@@ -80,6 +91,16 @@ class Scope:
                 raise RuntimeError("Error: No WaveRunner IP provided!")
         else:
             raise RuntimeError("Error: Scope not supported!")
+
+    def _sanitize_num_segments(self) -> None:
+        """ Sanitize num_segments.
+
+        When in non-batch mode, num_segments needs to be 1.
+        """
+        if not self.scope_cfg.batch_mode and self.scope_cfg.num_segments != 1:
+            self.scope_cfg.num_segments = 1
+            print("Warning: num_segments needs to be 1 in non-batch mode. "
+                  "Setting num_segments=1.")
 
     def arm(self) -> None:
         """ Arm the scope.

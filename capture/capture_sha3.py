@@ -101,15 +101,21 @@ def setup(cfg: dict, project: Path):
 
     logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
 
+    # Determine if we are in batch mode or not.
+    batch = False
+    if "batch" in cfg["test"]["which_test"]:
+        batch = True
+
     # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
+        batch_mode = batch,
         acqu_channel = cfg[scope_type].get("channel"),
         ip = cfg[scope_type].get("waverunner_ip"),
         num_samples = cfg[scope_type]["num_samples"],
         offset_samples = cfg[scope_type]["offset_samples"],
         sampling_rate = cfg[scope_type].get("sampling_rate"),
-        num_segments = cfg[scope_type]["num_segments"],
+        num_segments = cfg[scope_type].get("num_segments"),
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),
         pll_frequency = cfg["target"]["pll_frequency"],
@@ -397,24 +403,17 @@ def main(argv=None):
 
     # Determine the capture mode and configure the current capture.
     mode = "sha3_fvsr_data"
-    batch = False
     if "sha3_random" in cfg["test"]["which_test"]:
         mode = "sha3_random"
-    if "batch" in cfg["test"]["which_test"]:
-        batch = True
-    else:
-        # For non-batch mode, make sure that num_segments = 1.
-        cfg[cfg["capture"]["scope_select"]]["num_segments"] = 1
-        logger.info("num_segments needs to be 1 in non-batch mode. Setting num_segments=1.")
 
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)
 
     # Create capture config object.
     capture_cfg = CaptureConfig(capture_mode = mode,
-                                batch_mode = batch,
+                                batch_mode = scope.scope_cfg.batch_mode,
                                 num_traces = cfg["capture"]["num_traces"],
-                                num_segments = cfg[cfg["capture"]["scope_select"]]["num_segments"],
+                                num_segments = scope.scope_cfg.num_segments,
                                 output_len = cfg["target"]["output_len_bytes"],
                                 text_fixed = cfg["test"]["text_fixed"],
                                 text_len_bytes = cfg["test"]["text_len_bytes"],

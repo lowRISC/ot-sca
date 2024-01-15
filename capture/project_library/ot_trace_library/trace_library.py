@@ -132,10 +132,17 @@ class TraceLibrary:
             The traces from the database.
         """
         self.flush_to_disk()
-        if start and end:
+        if (start is not None) and (end is not None):
+            # SQL ID starts at 1.
+            start = start + 1
             query = db.select(self.traces_table).where(
                 (self.traces_table.c.trace_id >= start) &
                 (self.traces_table.c.trace_id <= end))
+        elif (start is not None):
+            # SQL ID starts at 1.
+            start = start + 1
+            query = db.select(self.traces_table).where(
+                self.traces_table.c.trace_id == start)
         else:
             query = db.select(self.traces_table)
 
@@ -157,8 +164,12 @@ class TraceLibrary:
         Returns:
             The waves from the database in the type wave_datatype.
         """
-        return [np.frombuffer(b, self.wave_datatype)
-                for b in self.get_waves_bytearray(start, end)]
+        waves = [np.frombuffer(b, self.wave_datatype)
+                 for b in self.get_waves_bytearray(start, end)]
+        if len(waves) == 1:
+            return waves[0]
+        else:
+            return waves
 
     def get_plaintexts(self, start: Optional[int] = None,
                        end: Optional[int] = None):
@@ -168,8 +179,12 @@ class TraceLibrary:
         Returns:
             The int plaintexts from the database.
         """
-        return [np.frombuffer(trace.plaintext, np.uint8)
-                for trace in self.get_traces(start, end)]
+        plaintexts = [np.frombuffer(trace.plaintext, np.uint8)
+                      for trace in self.get_traces(start, end)]
+        if len(plaintexts) == 1:
+            return plaintexts[0]
+        else:
+            return plaintexts
 
     def get_keys(self, start: Optional[int] = None,
                  end: Optional[int] = None):
@@ -179,8 +194,12 @@ class TraceLibrary:
         Returns:
             The int keys from the database.
         """
-        return [np.frombuffer(trace.key, np.uint8)
-                for trace in self.get_traces(start, end)]
+        keys = [np.frombuffer(trace.key, np.uint8)
+                for trace in self.get_traces(start, end)][0]
+        if len(keys) == 1:
+            return keys[0]
+        else:
+            return keys
 
     def write_metadata(self, metadata):
         """ Write metadata into database.

@@ -127,9 +127,13 @@ def setup(cfg: dict, project: Path):
         f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}..."  # noqa: E501
     )
 
+    # Determine if we are in batch mode or not.
+    batch = cfg["test"]["batch_mode"]
+
     # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
         scope_type=scope_type,
+        batch_mode = batch,
         acqu_channel=cfg[scope_type].get("channel"),
         ip=cfg[scope_type].get("waverunner_ip"),
         num_samples=cfg[scope_type]["num_samples"],
@@ -689,13 +693,6 @@ def main(argv=None):
 
     # Determine the capture mode and configure the current capture.
     mode = cfg["test"]["app"]
-    batch = cfg["test"]["batch_mode"]
-    if batch is False:
-        # For non-batch mode, make sure that num_segments = 1.
-        cfg[cfg["capture"]["scope_select"]]["num_segments"] = 1
-        logger.info(
-            "num_segments needs to be 1 in non-batch mode. Setting num_segments=1."
-        )
 
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)
@@ -703,9 +700,9 @@ def main(argv=None):
     # Create capture config object.
     capture_cfg = CaptureConfig(
         capture_mode=mode,
-        batch_mode=batch,
+        batch_mode=scope.scope_cfg.batch_mode,
         num_traces=cfg["capture"]["num_traces"],
-        num_segments=cfg[cfg["capture"]["scope_select"]]["num_segments"],
+        num_segments=scope.scope_cfg.num_segments,
         output_len=cfg["target"]["output_len_bytes"],
         text_fixed=bytearray(),
         key_fixed=bytearray(),

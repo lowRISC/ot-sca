@@ -14,11 +14,12 @@ from util import check_version  # noqa: E402
 
 
 class Husky:
-    def __init__(self, scope_gain, num_samples, num_segments, offset_samples,
-                 sampling_rate, pll_frequency):
+    def __init__(self, scope_gain, batch_mode, num_samples, num_segments,
+                 offset_samples, sampling_rate, pll_frequency):
         check_version.check_husky("1.5.0")
         self.scope = None
         self.scope_gain = scope_gain
+        self.batch_mode = batch_mode
         # In our setup, Husky operates on the PLL frequency of the target and
         # multiplies that by an integer number to obtain the sampling rate.
         # Note that the sampling rate must be at most 200 MHz.
@@ -73,18 +74,28 @@ class Husky:
         self.scope = scope
 
     def configure_batch_mode(self):
-        if self.num_segments != 1:
+        if self.batch_mode:
             self.scope = CwSegmented(num_samples=self.num_samples,
                                      offset_samples=self.offset_samples,
                                      scope_gain=self.scope.gain.db,
                                      scope=self.scope,
                                      clkgen_freq=self.scope.clock.clkgen_freq,
                                      adc_mul=self.adc_mul)
+
+            # Determine max. possible number of segments.
+            num_segments_max = (self.scope._scope.adc.oa.hwMaxSegmentSamples //
+                                self.scope._scope.adc.samples)
+
+            # If num_segments is not provided in the config file, set it to
+            # max. number of segments.
+            if self.num_segments is None:
+                self.num_segments = num_segments_max
+                print(
+                    f'Info: num_segments not provided, setting to '
+                    f'num_segments_max={num_segments_max}.')
             self.scope.num_segments = self.num_segments
             # Sanity check manually set num_segments. Check, if we can keep the
             # num_segements * num_samples in memory.
-            num_segments_max = (self.scope._scope.adc.oa.hwMaxSegmentSamples //
-                                self.scope._scope.adc.samples)
             if (self.num_segments > num_segments_max):
                 raise RuntimeError("num_segments too large, cannot keep\
                                    samples in CW Husky sample memory.")

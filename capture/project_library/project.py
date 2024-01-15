@@ -72,7 +72,7 @@ class SCAProject:
         if self.project_cfg.type == "cw":
             self.project.close(save = save)
         elif self.project_cfg.type == "ot_trace_library":
-            self.project.flush_to_disk()
+            self.project.close(save = save)
 
         self.project = None
 

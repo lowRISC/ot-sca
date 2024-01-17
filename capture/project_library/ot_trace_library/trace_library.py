@@ -186,6 +186,20 @@ class TraceLibrary:
         else:
             return plaintexts
 
+    def get_ciphertexts(self, start: Optional[int] = None,
+                        end: Optional[int] = None):
+        """ Get all ciphertexts between start and end from the database in the
+        int8 array format.
+        Returns:
+            The int ciphertexts from the database.
+        """
+        ciphertexts = [np.frombuffer(trace.ciphertext, np.uint8)
+                       for trace in self.get_traces(start, end)]
+        if len(ciphertexts) == 1:
+            return ciphertexts[0]
+        else:
+            return ciphertexts
+
     def get_keys(self, start: Optional[int] = None,
                  end: Optional[int] = None):
         """ Get all keys between start and end from the database in the int8

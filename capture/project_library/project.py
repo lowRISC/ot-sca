@@ -136,6 +136,19 @@ class SCAProject:
         elif self.project_cfg.type == "ot_trace_library":
             return self.project.get_plaintexts(start, end)
 
+    def get_ciphertexts(self, start: Optional[int] = None, end: Optional[int] = None):
+        """ Get ciphertexts[start, end] from project.
+        """
+        if self.project_cfg.type == "cw":
+            if (start is not None) and (end is not None):
+                return self.project.textouts[start:end]
+            elif start is not None:
+                return self.project.textouts[start]
+            else:
+                return self.project.textouts
+        elif self.project_cfg.type == "ot_trace_library":
+            return self.project.get_ciphertexts(start, end)
+
     def write_metadata(self, metadata: dict) -> None:
         """ Write metadata to project.
         """

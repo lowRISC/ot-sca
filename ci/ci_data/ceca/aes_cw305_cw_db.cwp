@@ -1,0 +1,10 @@
+[Trace Management]
+tracefile0 = aes_cw305_cw_db_data/traces/config_2024.01.16-06.40.15_0.cfg
+enabled0 = True
+[ChipWhisperer]
+[[General Settings]]
+Project Name = Untitled
+Project File Version = 1.00
+Project Author = Unknown
+Program Name = ChipWhisperer
+Program Version = ""

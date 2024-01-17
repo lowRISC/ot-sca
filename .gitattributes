@@ -2,5 +2,7 @@
 *.bin filter=lfs diff=lfs merge=lfs -text
 *.jpg filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
+*.db filter=lfs diff=lfs merge=lfs -text
+*.npy filter=lfs diff=lfs merge=lfs -text
 test/data/tvla_general/* filter=lfs diff=lfs merge=lfs -text
 ci/ci_trace_check/golden_traces/* filter=lfs diff=lfs merge=lfs -text

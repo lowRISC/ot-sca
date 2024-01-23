@@ -307,15 +307,22 @@ OpenTitan using the CW310, follow these steps:
     ```
    and will be loaded to the FPGA using the ChipWhisperer Python API.
 
-1. To generate the OpenTitan application binary, e.g., for recording AES power traces on the CW310, run
+1. To generate the OpenTitan application binary (simpleserial interface), e.g.,
+   for recording AES power traces on the CW310, run
     ```console
     $ cd $REPO_TOP
     $ ./bazelisk.sh build //sw/device/sca:aes_serial
     ```
-The path to the generated binary is:
-```
-$REPO_TOP/bazel-bin/sw/device/sca/
-```
+   The path to the generated binary is:
+   ```
+   $REPO_TOP/bazel-bin/sw/device/sca/
+   ```
+   To generate the OpenTitan application binary for uJSON that includes all SCA
+   targets, run
+    ```console
+    $ cd $REPO_TOP
+    $ ./bazelisk.sh build //sw/device/tests/crypto/cryptotest/firmware:firmware
+    ```
 
 #### English Breakfast for CW305
 

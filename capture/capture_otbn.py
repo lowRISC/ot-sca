@@ -15,14 +15,14 @@ from typing import Optional
 
 import numpy as np
 import yaml
-from lib.ot_communication import OTOTBNVERT, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.scope import (Scope, ScopeConfig, convert_num_cycles,
                           convert_offset_cycles, determine_sampling_rate)
 from tqdm import tqdm
 
 import util.helpers as helpers
-from target.cw_fpga import CWFPGA
+from target.communication.sca_otbn_commands import OTOTBNVERT
+from target.targets import Target, TargetConfig
 from util import check_version
 from util import data_generator as dg
 from util import plot
@@ -103,15 +103,19 @@ def setup(cfg: dict, project: Path):
     cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg[
         "target"]["target_clk_mult"]
 
-    # Init target.
+    # Create target config & setup target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
-    target = CWFPGA(bitstream=cfg["target"]["fpga_bitstream"],
-                    force_programming=cfg["target"]["force_program_bitstream"],
-                    firmware=cfg["target"]["fw_bin"],
-                    pll_frequency=cfg["target"]["pll_frequency"],
-                    baudrate=cfg["target"]["baudrate"],
-                    output_len=cfg["target"]["output_len_bytes"],
-                    protocol=cfg["target"]["protocol"])
+    target_cfg = TargetConfig(
+        target_type = cfg["target"]["target_type"],
+        fw_bin = cfg["target"]["fw_bin"],
+        protocol = cfg["target"]["protocol"],
+        pll_frequency = cfg["target"]["pll_frequency"],
+        bitstream = cfg["target"].get("fpga_bitstream"),
+        baudrate = cfg["target"].get("baudrate"),
+        port = cfg["target"].get("port"),
+        output_len = cfg["target"].get("output_len_bytes")
+    )
+    target = Target(target_cfg)
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
@@ -190,13 +194,8 @@ def configure_cipher(cfg: dict, target,
         ot_otbn_vert: The communication interface to the OTBN app.
         curve_cfg: The curve configuration values.
     """
-    # Establish UART for uJSON command interface. Returns None for simpleserial.
-    ot_uart = OTUART(protocol=capture_cfg.protocol, port=capture_cfg.port)
-
     # Create communication interface to OTBN.
-    ot_otbn_vert = OTOTBNVERT(target=target.target,
-                              protocol=capture_cfg.protocol,
-                              port=ot_uart.uart)
+    ot_otbn_vert = OTOTBNVERT(target=target, protocol=capture_cfg.protocol)
 
     # Seed host's PRNG.
     random.seed(cfg["test"]["batch_prng_seed"])
@@ -506,7 +505,7 @@ def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
 
 def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
                    capture_cfg: CaptureConfig, curve_cfg: CurveConfig,
-                   project: SCAProject, cwtarget: CWFPGA):
+                   project: SCAProject, target: Target):
     """ Capture power consumption during selected OTBN operation.
 
     Args:
@@ -516,7 +515,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
         capture_cfg: The configuration of the capture.
         curve_cfg: The curve config.
         project: The SCA project.
-        cwtarget: The CW FPGA target.
+        target: The OpenTitan target.
     """
     # Initial seed.
     seed_used = capture_cfg.seed_fixed
@@ -560,7 +559,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
                 ot_otbn_vert.start_keygen(mask)
 
                 # Capture traces.
-                waves = scope.capture_and_transfer_waves(cwtarget.target)
+                waves = scope.capture_and_transfer_waves(target)
                 assert waves.shape[0] == capture_cfg.num_segments
 
                 # Compare received key with generated key.
@@ -584,7 +583,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
 
 def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
                    capture_cfg: CaptureConfig, curve_cfg: CurveConfig,
-                   project: SCAProject, cwtarget: CWFPGA):
+                   project: SCAProject, target: Target):
     """ Capture power consumption during selected OTBN operation.
 
     Args:
@@ -594,7 +593,7 @@ def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
         capture_cfg: The configuration of the capture.
         curve_cfg: The curve config.
         project: The SCA project.
-        cwtarget: The CW FPGA target.
+        target: The OpenTitan target.
     """
     # Initial scalar k.
     k_used = capture_cfg.k_fixed
@@ -631,7 +630,7 @@ def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
                 ot_otbn_vert.start_modinv(input_k0_used, input_k1_used)
 
                 # Capture traces.
-                waves = scope.capture_and_transfer_waves(cwtarget.target)
+                waves = scope.capture_and_transfer_waves(target)
                 assert waves.shape[0] == capture_cfg.num_segments
 
                 # Compare received key with generated key.

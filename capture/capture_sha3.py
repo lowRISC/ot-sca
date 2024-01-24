@@ -20,14 +20,16 @@ from typing import Optional
 import numpy as np
 import yaml
 from Crypto.Hash import SHA3_256
-from lib.ot_communication import OTPRNG, OTSHA3, OTUART
 from project_library.project import ProjectConfig, SCAProject
 from scopes.scope import (Scope, ScopeConfig, convert_num_cycles,
                           convert_offset_cycles, determine_sampling_rate)
 from tqdm import tqdm
 
 import util.helpers as helpers
-from target.cw_fpga import CWFPGA
+from target.communication.sca_prng_commands import OTPRNG
+from target.communication.sca_sha3_commands import OTSHA3
+from target.communication.sca_trigger_commands import OTTRIGGER
+from target.targets import Target, TargetConfig
 from util import check_version
 from util import data_generator as dg
 from util import plot
@@ -77,17 +79,19 @@ def setup(cfg: dict, project: Path):
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
     cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
 
-    # Init target.
+    # Create target config & setup target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
-    target = CWFPGA(
-        bitstream = cfg["target"]["fpga_bitstream"],
-        force_programming = cfg["target"]["force_program_bitstream"],
-        firmware = cfg["target"]["fw_bin"],
+    target_cfg = TargetConfig(
+        target_type = cfg["target"]["target_type"],
+        fw_bin = cfg["target"]["fw_bin"],
+        protocol = cfg["target"]["protocol"],
         pll_frequency = cfg["target"]["pll_frequency"],
-        baudrate = cfg["target"]["baudrate"],
-        output_len = cfg["target"]["output_len_bytes"],
-        protocol = cfg["target"]["protocol"]
+        bitstream = cfg["target"].get("fpga_bitstream"),
+        baudrate = cfg["target"].get("baudrate"),
+        port = cfg["target"].get("port"),
+        output_len = cfg["target"].get("output_len_bytes")
     )
+    target = Target(target_cfg)
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
@@ -135,30 +139,41 @@ def setup(cfg: dict, project: Path):
     return target, scope, project
 
 
-def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
+def establish_communication(target, capture_cfg: CaptureConfig):
+    """ Establish communication with the target device.
+
+    Args:
+        target: The OT target.
+        capture_cfg: The capture config.
+
+    Returns:
+        ot_sha3: The communication interface to the SHA3 SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
+        ot_trig: The communication interface to the SCA trigger.
+    """
+    # Create communication interface to OT SHA3.
+    ot_sha3 = OTSHA3(target=target, protocol=capture_cfg.protocol)
+
+    # Create communication interface to SCA trigger.
+    ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
+
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+
+    return ot_sha3, ot_prng, ot_trig
+
+
+def configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng):
     """ Configure the SHA3 cipher.
 
     Establish communication with the SHA3 cipher and configure the seed and mask.
 
     Args:
         cfg: The project config.
-        target: The OT target.
         capture_cfg: The capture config.
-
-    Returns:
-        The communication interface to the SHA3 cipher.
+        ot_sha3: The communication interface to the SHA3 SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
     """
-    # Establish UART for uJSON command interface. Returns None for simpleserial.
-    ot_uart = OTUART(protocol=capture_cfg.protocol, port=capture_cfg.port)
-
-    # Create communication interface to OT SHA3.
-    ot_sha3 = OTSHA3(target=target.target, protocol=capture_cfg.protocol,
-                     port=ot_uart.uart)
-
-    # Create communication interface to OT PRNG.
-    ot_prng = OTPRNG(target=target.target, protocol=capture_cfg.protocol,
-                     port=ot_uart.uart)
-
     if cfg["test"]["masks_off"] is True:
         logger.info("Configure device to use constant, fast entropy!")
         ot_sha3.set_mask_off()
@@ -176,8 +191,6 @@ def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
 
         # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
-
-    return ot_sha3
 
 
 def generate_ref_crypto(sample_fixed, mode, batch, plaintext,
@@ -260,7 +273,7 @@ def check_ciphertext(ot_sha3, expected_last_ciphertext, ciphertext_len):
 
 
 def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
-            project: SCAProject, cwtarget: CWFPGA):
+            project: SCAProject, target: Target):
     """ Capture power consumption during SHA3 digest computation.
 
     Supports four different capture types:
@@ -273,7 +286,7 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
         ot_sha3: The OpenTitan SHA3 communication interface.
         capture_cfg: The configuration of the capture.
         project: The SCA project.
-        cwtarget: The CW FPGA target.
+        target: The OpenTitan target.
     """
     # Initial plaintext.
     text_fixed = capture_cfg.text_fixed
@@ -316,7 +329,7 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
                     )
                 ot_sha3.absorb(text)
             # Capture traces.
-            waves = scope.capture_and_transfer_waves(cwtarget.target)
+            waves = scope.capture_and_transfer_waves(target)
             assert waves.shape[0] == capture_cfg.num_segments
 
             expected_ciphertext = None
@@ -421,8 +434,18 @@ def main(argv=None):
                                 port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
+    # Open communication with target.
+    ot_sha3, ot_prng, ot_trig = establish_communication(target, capture_cfg)
+
     # Configure cipher.
-    ot_sha3 = configure_cipher(cfg, target, capture_cfg)
+    configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng)
+
+    # Configure trigger source.
+    # 0 for HW, 1 for SW.
+    trigger_source = 1
+    if "hw" in cfg["target"].get("trigger"):
+        trigger_source = 0
+    ot_trig.select_trigger(trigger_source)
 
     # Capture traces.
     capture(scope, ot_sha3, capture_cfg, project, target)

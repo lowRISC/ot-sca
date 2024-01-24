@@ -13,8 +13,8 @@ from project_library.project import FIProject, FISuccess, ProjectConfig
 from tqdm import tqdm
 
 import util.helpers as helpers
-from target.communication.fi_ibex_commands import OTUART, OTFIIbex
-from target.cw_fpga import CWFPGA
+from target.communication.fi_ibex_commands import OTFIIbex
+from target.targets import Target, TargetConfig
 from util import plot
 
 logger = logging.getLogger()
@@ -35,17 +35,19 @@ def setup(cfg: dict, project: Path):
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
     cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
 
-    # Init target.
+    # Create target config & setup target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
-    target = CWFPGA(
-        bitstream = cfg["target"]["fpga_bitstream"],
-        force_programming = cfg["target"]["force_program_bitstream"],
-        firmware = cfg["target"]["fw_bin"],
+    target_cfg = TargetConfig(
+        target_type = cfg["target"]["target_type"],
+        fw_bin = cfg["target"]["fw_bin"],
+        protocol = cfg["target"]["protocol"],
         pll_frequency = cfg["target"]["pll_frequency"],
-        baudrate = cfg["target"]["baudrate"],
-        output_len = cfg["target"]["output_len_bytes"],
-        protocol = cfg["target"]["protocol"]
+        bitstream = cfg["target"].get("fpga_bitstream"),
+        baudrate = cfg["target"].get("baudrate"),
+        port = cfg["target"].get("port"),
+        output_len = cfg["target"].get("output_len_bytes")
     )
+    target = Target(target_cfg)
 
     # Init FI gear.
     fi_gear = FIGear(cfg)
@@ -62,7 +64,7 @@ def setup(cfg: dict, project: Path):
     return target, fi_gear, project
 
 
-def fi_parameter_sweep(cfg: dict, cwtarget: CWFPGA, fi_gear,
+def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                        project: FIProject, ot_communication: OTFIIbex) -> None:
     """ Fault parameter sweep.
 
@@ -70,7 +72,7 @@ def fi_parameter_sweep(cfg: dict, cwtarget: CWFPGA, fi_gear,
 
     Args:
         cfg: The FI project configuration.
-        cwtarget: The OpenTitan target.
+        target: The OpenTitan target.
         fi_gear: The FI gear to use.
         project: The project to store the results.
         ot_communication: The OpenTitan Ibex FI communication interface.
@@ -105,11 +107,9 @@ def fi_parameter_sweep(cfg: dict, cwtarget: CWFPGA, fi_gear,
                 # No UART response received.
                 fi_result = FISuccess.NORESPONSE
                 # Resetting OT as it most likely crashed.
-                cwtarget.reset_target()
+                ot_communication = target.reset_target(com_reset = True)
                 # Re-establish UART connection.
-                ot_uart = OTUART(protocol = cfg["target"]["protocol"],
-                                 port = cfg["target"]["port"])
-                ot_communication = OTFIIbex(ot_uart.uart)
+                ot_communication = OTFIIbex(target)
                 # Configure the trigger.
                 ot_communication.init_trigger()
                 # Reset FIGear if necessary.
@@ -164,9 +164,7 @@ def main(argv=None):
     target, fi_gear, project = setup(cfg, args.project)
 
     # Establish communication interface with OpenTitan.
-    ot_uart = OTUART(protocol = cfg["target"]["protocol"],
-                     port = cfg["target"]["port"])
-    ot_communication = OTFIIbex(ot_uart.uart)
+    ot_communication = OTFIIbex(target)
 
     # FI parameter sweep.
     fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)

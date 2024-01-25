@@ -76,6 +76,9 @@ class CWFPGA(object):
         # Note that the actual scope config for capturing traces is later
         # initialized.
         self.scope = cw.scope()
+        # Sometimes CW-Husky blocks USB communication after power cycling
+        # Initializing the scope twice seems to solve the problem.
+        self.scope = cw.scope()
 
         self.fpga = self.initialize_fpga(self.fpga_type, bitstream,
                                          force_programming, pll_frequency)

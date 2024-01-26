@@ -750,8 +750,9 @@ def main(argv=None):
     metadata["num_traces"] = capture_cfg.num_traces
     metadata["cfg_file"] = str(args.cfg)
     # Store bitstream information.
-    metadata["fpga_bitstream_path"] = cfg["target"]["fpga_bitstream"]
-    metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
+    metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
+    if cfg["target"].get("fpga_bitstream") is not None:
+        metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
     if args.save_bitstream:
         metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
     # Store binary information.

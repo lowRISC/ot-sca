@@ -1,0 +1,50 @@
+target:
+  target_type: chip
+  fw_bin: "../objs/sca_ujson_chip_signed.img"
+  target_clk_mult: 1
+  target_freq: 100000000
+  baudrate: 115200
+  output_len_bytes: 16
+  protocol: "ujson"
+  port: "/dev/ttyUSB1"
+waverunner:
+  waverunner_ip: 100.107.71.10
+  num_segments: 1
+  # num_samples: 6000
+  # offset_samples: 0
+  # cycles will only be used if not given in samples
+  num_cycles: 60
+  offset_cycles: 0
+  # sampling rate needed for cycle to sample conversion
+  sampling_rate: 2500000000
+  channel: C1
+  sparsing: 0
+capture:
+  scope_select: waverunner
+  #key_len_bytes: 16
+  plain_text_len_bytes: 16
+  num_traces: 100
+  show_plot: True
+  plot_traces: 100
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  which_test: sha3_random
+  #which_test: sha3_fvsr_data
+  # Switch the masking on or off. When off, messages aren't masked upon loading
+  # into the SHA3 core and the PRNG isn't advanced during SHA3 processing.
+  # Works for SHA3 only. Doesn't work when processing key material.
+  masks_off: true
+  text_len_bytes: 16
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # For unprotected implemetation, lfsr_seed should be set to 0. This will
+  # effectively switch off the masking. For masked implementation, any seed
+  # other than 0 should be used.
+  # w/o DOM
+  #lfsr_seed: 0
+  # w/ DOM
+  # 32-bit LFSR seed - Currently not used by the target for SHA3 captures.
+  lfsr_seed: 0xdeadbeef
+  # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
+  batch_prng_seed: 0

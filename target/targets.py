@@ -8,6 +8,7 @@ from typing import Optional
 
 import serial
 
+from target.chip import Chip
 from target.cw_fpga import CWFPGA
 
 
@@ -32,7 +33,7 @@ class Target:
     """ Target class.
 
     Represents a SCA/FI target. Currently, ChipWhisperer FPGA boards
-    are supported.
+    or the discrete OpenTitan chip are supported.
     """
     def __init__(self, target_cfg: TargetConfig) -> None:
         self.target_cfg = target_cfg
@@ -46,7 +47,6 @@ class Target:
         """
         target = None
         if self.target_cfg.target_type == "cw305" or self.target_cfg.target_type == "cw310":
-            print(self.target_cfg.bitstream)
             target = CWFPGA(
                 bitstream = self.target_cfg.bitstream,
                 force_programming = self.target_cfg.force_program_bitstream,
@@ -56,6 +56,9 @@ class Target:
                 output_len = self.target_cfg.output_len,
                 protocol = self.target_cfg.protocol
             )
+        elif self.target_cfg.target_type == "chip":
+            target = Chip(firmware = self.target_cfg.fw_bin,
+                          opentitantool_path = "../target/lib/opentitantool")
         else:
             raise RuntimeError("Error: Target not supported!")
         return target

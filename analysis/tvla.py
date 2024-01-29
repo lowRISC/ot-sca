@@ -859,7 +859,7 @@ def run_tvla(ctx: typer.Context):
                                     single_trace, threshold, num_samples,
                                     sample_start, metadata)
 
-            title = "TVLA of " + (cfg["project_file"]).rsplit('/')[3]
+            title = "TVLA of " + (cfg["project_file"]).rsplit('/', 1)[-1]
             # Catch case where datetime data isn't saved to project file (e.g. older measurement)
             try:
                 title = title + "\n" + "Captured: " + metadata['datetime']

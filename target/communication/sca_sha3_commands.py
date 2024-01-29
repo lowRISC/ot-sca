@@ -17,15 +17,26 @@ class OTSHA3:
         self.simple_serial = True
         if protocol == "ujson":
             self.simple_serial = False
-            # Init the SHA3 core.
-            self.target.write(json.dumps("Sha3Sca").encode("ascii"))
-            self.target.write(json.dumps("Init").encode("ascii"))
 
     def _ujson_sha3_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
         # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.target.write(json.dumps("Sha3Sca").encode("ascii"))
+
+    def init(self, fpga_mode_bit: int):
+        """ Initializes SHA3 on the target.
+        Args:
+            fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
+        """
+        if not self.simple_serial:
+            # Init the SHA3 core.
+            self.target.write(json.dumps("Sha3Sca").encode("ascii"))
+            self.target.write(json.dumps("Init").encode("ascii"))
+            # FPGA mode.
+            time.sleep(0.01)
+            fpga_mode = {"fpga_mode": fpga_mode_bit}
+            self.target.write(json.dumps(fpga_mode).encode("ascii"))
 
     def _ujson_sha3_sca_ack(self):
         # Wait for ack.

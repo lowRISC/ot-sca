@@ -157,6 +157,14 @@ def configure_cipher(cfg, target, capture_cfg) -> OTSHA3:
     # Create communication interface to OT PRNG.
     ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
 
+    # Check if we want to run KMAC SCA for FPGA or discrete. On the FPGA, we
+    # can use functionality helping us to capture cleaner traces.
+    fpga_mode_bit = 0
+    if "cw" in cfg["target"]["target_type"]:
+        fpga_mode_bit = 1
+    # Initialize KMAC on the target.
+    ot_sha3.init(fpga_mode_bit)
+
     if cfg["test"]["masks_off"] is True:
         logger.info("Configure device to use constant, fast entropy!")
         ot_sha3.set_mask_off()

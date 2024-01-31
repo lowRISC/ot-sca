@@ -209,7 +209,7 @@ class TraceLibrary:
             The int keys from the database.
         """
         keys = [np.frombuffer(trace.key, np.uint8)
-                for trace in self.get_traces(start, end)][0]
+                for trace in self.get_traces(start, end)]
         if len(keys) == 1:
             return keys[0]
         else:

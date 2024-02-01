@@ -668,7 +668,12 @@ def run_tvla(ctx: typer.Context):
 
     elif cfg["ttest_step_file"] is not None:
         # Load previously generated t-test results.
-        ttest_step_file = np.load(cfg["ttest_step_file"])
+        ttest_step_file = np.load(cfg["ttest_step_file"], allow_pickle=True)
+        metadata = ttest_step_file['metadata'].item()
+        sample_start = ttest_step_file['sample_start']
+        single_trace = ttest_step_file['single_trace']
+        trace_start_vec = ttest_step_file['trace_start_vec']
+        num_traces = ttest_step_file['num_traces']
         ttest_step = ttest_step_file['ttest_step']
         num_orders = ttest_step.shape[0]
         num_samples = ttest_step.shape[3]
@@ -701,6 +706,10 @@ def run_tvla(ctx: typer.Context):
             log.info("Saving T-test Step")
             np.savez_compressed('tmp/ttest-step.npy',
                                 ttest_step=ttest_step,
+                                num_traces=num_traces,
+                                metadata=metadata,
+                                sample_start=sample_start,
+                                trace_start_vec=trace_start_vec,
                                 trace_end_vec=trace_end_vec,
                                 rnd_list=rnd_list,
                                 byte_list=byte_list,

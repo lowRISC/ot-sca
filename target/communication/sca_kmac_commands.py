@@ -17,9 +17,21 @@ class OTKMAC:
         self.simple_serial = True
         if protocol == "ujson":
             self.simple_serial = False
-            # Init the KMAC core.
-            self.target.write(json.dumps("KmacSca").encode("ascii"))
-            self.target.write(json.dumps("Init").encode("ascii"))
+
+    def init(self, fpga_mode_bit: int):
+        """ Initializes KMAC on the target.
+        Args:
+            fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
+        """
+        if not self.simple_serial:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # Init command.
+            self.port.write(json.dumps("Init").encode("ascii"))
+            # FPGA mode.
+            time.sleep(0.01)
+            fpga_mode = {"fpga_mode": [fpga_mode_bit]}
+            self.port.write(json.dumps(fpga_mode).encode("ascii"))
 
     def _ujson_kmac_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program

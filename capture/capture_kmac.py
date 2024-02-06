@@ -169,6 +169,14 @@ def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
     # Create communication interface to OT KMAC.
     ot_kmac = OTKMAC(target=target, protocol=capture_cfg.protocol)
 
+    # Check if we want to run KMAC SCA for FPGA or discrete. On the FPGA, we
+    # can use functionality helping us to capture cleaner traces.
+    fpga_mode_bit = 0
+    if "cw" in cfg["target"]["target_type"]:
+        fpga_mode_bit = 1
+    # Initialize KMAC on the target.
+    ot_kmac.init(fpga_mode_bit)
+
     # Create communication interface to OT PRNG.
     ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
 

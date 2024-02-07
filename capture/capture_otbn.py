@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 import util.helpers as helpers
 from target.communication.sca_otbn_commands import OTOTBNVERT
+from target.communication.sca_trigger_commands import OTTRIGGER
 from target.targets import Target, TargetConfig
 from util import check_version
 from util import data_generator as dg
@@ -178,8 +179,28 @@ def setup(cfg: dict, project: Path):
     return target, scope, project
 
 
-def configure_cipher(cfg: dict, target,
-                     capture_cfg: CaptureConfig) -> OTOTBNVERT:
+def establish_communication(target, capture_cfg: CaptureConfig):
+    """ Establish communication with the target device.
+
+    Args:
+        target: The OT target.
+        curve_cfg: The capture config
+
+    Returns:
+        ot_otbn_vert: The communication interface to the OTBN app.
+        ot_trig: The communication interface to the SCA trigger.
+    """
+    # Create communication interface to OTBN.
+    ot_otbn_vert = OTOTBNVERT(target=target, protocol=capture_cfg.protocol)
+
+    # Create communication interface to SCA trigger.
+    ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
+
+    return ot_otbn_vert, ot_trig
+
+
+def configure_cipher(cfg: dict, target, capture_cfg: CaptureConfig,
+                     ot_otbn_vert) -> OTOTBNVERT:
     """ Configure the OTBN app.
 
     Establish communication with the OTBN keygen app and configure the seed.
@@ -189,14 +210,11 @@ def configure_cipher(cfg: dict, target,
         target: The OT target.
         curve_cfg: The curve config.
         capture_cfg: The configuration of the capture.
+        ot_otbn_vert: The communication interface to the OTBN app.
 
     Returns:
-        ot_otbn_vert: The communication interface to the OTBN app.
         curve_cfg: The curve configuration values.
     """
-    # Create communication interface to OTBN.
-    ot_otbn_vert = OTOTBNVERT(target=target, protocol=capture_cfg.protocol)
-
     # Seed host's PRNG.
     random.seed(cfg["test"]["batch_prng_seed"])
 
@@ -286,7 +304,7 @@ def configure_cipher(cfg: dict, target,
             capture_cfg.expected_fixed_output = pow(k_fixed_int, -1,
                                                     curve_cfg.curve_order_n)
 
-    return ot_otbn_vert, curve_cfg
+    return curve_cfg
 
 
 def generate_ref_crypto_keygen(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
@@ -717,8 +735,18 @@ def main(argv=None):
         f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}..."
     )
 
+    # Open communication with target.
+    ot_otbn_vert, ot_trig = establish_communication(target, capture_cfg)
+
     # Configure cipher.
-    ot_otbn_vert, curve_cfg = configure_cipher(cfg, target, capture_cfg)
+    curve_cfg = configure_cipher(cfg, target, capture_cfg, ot_otbn_vert)
+
+    # Configure trigger source.
+    # 0 for HW, 1 for SW.
+    trigger_source = 1
+    if "hw" in cfg["target"].get("trigger"):
+        trigger_source = 0
+    ot_trig.select_trigger(trigger_source)
 
     # Capture traces.
     if mode == "keygen":

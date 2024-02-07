@@ -30,8 +30,9 @@ class OTSHA3:
             fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
         """
         if not self.simple_serial:
+            # Sha3Sca command.
+            self._ujson_sha3_sca_cmd()
             # Init the SHA3 core.
-            self.target.write(json.dumps("Sha3Sca").encode("ascii"))
             self.target.write(json.dumps("Init").encode("ascii"))
             # FPGA mode.
             time.sleep(0.01)

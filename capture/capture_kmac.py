@@ -29,6 +29,7 @@ from tqdm import tqdm
 import util.helpers as helpers
 from target.communication.sca_kmac_commands import OTKMAC
 from target.communication.sca_prng_commands import OTPRNG
+from target.communication.sca_trigger_commands import OTTRIGGER
 from target.targets import Target, TargetConfig
 from util import check_version
 from util import data_generator as dg
@@ -153,22 +154,41 @@ def setup(cfg: dict, project: Path):
     return target, scope, project
 
 
-def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
+def establish_communication(target, capture_cfg: CaptureConfig):
+    """ Establish communication with the target device.
+
+    Args:
+        target: The OT target.
+        capture_cfg: The capture config.
+
+    Returns:
+        ot_kmac: The communication interface to the KMAC SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
+        ot_trig: The communication interface to the SCA trigger.
+    """
+    # Create communication interface to OT KMAC.
+    ot_kmac = OTKMAC(target=target, protocol=capture_cfg.protocol)
+
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+
+    # Create communication interface to SCA trigger.
+    ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
+
+    return ot_kmac, ot_prng, ot_trig
+
+
+def configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng):
     """ Configure the KMAC cipher.
 
     Establish communication with the KMAC cipher and configure the seed.
 
     Args:
         cfg: The project config.
-        target: The OT target.
         capture_cfg: The capture config.
-
-    Returns:
-        The communication interface to the KMAC cipher.
+        ot_kmac: The communication interface to the KMAC SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
     """
-    # Create communication interface to OT KMAC.
-    ot_kmac = OTKMAC(target=target, protocol=capture_cfg.protocol)
-
     # Check if we want to run KMAC SCA for FPGA or discrete. On the FPGA, we
     # can use functionality helping us to capture cleaner traces.
     fpga_mode_bit = 0
@@ -176,9 +196,6 @@ def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
         fpga_mode_bit = 1
     # Initialize KMAC on the target.
     ot_kmac.init(fpga_mode_bit)
-
-    # Create communication interface to OT PRNG.
-    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
 
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking.
@@ -191,8 +208,6 @@ def configure_cipher(cfg, target, capture_cfg) -> OTKMAC:
 
         # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
-
-    return ot_kmac
 
 
 def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
@@ -455,8 +470,18 @@ def main(argv=None):
                                 port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
+    # Open communication with target.
+    ot_kmac, ot_prng, ot_trig = establish_communication(target, capture_cfg)
+
     # Configure cipher.
-    ot_kmac = configure_cipher(cfg, target, capture_cfg)
+    configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng)
+
+    # Configure trigger source.
+    # 0 for HW, 1 for SW.
+    trigger_source = 1
+    if "hw" in cfg["target"].get("trigger"):
+        trigger_source = 0
+    ot_trig.select_trigger(trigger_source)
 
     # Capture traces.
     capture(scope, ot_kmac, capture_cfg, project, target)

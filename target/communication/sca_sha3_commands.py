@@ -46,14 +46,13 @@ class OTSHA3:
             if "RESP_OK" in read_line:
                 json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
                 try:
-                    status = json.loads(json_string)["status"]
-                    if status[0] != 0:
-                        raise Exception("Acknowledge error: Device and host not in sync")
-                    return status
+                    if "status" in json_string:
+                        status = json.loads(json_string)["status"]
+                        if status[0] != 0:
+                            raise Exception("Acknowledge error: Device and host not in sync")
+                        return status
                 except Exception:
                     raise Exception("Acknowledge error: Device and host not in sync")
-            else:
-                raise Exception("Acknowledge error: Device and host not in sync")
 
     def set_mask_off(self):
         if self.simple_serial:

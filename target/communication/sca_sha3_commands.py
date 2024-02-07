@@ -49,7 +49,7 @@ class OTSHA3:
                 try:
                     if "status" in json_string:
                         status = json.loads(json_string)["status"]
-                        if status[0] != 0:
+                        if status != 0:
                             raise Exception("Acknowledge error: Device and host not in sync")
                         return status
                 except Exception:
@@ -71,7 +71,7 @@ class OTSHA3:
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            mask = {"masks_off": [1]}
+            mask = {"masks_off": 1}
             self.target.write(json.dumps(mask).encode("ascii"))
             # Wait for ack.
             self._ujson_sha3_sca_ack()
@@ -89,7 +89,7 @@ class OTSHA3:
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            mask = {"masks_off": [0]}
+            mask = {"masks_off": 0}
             self.target.write(json.dumps(mask).encode("ascii"))
             # Wait for ack.
             self._ujson_sha3_sca_ack()

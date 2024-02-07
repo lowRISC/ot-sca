@@ -7,6 +7,10 @@ target:
   output_len_bytes: 16
   protocol: "ujson"
   port: "/dev/ttyUSB1"
+  # Trigger source.
+  # hw: Precise, hardware-generated trigger - FPGA only.
+  # sw: Fully software-controlled trigger.
+  trigger: "sw"
 waverunner:
   waverunner_ip: 100.107.71.10
   num_segments: 1

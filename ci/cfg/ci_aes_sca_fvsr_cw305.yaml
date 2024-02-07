@@ -9,6 +9,10 @@ target:
   baudrate: 115200
   output_len_bytes: 16
   protocol: "simpleserial"
+  # Trigger source.
+  # hw: Precise, hardware-generated trigger - FPGA only.
+  # sw: Fully software-controlled trigger.
+  trigger: "hw"
 husky:
   sampling_rate: 200000000
   num_segments: 80

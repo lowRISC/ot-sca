@@ -12,6 +12,10 @@ target:
   protocol: "simpleserial"
   # protocol: "ujson"
   # port: "/dev/ttyACM_CW310_1"
+  # Trigger source.
+  # hw: Precise, hardware-generated trigger - FPGA only.
+  # sw: Fully software-controlled trigger.
+  trigger: "hw"
 husky:
   sampling_rate: 200000000
   num_segments: 1

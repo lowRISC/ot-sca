@@ -12,7 +12,7 @@ output_histogram_file: null
 number_of_steps: 4
 ttest_step_file: null
 plot_figures: true
-general_test: false
+test_type: "SPECIFIC"
 mode: aes
 filter_traces: false
 sample_start: 0

@@ -12,7 +12,7 @@ target:
   # sw: Fully software-controlled trigger.
   trigger: "sw"
 waverunner:
-  waverunner_ip: 100.107.71.10
+  waverunner_ip: 192.168.33.128
   num_segments: 1
   # num_samples: 6000
   # offset_samples: 0

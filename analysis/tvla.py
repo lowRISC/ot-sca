@@ -25,7 +25,7 @@ from capture.project_library.project import ProjectConfig  # noqa : E402
 from capture.project_library.project import SCAProject  # noqa : E402
 from util.leakage_models import compute_leakage_aes  # noqa : E402
 from util.leakage_models import compute_leakage_general  # noqa : E402
-from util.leakage_models import find_fixed_key  # noqa : E402
+from util.leakage_models import find_fixed_entry  # noqa : E402
 from util.ttest import ttest_hist_xy  # noqa : E402
 
 app = typer.Typer(add_completion=False)
@@ -252,8 +252,30 @@ def run_tvla(ctx: typer.Context):
             cfg["mode"] != "otbn"):
         log.info("Unsupported mode:" + cfg["mode"] + ", falling back to \"aes\"")
 
-    general_test = (cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3" or
-                    cfg["general_test"] is True)
+    # Currently, specific TVLA exists only for AES.
+    # Other modes can be tested only using general TVLA.
+    if cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3":
+        assert cfg["test_type"] != "SPECIFIC", "Specific test not supported for this mode."
+
+    if cfg["mode"] == "sha3":
+        assert cfg["test_type"] == "GENERAL_DATA", \
+            "SHA3 can only be tested using GENERAL_DATA test type"
+
+    if cfg["test_type"] == "GENERAL_DATA":
+        general_test_key = False
+        general_test_data = True
+        specific_test = False
+    elif cfg["test_type"] == "SPECIFIC":
+        general_test_key = False
+        general_test_data = False
+        specific_test = True
+    else:
+        assert cfg["test_type"] == "GENERAL_KEY"
+        general_test_key = True
+        general_test_data = False
+        specific_test = False
+
+    general_test = general_test_key or general_test_data
 
     aes_num_rnds = 11
     aes_num_bytes = 16
@@ -421,7 +443,7 @@ def run_tvla(ctx: typer.Context):
         sample_step_hist = 1
         # Increase work per thread to amortize parallelization overhead.
         if len(rnd_list) == 1 and len(byte_list) == 1:
-            if general_test is True:
+            if general_test:
                 sample_step_hist = min(10000, num_samples // num_jobs)
             else:
                 sample_step_hist = 5
@@ -488,7 +510,7 @@ def run_tvla(ctx: typer.Context):
                              trace_start=trace_start, trace_end=trace_end)
 
                 if ((save_to_disk_trace is True or save_to_disk_ttest is True) and
-                        general_test is True and i_step == 0):
+                        general_test and i_step == 0):
                     np.save('tmp/single_trace.npy', single_trace)
 
             else:
@@ -525,8 +547,9 @@ def run_tvla(ctx: typer.Context):
                     keys = np.empty((num_traces_orig, key_len_bytes), dtype=np.uint8)
                 else:
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                    plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
 
-                if general_test is False:
+                if specific_test:
                     keys[:] = project.get_keys(trace_start, trace_end + 1)
                 else:
                     # Existing KMAC trace sets use a mix of bytes strings and ChipWhisperer byte
@@ -534,30 +557,36 @@ def run_tvla(ctx: typer.Context):
                     # Eventually, we can drop this.
                     if i_step == 0:
                         if OTTraceLib:
-                            if cfg["mode"] == "sha3":
-                                keys_nparrays = project.get_plaintexts()
+                            if general_test_data:
+                                plaintexts_nparrays = project.get_plaintexts()
                             else:
                                 keys_nparrays = project.get_keys()
                         else:
                             # Convert all keys from the project file to numpy
                             # arrays once.
                             keys_nparrays = []
+                            plaintexts_nparrays = []
                             for i in range(num_traces_max):
-                                if cfg["mode"] == "sha3":
-                                    keys_nparrays.append(np.frombuffer(project.project.textins[i],
-                                                                       dtype=np.uint8))
+                                if general_test_data:
+                                    plaintexts_nparrays.append(
+                                        np.frombuffer(project.project.textins[i], dtype=np.uint8))
                                 else:
                                     keys_nparrays.append(np.frombuffer(project.project.keys[i],
                                                                        dtype=np.uint8))
 
                     # Select the correct slice of keys for each step.
-                    keys[:] = keys_nparrays[trace_start:trace_end + 1]
+                    if general_test_data:
+                        plaintexts[:] = plaintexts_nparrays[trace_start:trace_end + 1]
+                    else:
+                        keys[:] = keys_nparrays[trace_start:trace_end + 1]
 
                 # Only select traces to use.
-                keys = keys[traces_to_use[trace_start:trace_end + 1]]
-                if general_test is False:
-                    # The plaintexts are only required for non-general AES TVLA.
-                    plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                if general_test_key:
+                    keys = keys[traces_to_use[trace_start:trace_end + 1]]
+                if general_test_data:
+                    plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
+                if specific_test:
+                    keys = keys[traces_to_use[trace_start:trace_end + 1]]
                     if OTTraceLib:
                         plaintexts = project.get_plaintexts(trace_start, trace_end + 1)
                     else:
@@ -569,7 +598,7 @@ def run_tvla(ctx: typer.Context):
             if not OTTraceLib:
                 project.close(save=False)
 
-            if general_test is False:
+            if specific_test:
                 # Compute or load previously computed leakage model.
                 if cfg["leakage_file"] is None:
                     # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
@@ -585,17 +614,22 @@ def run_tvla(ctx: typer.Context):
                 else:
                     leakage = np.load(cfg["leakage_file"])
                     assert num_traces == leakage.shape[2]
-            else:
+            elif general_test_key:
                 log.info("Computing Leakage")
                 # We identify the fixed key by looking at the first 20 keys in the project.
-                leakage = compute_leakage_general(keys, find_fixed_key(keys_nparrays[0:20]))
+                leakage = compute_leakage_general(keys, find_fixed_entry(keys_nparrays[0:20]))
+            else:
+                assert general_test_data
+                log.info("Computing Leakage")
+                # We identify the fixed data by looking at the first 20 plaintexts in the project.
+                leakage = compute_leakage_general(plaintexts, find_fixed_entry(plaintexts[0:20]))
 
             # Uncomment the function call below for debugging e.g. when the t-test results aren't
             # centered around 0.
             # plot_fvsr_stats(traces, leakage)
 
             log.info("Building Histograms")
-            if general_test is False:
+            if specific_test:
                 # For every time sample we make two histograms, one for Hamming weight of the
                 # sensitive variable = 0 (fixed set) and one for Hamming weight > 0 (random set).
                 # histograms has dimensions [num_rnds, num_bytes, 2, num_samples, trace_resolution]
@@ -689,7 +723,7 @@ def run_tvla(ctx: typer.Context):
         # Plot the t-test vs. time figures for the maximum number of traces.
         ttest_trace = ttest_step[:, :, :, :, num_steps - 1]
 
-        if general_test is True:
+        if general_test:
             single_trace_file = os.path.dirname(cfg["ttest_step_file"])
             single_trace_file += "/" if single_trace_file else ""
             single_trace_file += "single_trace.npy"
@@ -717,7 +751,7 @@ def run_tvla(ctx: typer.Context):
     if not np.any(failure):
         log.info("No leakage above threshold identified.")
     if np.any(failure) or np.any(nan):
-        if general_test is False:
+        if specific_test:
             if np.any(failure):
                 log.info("Leakage above threshold identified in the following order(s), round(s) "
                          "and byte(s) marked with X:")
@@ -805,7 +839,7 @@ def run_tvla(ctx: typer.Context):
         # Plotting figures for t-test statistics vs. time.
         log.info("Plotting T-test Statistics vs. Time.")
 
-        if cfg["mode"] == "aes" and general_test is False:
+        if cfg["mode"] == "aes" and specific_test:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
                 for i_byte in range(num_bytes):
@@ -923,7 +957,7 @@ def run_tvla(ctx: typer.Context):
                 # leakage is expected in the first place. This might need tuning if the design
                 # is altered.
 
-                if general_test is False:
+                if specific_test:
                     # Each regular round lasts for 100 samples.
                     samples_per_rnd = 100
                     # We have a negative trigger offset of 20 samples. The initial key and data
@@ -998,7 +1032,7 @@ default_output_histogram_file = None
 default_number_of_steps = 1
 default_ttest_step_file = None
 default_plot_figures = False
-default_general_test = False
+default_test_type = "GENERAL_KEY"
 default_mode = "aes"
 default_filter_traces = True
 default_update_cfg_file = False
@@ -1049,9 +1083,9 @@ help_ttest_step_file = inspect.cleandoc("""Name of the t-test step file containi
     """ + str(default_ttest_step_file))
 help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Default:
     """ + str(default_plot_figures))
-help_general_test = inspect.cleandoc("""Perform general fixed-vs-random TVLA without leakage
-    model. Odd traces are grouped in the fixed set while even traces are grouped in the random set.
-    Default: """ + str(default_general_test))
+help_test_type = inspect.cleandoc("""Select test type: can be either "SPECIFIC", "GENERA_KEY",
+    or "GENERAL_DATA".
+    Default: """ + str(default_test_type))
 help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3" or "otbn".
     Default: """ + str(default_mode))
 help_filter_traces = inspect.cleandoc("""Excludes the outlier traces from the analysis. A trace is
@@ -1078,7 +1112,7 @@ def main(ctx: typer.Context,
          number_of_steps: int = typer.Option(None, help=help_number_of_steps),
          ttest_step_file: str = typer.Option(None, help=help_ttest_step_file),
          plot_figures: bool = typer.Option(None, help=help_plot_figures),
-         general_test: bool = typer.Option(None, help=help_general_test),
+         test_type: str = typer.Option(None, help=help_test_type),
          mode: str = typer.Option(None, help=help_mode),
          filter_traces: bool = typer.Option(None, help=help_filter_traces),
          update_cfg_file: bool = typer.Option(None, help=help_update_cfg_file)):
@@ -1091,7 +1125,7 @@ def main(ctx: typer.Context,
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
               'save_to_disk', 'save_to_disk_ttest', 'round_select', 'byte_select',
               'input_histogram_file', 'output_histogram_file', 'number_of_steps',
-              'ttest_step_file', 'plot_figures', 'general_test', 'mode', 'filter_traces']:
+              'ttest_step_file', 'plot_figures', 'test_type', 'mode', 'filter_traces']:
         run_cmd = f'''cfg[v] = default_{v}'''
         exec(run_cmd)
 
@@ -1105,7 +1139,7 @@ def main(ctx: typer.Context,
     for v in ['project_file', 'trace_file', 'trace_start', 'trace_end', 'leakage_file',
               'save_to_disk', 'save_to_disk_ttest',
               'input_histogram_file', 'output_histogram_file', 'number_of_steps',
-              'ttest_step_file', 'plot_figures', 'general_test', 'mode', 'filter_traces']:
+              'ttest_step_file', 'plot_figures', 'test_type', 'mode', 'filter_traces']:
         run_cmd = f'''if {v} is not None: cfg[v] = {v}'''
         exec(run_cmd)
     # The list arguments need to be handled a bit differently.

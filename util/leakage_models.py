@@ -79,31 +79,31 @@ def compute_leakage_aes(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     return leakage
 
 
-def find_fixed_key(keys):
+def find_fixed_entry(dataset):
     """
-    Finds a fixed key.
+    Finds a fixed entry (key or plaintext).
 
-    In a fixed-vs-random analysis, only fixed_key will repeat multiple times,
-    this will not necesserily be the first key on the list.
-    This function looks at the input list of keys and finds the first one that
+    In a fixed-vs-random analysis, only fixed_entry will repeat multiple times,
+    this will not necesserily be the first entry on the list.
+    This function looks at the input list and finds the first entry that
     is repeated multiple times.
     """
 
-    for i_key in range(len(keys)):
-        fixed_key = keys[i_key]
+    for i_entry in range(len(dataset)):
+        fixed_entry = dataset[i_entry]
         num_hits = 0
-        for i in range(len(keys)):
-            num_hits += np.array_equal(fixed_key, keys[i])
+        for i in range(len(dataset)):
+            num_hits += np.array_equal(fixed_entry, dataset[i])
         if num_hits > 1:
             break
 
-    # If no key repeats, then the fixed key cannot be identified.
-    assert num_hits > 1, "Cannot identify fixed key. Try using a longer list."
+    # If no entry repeats, then the fixed entry cannot be identified.
+    assert num_hits > 1, "Cannot identify fixed entry. Try using a longer list."
 
-    return fixed_key
+    return fixed_entry
 
 
-def compute_leakage_general(keys, fixed_key):
+def compute_leakage_general(dataset, fixed_entry):
     """
     Computes leakage for TVLA fixed-vs-random general attaks.
 
@@ -113,8 +113,8 @@ def compute_leakage_general(keys, fixed_key):
         leakage[i] = 0 - trace i belonges to the random group
     """
 
-    leakage = np.zeros((len(keys)), dtype=np.uint8)
-    for i in range(len(keys)):
-        leakage[i] = np.array_equal(fixed_key, keys[i])
+    leakage = np.zeros((len(dataset)), dtype=np.uint8)
+    for i in range(len(dataset)):
+        leakage[i] = np.array_equal(fixed_entry, dataset[i])
 
     return leakage

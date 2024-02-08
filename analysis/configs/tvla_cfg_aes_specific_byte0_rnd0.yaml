@@ -1,4 +1,4 @@
-project_file: ../capture/projects/simple_capture_aes_sca
+project_file: ../capture/projects/aes_fvsr_key_cw310
 trace_file: null
 trace_start: null
 trace_end: null
@@ -12,7 +12,7 @@ output_histogram_file: null
 number_of_steps: 1
 ttest_step_file: null
 plot_figures: true
-general_test: false
+test_type: "SPECIFIC"
 mode: aes
 filter_traces: true
 trace_threshold: 1000

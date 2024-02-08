@@ -12,7 +12,7 @@ output_histogram_file: null
 number_of_steps: 1
 ttest_step_file: null
 plot_figures: true
-general_test: true
+test_type: "GENERAL_DATA"
 mode: sha3
 filter_traces: true
 trace_threshold: 1000

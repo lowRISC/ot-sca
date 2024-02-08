@@ -23,7 +23,7 @@ sys.path.append(ABS_PATH + '/..')
 import util.plot as plot  # noqa : E402
 from capture.project_library.project import ProjectConfig  # noqa : E402
 from capture.project_library.project import SCAProject  # noqa : E402
-from util.leakage_models import compute_leakage_aes  # noqa : E402
+from util.leakage_models import compute_leakage_aes_byte  # noqa : E402
 from util.leakage_models import compute_leakage_general  # noqa : E402
 from util.leakage_models import find_fixed_entry  # noqa : E402
 from util.ttest import ttest_hist_xy  # noqa : E402
@@ -614,8 +614,8 @@ def run_tvla(ctx: typer.Context):
                     # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
                     log.info("Computing Leakage")
                     leakage = Parallel(n_jobs=num_jobs)(
-                        delayed(compute_leakage_aes)(keys[i:i + trace_step_leakage],
-                                                     plaintexts[i:i + trace_step_leakage])
+                        delayed(compute_leakage_aes_byte)(keys[i:i + trace_step_leakage],
+                                                          plaintexts[i:i + trace_step_leakage])
                         for i in range(0, num_traces, trace_step_leakage))
                     leakage = np.concatenate((leakage[:]), axis=2)
                     if save_to_disk_leakage:

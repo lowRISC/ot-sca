@@ -16,9 +16,9 @@ def bit_count(int_no):
     return c
 
 
-def compute_leakage_aes(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
+def compute_leakage_aes_byte(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     """
-    Computes AES leakage for a given list of plaintexts and keys.
+    Computes byte-based AES leakage for a given list of plaintexts and keys.
 
     The output "leakage" contains leakage of all state-register bytes after each round.
         leakage[X][Y][Z] - Leakage (e.g. hamming weight) of AES round X, byte Y for trace Z

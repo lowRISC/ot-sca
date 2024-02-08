@@ -16,6 +16,17 @@ def bit_count(int_no):
     return c
 
 
+def byte2bits(int_no):
+    """Computes Hamming weight of a number."""
+    c = np.zeros(8, dtype=int)
+    i = 0
+    while int_no:
+        c[i] = int_no % 2
+        int_no >>= 1
+        i += 1
+    return c
+
+
 def compute_leakage_aes_byte(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
     """
     Computes byte-based AES leakage for a given list of plaintexts and keys.
@@ -25,7 +36,7 @@ def compute_leakage_aes_byte(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT')
     Leakage is computed based on the specified leakage_model.
     Two leakage models are available:
         HAMMING_WEIGHT - based on the hamming weight of the state register byte.
-        HAMMING_DISTANCE - based on the hamming distance between the curent and previous state.
+        HAMMING_DISTANCE - based on the hamming distance between the current and previous state.
     """
     num_traces = len(keys)
     leakage = np.zeros((11, 16, num_traces), dtype=np.uint8)
@@ -75,6 +86,70 @@ def compute_leakage_aes_byte(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT')
                         np.bitwise_xor(state[k], old_state[k]))
                 else:
                     leakage[j][k][i] = bit_count(state[k])
+
+    return leakage
+
+
+def compute_leakage_aes_bit(keys, plaintexts, leakage_model = 'HAMMING_WEIGHT'):
+    """
+    Computes bit-based AES leakage for a given list of plaintexts and keys.
+
+    The output "leakage" contains leakage of all state-register bits after each round.
+        leakage[X][Y][Z] - Leakage (e.g. hamming weight) of AES round X, bit Y for trace Z
+    Leakage is computed based on the specified leakage_model.
+    Two leakage models are available:
+        HAMMING_WEIGHT - based on the value of the state register bit.
+        HAMMING_DISTANCE - based on the XOR between the current and previous bit value.
+    """
+    num_traces = len(keys)
+    leakage = np.zeros((11, 128, num_traces), dtype=np.uint8)
+
+    # Checks if all keys in the list are the same.
+    key_fixed = np.all(keys == keys[0])
+    subkey = np.zeros((11, 16))
+
+    if key_fixed:
+        for j in range(11):
+            subkey[j] = np.asarray(
+                aes_funcs.key_schedule_rounds(keys[0], 0, j))
+        subkey = subkey.astype(int)
+
+    for i in range(num_traces):
+
+        if not key_fixed:
+            for j in range(11):
+                subkey[j] = np.asarray(
+                    aes_funcs.key_schedule_rounds(keys[i], 0, j))
+            subkey = subkey.astype(int)
+
+        # Init
+        state = plaintexts[i]
+
+        # Round 0
+        old_state = state
+        state = np.bitwise_xor(state, subkey[0])
+        for k in range(16):
+            if leakage_model == 'HAMMING_DISTANCE':
+                vec8 = byte2bits(
+                    np.bitwise_xor(state[k], old_state[k]))
+            else:
+                vec8 = byte2bits(state[k])
+            leakage[0][8 * k: 8 * k + 8, i] = vec8
+
+        # Round 1 - 10
+        for j in range(1, 11):
+            old_state = state
+            state = aes_funcs.subbytes(state)
+            state = aes_funcs.shiftrows(state)
+            if (j < 10):
+                state = aes_funcs.mixcolumns(state)
+            state = np.bitwise_xor(state, subkey[j])
+            for k in range(16):
+                if leakage_model == 'HAMMING_DISTANCE':
+                    vec8 = byte2bits(np.bitwise_xor(state[k], old_state[k]))
+                else:
+                    vec8 = byte2bits(state[k])
+                leakage[j][8 * k: 8 * k + 8, i] = vec8
 
     return leakage
 

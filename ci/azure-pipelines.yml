@@ -26,12 +26,12 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310.yaml -p projects/aes_sca_fvsr_cw310
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_simpleserial.yaml -p projects/aes_sca_fvsr_cw310
       popd
-    displayName: "Capture AES FVSR traces"
+    displayName: "Capture AES FVSR traces (simpleserial)"
   - publish: ./ci/projects/aes_sca_fvsr_cw310.html
     artifact: traces_aes_fvsr
-    displayName: "Upload AES FVSR traces"
+    displayName: "Upload AES FVSR traces (simpleserial)"
   - bash: |
       set -e
       pushd ci
@@ -46,18 +46,38 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310.yaml -p projects/aes_sca_random_cw310
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_simpleserial.yaml -p projects/aes_sca_random_cw310
       popd
-    displayName: "Capture AES Random traces"
+    displayName: "Capture AES Random traces (simpleserial)"
   - publish: ./ci/projects/aes_sca_random_cw310.html
     artifact: traces_aes_random_key
-    displayName: "Upload AES Random traces"
+    displayName: "Upload AES Random traces (simpleserial)"
   - bash: |
       set -e
       pushd ci
       ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
       popd
     displayName: "Compare AES Random traces against golden trace"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
+      popd
+    displayName: "Capture AES FVSR traces (ujson)"
+  - publish: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
+    artifact: traces_aes_fvsr_ujson
+    displayName: "Upload AES FVSR traces (ujson)"
+  - bash: |
+      set -e
+      pushd ci
+      mkdir -p projects
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_ujson.yaml -p projects/aes_sca_random_cw310_ujson
+      popd
+    displayName: "Capture AES Random traces (ujson)"
+  - publish: ./ci/projects/aes_sca_random_cw310_ujson.html
+    artifact: traces_aes_random_key_ujson
+    displayName: "Upload AES Random traces (ujson)"
 - job: sha3_sca_capture_cw310
   displayName: "Capture SHA3 SCA traces (CW310)"
   timeoutInMinutes: 30

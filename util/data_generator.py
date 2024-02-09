@@ -107,7 +107,6 @@ class data_generator():
         ct = [x for x in ct_bytes]
 
         del (sha3_fixed)
-        self.advance_fixed()
         return pt, ct, key
 
     def get_sha3_random(self):

@@ -260,27 +260,57 @@ def generate_ref_crypto(sample_fixed, mode, batch, plaintext,
     return plaintext, ciphertext, sample_fixed
 
 
-def check_ciphertext(ot_sha3, expected_last_ciphertext, ciphertext_len):
+def check_ciphertext(received_ciphertext, expected_last_ciphertext, ciphertext_len):
     """ Compares the received with the generated ciphertext.
 
-    Ciphertext is read from the device and compared against the pre-computed
-    generated ciphertext. In batch mode, only the last ciphertext is compared.
+    Received ciphertext is compared against the pre-computed generated
+    ciphertext. In batch mode, only the last ciphertext is compared.
     Asserts on mismatch.
 
     Args:
-        ot_sha3: The OpenTitan SHA§ communication interface.
+        received_ciphertext: The received ciphertext.
         expected_last_ciphertext: The pre-computed ciphertext.
         ciphertext_len: The length of the ciphertext in bytes.
     """
-    actual_last_ciphertext = ot_sha3.read_ciphertext(ciphertext_len)
-    assert actual_last_ciphertext == expected_last_ciphertext[0:ciphertext_len], (
+    assert received_ciphertext == expected_last_ciphertext[0:ciphertext_len], (
         f"Incorrect encryption result!\n"
-        f"actual:   {actual_last_ciphertext}\n"
+        f"actual:   {received_ciphertext}\n"
         f"expected: {expected_last_ciphertext}"
     )
 
 
-def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
+def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target, text_fixed):
+    """ Initializes the target.
+
+    Establish a communication interface with the target and configure the cipher.
+
+    Args:
+        cfg: The project config.
+        capture_cfg: The capture config.
+        target: The OT target.
+        text_fixed: The fixed text for FVSR.
+    """
+    # Open communication with target.
+    ot_sha3, ot_prng, ot_trig = establish_communication(target, capture_cfg)
+
+    # Configure cipher.
+    configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng)
+
+    # Configure trigger source.
+    # 0 for HW, 1 for SW.
+    trigger_source = 1
+    if "hw" in cfg["target"].get("trigger"):
+        trigger_source = 0
+    ot_trig.select_trigger(trigger_source)
+
+    # Configure the fixed text for FVSR in the batch mode.
+    if capture_cfg.batch_mode:
+        ot_sha3.fvsr_fixed_msg_set(text_fixed)
+
+    return ot_sha3
+
+
+def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
             project: SCAProject, target: Target):
     """ Capture power consumption during SHA3 digest computation.
 
@@ -291,7 +321,7 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
 
     Args:
         scope: The scope class representing a scope (Husky or WaveRunner).
-        ot_sha3: The OpenTitan SHA3 communication interface.
+        cfg: The config of the project.
         capture_cfg: The configuration of the capture.
         project: The SCA project.
         target: The OpenTitan target.
@@ -308,8 +338,8 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
     # Optimization for CW trace library.
     num_segments_storage = 1
 
-    if capture_cfg.batch_mode:
-        ot_sha3.fvsr_fixed_msg_set(text_fixed)
+    # Initialize target.
+    ot_sha3 = init_target(cfg, capture_cfg, target, text_fixed)
 
     # Register ctrl-c handler to store traces on abort.
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
@@ -341,6 +371,8 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
             assert waves.shape[0] == capture_cfg.num_segments
 
             expected_ciphertext = None
+            text_array = []
+            ciphertext_array = []
             # Generate reference crypto material and store trace.
             for i in range(capture_cfg.num_segments):
                 if capture_cfg.batch_mode or capture_cfg.capture_mode == "sha3_random":
@@ -354,11 +386,10 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
                     )
                 # Sanity check retrieved data (wave).
                 assert len(waves[i, :]) >= 1
-                # Store trace into database.
-                project.append_trace(wave = waves[i, :],
-                                     plaintext = bytearray(text),
-                                     ciphertext = bytearray(ciphertext),
-                                     key = None)
+
+                # Append text and ciphertext to result array.
+                text_array.append(text)
+                ciphertext_array.append(ciphertext)
 
                 if capture_cfg.capture_mode == "sha3_random":
                     plaintext = bytearray(16)
@@ -374,16 +405,29 @@ def capture(scope: Scope, ot_sha3: OTSHA3, capture_cfg: CaptureConfig,
                 else:
                     expected_ciphertext = ciphertext
 
-            # Compare received ciphertext with generated.
+            # Receive ciphertext and compare against expected one. If
+            # successful, store into database.
             compare_len = capture_cfg.output_len
-            check_ciphertext(ot_sha3, expected_ciphertext, compare_len)
+            rcv_ctx, rcv_resp = ot_sha3.read_ciphertext(compare_len)
+            if rcv_resp:
+                # Check response and store into database
+                check_ciphertext(rcv_ctx, expected_ciphertext, compare_len)
+                for i in range(capture_cfg.num_segments):
+                    project.append_trace(wave = waves[i, :],
+                                         plaintext = bytearray(text_array[i]),
+                                         ciphertext = bytearray(ciphertext_array[i]),
+                                         key = None)
+                # Update the loop variable and the progress bar.
+                remaining_num_traces -= capture_cfg.num_segments
+                pbar.update(capture_cfg.num_segments)
+            else:
+                # No response, reset device and start over.
+                logger.info("No response received, resetting device!")
+                target.reset_target()
+                ot_sha3 = init_target(cfg, capture_cfg, target, text_fixed)
 
             # Memory allocation optimization for CW trace library.
             num_segments_storage = project.optimize_capture(num_segments_storage)
-
-            # Update the loop variable and the progress bar.
-            remaining_num_traces -= capture_cfg.num_segments
-            pbar.update(capture_cfg.num_segments)
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
@@ -442,21 +486,8 @@ def main(argv=None):
                                 port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
-    # Open communication with target.
-    ot_sha3, ot_prng, ot_trig = establish_communication(target, capture_cfg)
-
-    # Configure cipher.
-    configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng)
-
-    # Configure trigger source.
-    # 0 for HW, 1 for SW.
-    trigger_source = 1
-    if "hw" in cfg["target"].get("trigger"):
-        trigger_source = 0
-    ot_trig.select_trigger(trigger_source)
-
     # Capture traces.
-    capture(scope, ot_sha3, capture_cfg, project, target)
+    capture(scope, cfg, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)

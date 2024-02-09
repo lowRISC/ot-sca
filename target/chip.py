@@ -35,7 +35,7 @@ class Chip():
             time.sleep(self.boot_delay)
             print(f'Info: OpenTitan flashed with {self.firmware}.')
 
-    def target_reset(self, boot_delay: Optional[int] = 1):
+    def reset_target(self, boot_delay: Optional[int] = 1):
         """Reset OpenTitan by triggering the reset pin using opentitantool."""
         reset_process = Popen([self.opentitantool, "--rcfile=",
                                "--interface=hyper310",

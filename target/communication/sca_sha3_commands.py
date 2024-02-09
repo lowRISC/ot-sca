@@ -39,9 +39,10 @@ class OTSHA3:
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
 
-    def _ujson_sha3_sca_ack(self):
+    def _ujson_sha3_sca_ack(self, num_attempts: Optional[int] = 100):
         # Wait for ack.
-        while True:
+        read_counter = 0
+        while read_counter < num_attempts:
             read_line = str(self.target.readline())
             if "RESP_OK" in read_line:
                 json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
@@ -53,6 +54,9 @@ class OTSHA3:
                         return status
                 except Exception:
                     raise Exception("Acknowledge error: Device and host not in sync")
+            else:
+                read_counter += 1
+        raise Exception("Acknowledge error: Device and host not in sync")
 
     def set_mask_off(self):
         if self.simple_serial:
@@ -166,25 +170,31 @@ class OTSHA3:
             msg_data = {"msg": msg_int, "msg_length": msg_length}
             self.target.write(json.dumps(msg_data).encode("ascii"))
 
-    def read_ciphertext(self, len_bytes):
+    def read_ciphertext(self, len_bytes, num_attempts: Optional[int] = 100):
         """ Read ciphertext from OpenTitan SHA3.
         Args:
             len_bytes: Number of bytes to read.
+            num_attempts: Number of attempts to read from device.
 
         Returns:
-            The received ciphertext.
+            The received ciphertext and a status flag indicating whether data
+            was received or not.
         """
         if self.simple_serial:
             response_byte = self.target.read("r", len_bytes, ack=False)
             # Convert response into int array.
-            return [x for x in response_byte]
+            return [x for x in response_byte], True
         else:
-            while True:
+            read_counter = 0
+            while read_counter < num_attempts:
                 read_line = str(self.target.readline())
                 if "RESP_OK" in read_line:
                     json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
                     try:
                         batch_digest = json.loads(json_string)["batch_digest"]
-                        return batch_digest[0:len_bytes]
+                        return batch_digest[0:len_bytes], True
                     except Exception:
                         pass  # noqa: E302
+                read_counter += 1
+            # Reading from device failed.
+            return None, False

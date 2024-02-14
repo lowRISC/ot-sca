@@ -288,7 +288,7 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../fault_injection/fi_ibex.py -c cfg/ci_ibex_fi_vcc_dummy.yaml -p projects/ibex_fi_cw310
+      ../fault_injection/fi_ibex.py -c cfg/ci_ibex_fi_vcc_dummy_cw310.yaml -p projects/ibex_fi_cw310
       popd
     displayName: "Dummy VCC glitching on Ibex"
   - publish: ./ci/projects/ibex_fi_cw310.html

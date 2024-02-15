@@ -87,6 +87,9 @@ class WaveRunner:
         self._populate_device_info()
         self._print_device_info()
         self.acqu_channel = "C3"
+        # Configure scope to acknowledge commands with a short command header.
+        res = self._ask("CHDR SHORT;*OPC?")
+        assert res == "*OPC 1"
 
     @property
     def num_segments_max(self):

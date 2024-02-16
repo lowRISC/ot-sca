@@ -371,13 +371,12 @@ def run_tvla(ctx: typer.Context):
                                     )
         project = SCAProject(project_cfg)
         project.open_project()
-        proj_waves = project.get_waves()
         metadata = project.get_metadata()
 
         if cfg["input_histogram_file"] is None:
-            num_samples = len(proj_waves[0])
+            num_samples = len(project.get_waves(0))
         else:
-            assert num_samples == len(proj_waves[0])
+            assert num_samples == len(project.get_waves(0))
 
         if cfg["input_histogram_file"] is None:
             adc_bits = 12
@@ -393,22 +392,29 @@ def run_tvla(ctx: typer.Context):
         else:
             sample_start = 0
 
-        assert sample_start < len(proj_waves[0])
+        assert sample_start < len(project.get_waves(0))
 
         if ("num_samples" in cfg and cfg["num_samples"] is not None):
             num_samples = cfg["num_samples"]
         else:
-            num_samples = len(proj_waves[0]) - sample_start
+            num_samples = len(project.get_waves(0)) - sample_start
 
-        if (num_samples + sample_start > len(proj_waves[0])):
+        if (num_samples + sample_start > len(project.get_waves(0))):
             log.warning(f"Selected sample window {sample_start} to " +
                         f"{sample_start+num_samples} is out of range!")
-            num_samples = len(proj_waves[0]) - sample_start
+            num_samples = len(project.get_waves(0)) - sample_start
             log.warning(f"Will use samples from {sample_start} " +
                         f"to {sample_start+num_samples} instead!")
 
         # Overall number of traces, trace start and end indices.
-        num_traces_max = len(proj_waves)
+        num_traces_max = metadata.get("num_traces")
+        if num_traces_max is None:
+            # If the database (e.g. CW DB) does not contain the number of
+            # traces, open the waves, read the number of traces, and free the
+            # memory.
+            proj_waves = project.get_waves()
+            num_traces_max = len(proj_waves)
+            proj_waves = None
         if cfg["trace_start"] is None:
             trace_start_tot = 0
         else:
@@ -457,13 +463,13 @@ def run_tvla(ctx: typer.Context):
                      i_step + 1, num_steps, trace_start, trace_end)
 
             if cfg["trace_file"] is None:
-
                 # Make sure to re-open the CW project file as we close it during
                 # the operation to free up some memory.
                 if i_step > 0:
-                    if not OTTraceLib:
-                        project.open_project()
-                        proj_waves = project.get_waves()
+                    project.open_project()
+
+                proj_waves = project.get_waves(trace_start, trace_end + 1)
+                assert len(proj_waves) == num_traces
 
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
@@ -471,14 +477,13 @@ def run_tvla(ctx: typer.Context):
                     traces = np.empty((num_traces, num_samples), dtype=np.uint16)
                     log.info(f"Will use samples from {sample_start} to {sample_start+num_samples}")
                     for i_trace in range(num_traces):
-                        traces[i_trace] = proj_waves[i_trace +
-                                                     trace_start][sample_start:sample_start +
-                                                                  num_samples]
+                        traces[i_trace] = proj_waves[i_trace][sample_start:
+                                                              sample_start +
+                                                              num_samples]
                 else:
                     traces = np.empty((num_traces, num_samples), dtype=np.double)
                     for i_trace in range(num_traces):
-                        traces[i_trace] = (proj_waves[i_trace +
-                                                      trace_start] + 0.5) * trace_resolution
+                        traces[i_trace] = (proj_waves[i_trace] + 0.5) * trace_resolution
                     traces = traces.astype('uint16')
 
                 # Define upper and lower limits.
@@ -495,7 +500,7 @@ def run_tvla(ctx: typer.Context):
 
                 # Filtering of converted traces (len = num_samples). traces_to_use itself can be
                 # used to index the entire project file (len >= num_samples).
-                traces_to_use = np.zeros(len(proj_waves), dtype=bool)
+                traces_to_use = np.zeros(num_traces_max, dtype=bool)
                 traces_to_use[trace_start:trace_end + 1] = np.all((traces >= min_trace) &
                                                                   (traces <= max_trace), axis=1)
                 traces = traces[traces_to_use[trace_start:trace_end + 1]]
@@ -529,8 +534,7 @@ def run_tvla(ctx: typer.Context):
                 assert trace_end == trace_file['trace_end']
                 num_traces = trace_end - trace_start + 1
                 # The project file must match the trace file.
-                assert len(proj_waves) == len(traces_to_use)
-                num_traces_max = len(proj_waves)
+                assert num_traces_max == len(traces_to_use)
 
             # Correct num_traces based on filtering.
             num_traces_orig = num_traces
@@ -539,6 +543,12 @@ def run_tvla(ctx: typer.Context):
                 f"Will use {num_traces} traces "
                 f"({100*num_traces/num_traces_orig:.1f}%)"
             )
+
+            # Store reference trace to plot in figure. Avoid using the first
+            # trace as this initial trace could sometimes be noisy.
+            trace_to_plot = traces[0]
+            if len(traces) > 1:
+                trace_to_plot = traces[1]
 
             if cfg["leakage_file"] is None:
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
@@ -593,10 +603,10 @@ def run_tvla(ctx: typer.Context):
                         plaintexts[:] = project.project.textins[trace_start:trace_end + 1]
                         plaintexts = plaintexts[traces_to_use[trace_start:trace_end + 1]]
 
-            # We don't need the project file anymore after this point. Close it together with all
-            # trace files opened in the background.
-            if not OTTraceLib:
-                project.close(save=False)
+            # We don't need the project file anymore after this point. Close it
+            # together with all trace files opened in the background.
+            project.close(save=False)
+            proj_waves = None
 
             if specific_test:
                 # Compute or load previously computed leakage model.
@@ -617,7 +627,7 @@ def run_tvla(ctx: typer.Context):
             elif general_test_key:
                 log.info("Computing Leakage")
                 # We identify the fixed key by looking at the first 20 keys in the project.
-                leakage = compute_leakage_general(keys, find_fixed_entry(keys_nparrays[0:20]))
+                leakage = compute_leakage_general(keys, find_fixed_entry(keys[0:20]))
             else:
                 assert general_test_data
                 log.info("Computing Leakage")
@@ -627,6 +637,10 @@ def run_tvla(ctx: typer.Context):
             # Uncomment the function call below for debugging e.g. when the t-test results aren't
             # centered around 0.
             # plot_fvsr_stats(traces, leakage)
+
+            # Free up memory.
+            plaintexts = None
+            keys = None
 
             log.info("Building Histograms")
             if specific_test:
@@ -657,6 +671,9 @@ def run_tvla(ctx: typer.Context):
                     for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
 
+            # Free traces from memory as they are not needed anymore.
+            traces = None
+
             # Add up new data to potential, previously generated histograms.
             if cfg["input_histogram_file"] is not None or i_step > 0:
                 histograms = histograms + histograms_in
@@ -669,7 +686,7 @@ def run_tvla(ctx: typer.Context):
             if cfg["output_histogram_file"] is not None:
                 log.info("Saving Histograms")
                 np.savez(cfg["output_histogram_file"], histograms=histograms, rnd_list=rnd_list,
-                         byte_list=byte_list, single_trace = traces[1])
+                         byte_list=byte_list, single_trace = trace_to_plot)
 
             # Computing the t-test statistics vs. time.
             log.info("Computing T-test Statistics")
@@ -747,7 +764,7 @@ def run_tvla(ctx: typer.Context):
                                 trace_end_vec=trace_end_vec,
                                 rnd_list=rnd_list,
                                 byte_list=byte_list,
-                                single_trace=traces[1])
+                                single_trace=trace_to_plot)
         else:
             log.info("Saving T-test")
             np.save('tmp/ttest.npy', ttest_trace)

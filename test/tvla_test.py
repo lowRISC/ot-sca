@@ -95,7 +95,7 @@ def test_aes_byte_filtering():
     project_path = TestDataPath('tvla_aes_byte/ci_opentitan_simple_aes.cwp')
     tvla = TvlaCmd(Args(['--project-file', str(project_path),
                          '--mode', 'aes', '--round-select', '0',
-                         '--byte-select', '0', '--save-to-disk', '--test-type', 'SPECIFIC',
+                         '--byte-select', '0', '--save-to-disk', '--test-type', 'SPECIFIC_BYTE',
                          'run-tvla'])).run()
     received_file = np.load('tmp/traces.npy.npz')
     traces_to_use = received_file['traces_to_use']

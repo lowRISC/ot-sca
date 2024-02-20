@@ -92,11 +92,17 @@ def compute_statistics(test_type, num_orders, histograms, x_axis,
         num_rnds = 1
         num_data = 1
 
-    if test_type == "SPECIFIC":
+    if test_type == "SPECIFIC_BYTE":
         assert rnd_list is not None
         assert byte_list is not None
         num_rnds = len(rnd_list)
         num_data = len(byte_list)
+
+    if test_type == "SPECIFIC_BIT":
+        assert rnd_list is not None
+        assert bit_list is not None
+        num_rnds = len(rnd_list)
+        num_data = len(bit_list)
 
     num_samples = histograms.shape[3]
     ttest_trace = np.zeros((num_orders, num_rnds, num_data, num_samples))
@@ -219,7 +225,7 @@ def run_tvla(ctx: typer.Context):
     # Currently, specific TVLA exists only for AES.
     # Other modes can be tested only using general TVLA.
     if cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3":
-        assert cfg["test_type"] != "SPECIFIC", "Specific test not supported for this mode."
+        assert cfg["test_type"] != "SPECIFIC_BYTE", "Specific test not supported for this mode."
 
     if cfg["mode"] == "sha3":
         assert cfg["test_type"] == "GENERAL_DATA", \
@@ -229,7 +235,7 @@ def run_tvla(ctx: typer.Context):
         general_test_key = False
         general_test_data = True
         specific_test = False
-    elif cfg["test_type"] == "SPECIFIC":
+    elif cfg["test_type"] == "SPECIFIC_BYTE":
         general_test_key = False
         general_test_data = False
         specific_test = True
@@ -1073,7 +1079,7 @@ help_ttest_step_file = inspect.cleandoc("""Name of the t-test step file containi
     """ + str(default_ttest_step_file))
 help_plot_figures = inspect.cleandoc("""Plot figures and save them to disk. Default:
     """ + str(default_plot_figures))
-help_test_type = inspect.cleandoc("""Select test type: can be either "SPECIFIC", "GENERA_KEY",
+help_test_type = inspect.cleandoc("""Select test type: can be either "SPECIFIC_BYTE", "GENERA_KEY",
     or "GENERAL_DATA".
     Default: """ + str(default_test_type))
 help_mode = inspect.cleandoc("""Select mode: can be either "aes", "kmac", "sha3" or "otbn".

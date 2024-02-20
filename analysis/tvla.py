@@ -224,8 +224,9 @@ def run_tvla(ctx: typer.Context):
 
     # Currently, specific TVLA exists only for AES.
     # Other modes can be tested only using general TVLA.
-    if cfg["mode"] == "kmac" or cfg["mode"] == "otbn" or cfg["mode"] == "sha3":
+    if cfg["mode"] in {"kmac", "otbn", "sha3"}:
         assert cfg["test_type"] != "SPECIFIC_BYTE", "Specific test not supported for this mode."
+        assert cfg["test_type"] != "SPECIFIC_BIT", "Specific test not supported for this mode."
 
     if cfg["mode"] == "sha3":
         assert cfg["test_type"] == "GENERAL_DATA", \
@@ -234,41 +235,72 @@ def run_tvla(ctx: typer.Context):
     if cfg["test_type"] == "GENERAL_DATA":
         general_test_key = False
         general_test_data = True
-        specific_test = False
+        specific_test_byte = False
+        specific_test_bit = False
     elif cfg["test_type"] == "SPECIFIC_BYTE":
         general_test_key = False
         general_test_data = False
-        specific_test = True
+        specific_test_byte = True
+        specific_test_bit = False
+    elif cfg["test_type"] == "SPECIFIC_BIT":
+        general_test_key = False
+        general_test_data = False
+        specific_test_byte = False
+        specific_test_bit = True
     else:
         assert cfg["test_type"] == "GENERAL_KEY"
         general_test_key = True
         general_test_data = False
-        specific_test = False
+        specific_test_byte = False
+        specific_test_bit = False
 
     general_test = general_test_key or general_test_data
+    specific_test = specific_test_byte or specific_test_bit
 
     aes_num_rnds = 11
-    aes_num_bytes = 16
+    aes_block_size_bytes = 16
+    aes_block_size_bits = 128
 
     if general_test:
         # We don't care about the round select or byte select in this mode.
         # Set them to 0 for code compatibility.
         rnd_list = [0]
         byte_list = [0]
-    else:
+        bit_list = [0]
+
+    if specific_test:
         if not cfg["round_select"]:
             rnd_list = list(range(aes_num_rnds))
         else:
             rnd_list = cfg["round_select"]
+
+    if specific_test_byte:
         if not cfg["byte_select"]:
-            byte_list = list(range(aes_num_bytes))
+            byte_list = list(range(aes_block_size_bytes))
         else:
             byte_list = cfg["byte_select"]
+        bit_list = [0]
+
+    if specific_test_bit:
+        if not cfg["bit_select"]:
+            bit_list = list(range(aes_block_size_bits))
+        else:
+            bit_list = cfg["bit_select"]
+        byte_list = [0]
+
     assert all(rnd >= 0 and rnd < aes_num_rnds for rnd in rnd_list)
-    assert all(byte >= 0 and byte < aes_num_bytes for byte in byte_list)
+    assert all(byte >= 0 and byte < aes_block_size_bytes for byte in byte_list)
 
     num_rnds = len(rnd_list)
     num_bytes = len(byte_list)
+    num_bits = len(bit_list)
+
+    if specific_test_byte:
+        num_data = num_bytes
+    elif specific_test_bit:
+        num_data = num_bits
+    else:
+        num_data = 1
 
     if cfg["mode"] == "otbn":
         if "key_len_bytes" not in cfg:
@@ -303,7 +335,8 @@ def run_tvla(ctx: typer.Context):
         # If previously generated histograms are loaded, the rounds and bytes of interest must
         # match. Otherwise, indices would get mixed up.
         assert np.all(rnd_list == histograms_file['rnd_list'])
-        assert np.all(byte_list == histograms_file['byte_list'])
+        if specific_test_byte:
+            assert np.all(byte_list == histograms_file['byte_list'])
 
         # Computing the t-test statistics vs. time.
         log.info("Computing T-test Statistics")
@@ -316,11 +349,11 @@ def run_tvla(ctx: typer.Context):
         x_axis = np.arange(trace_resolution)
 
         # Compute statistics.
-        # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
+        # ttest_trace has dimensions [num_orders, num_rnds, num_data, num_samples].
         ttest_trace = Parallel(n_jobs=num_jobs)(
             delayed(compute_statistics)(cfg["test_type"], num_orders,
                                         histograms_in[:, :, :, i:i + sample_step_ttest, :],
-                                        x_axis, rnd_list, byte_list)
+                                        x_axis, rnd_list, byte_list, bit_list)
             for i in range(0, num_samples, sample_step_ttest))
         ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
@@ -418,7 +451,7 @@ def run_tvla(ctx: typer.Context):
         trace_step_leakage = min(10000, num_traces_step // num_jobs)
         sample_step_hist = 1
         # Increase work per thread to amortize parallelization overhead.
-        if len(rnd_list) == 1 and len(byte_list) == 1:
+        if len(rnd_list) == 1 and len(byte_list) == 1 and len(bit_list):
             if general_test:
                 sample_step_hist = min(10000, num_samples // num_jobs)
             else:
@@ -583,10 +616,16 @@ def run_tvla(ctx: typer.Context):
                 if cfg["leakage_file"] is None:
                     # leakage models: HAMMING_WEIGHT (default), HAMMING_DISTANCE
                     log.info("Computing Leakage")
-                    leakage = Parallel(n_jobs=num_jobs)(
-                        delayed(compute_leakage_aes_byte)(keys[i:i + trace_step_leakage],
-                                                          plaintexts[i:i + trace_step_leakage])
-                        for i in range(0, num_traces, trace_step_leakage))
+                    if specific_test_byte:
+                        leakage = Parallel(n_jobs=num_jobs)(
+                            delayed(compute_leakage_aes_byte)(keys[i:i + trace_step_leakage],
+                                                              plaintexts[i:i + trace_step_leakage])
+                            for i in range(0, num_traces, trace_step_leakage))
+                    else:
+                        leakage = Parallel(n_jobs=num_jobs)(
+                            delayed(compute_leakage_aes_bit)(keys[i:i + trace_step_leakage],
+                                                             plaintexts[i:i + trace_step_leakage])
+                            for i in range(0, num_traces, trace_step_leakage))
                     leakage = np.concatenate((leakage[:]), axis=2)
                     if save_to_disk_leakage:
                         log.info("Saving Leakage")
@@ -613,7 +652,7 @@ def run_tvla(ctx: typer.Context):
             keys = None
 
             log.info("Building Histograms")
-            if specific_test:
+            if specific_test_byte:
                 # For every time sample we make two histograms, one for Hamming weight of the
                 # sensitive variable = 0 (fixed set) and one for Hamming weight > 0 (random set).
                 # histograms has dimensions [num_rnds, num_bytes, 2, num_samples, trace_resolution]
@@ -624,6 +663,12 @@ def run_tvla(ctx: typer.Context):
                 histograms = Parallel(n_jobs=num_jobs)(
                     delayed(compute_histograms_aes_byte)(trace_resolution, rnd_list, byte_list,
                                                          traces[:, i:i + sample_step_hist], leakage)
+                    for i in range(0, num_samples, sample_step_hist))
+                histograms = np.concatenate((histograms[:]), axis=3)
+            elif specific_test_bit:
+                histograms = Parallel(n_jobs=num_jobs)(
+                    delayed(compute_histograms_aes_bit)(trace_resolution, rnd_list, bit_list,
+                                                        traces[:, i:i + sample_step_hist], leakage)
                     for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
             else:
@@ -656,7 +701,7 @@ def run_tvla(ctx: typer.Context):
             if cfg["output_histogram_file"] is not None:
                 log.info("Saving Histograms")
                 np.savez(cfg["output_histogram_file"], histograms=histograms, rnd_list=rnd_list,
-                         byte_list=byte_list, single_trace = trace_to_plot)
+                         byte_list=byte_list, bit_list=bit_list, single_trace = trace_to_plot)
 
             # Computing the t-test statistics vs. time.
             log.info("Computing T-test Statistics")
@@ -671,7 +716,7 @@ def run_tvla(ctx: typer.Context):
             ttest_trace = Parallel(n_jobs=num_jobs)(
                 delayed(compute_statistics)(cfg["test_type"], num_orders,
                                             histograms[:, :, :, i:i + sample_step_ttest, :],
-                                            x_axis, rnd_list, byte_list)
+                                            x_axis, rnd_list, byte_list, bit_list)
                 for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
@@ -680,12 +725,13 @@ def run_tvla(ctx: typer.Context):
             # every round, every byte, every sample and every step, we track the t-test value.
             log.info("Updating T-test Statistics vs. Number of Traces")
             if i_step == 0:
-                ttest_step = np.empty((num_orders, num_rnds, num_bytes, num_samples,
+                ttest_step = np.empty((num_orders, num_rnds, num_data, num_samples,
                                        num_steps))
             ttest_step[:, :, :, :, i_step] = ttest_trace
 
         rnd_ext = list(range(num_rnds))
         byte_ext = list(range(num_bytes))
+        bit_ext = list(range(num_bits))
 
     elif cfg["ttest_step_file"] is not None:
         # Load previously generated t-test results.
@@ -734,6 +780,7 @@ def run_tvla(ctx: typer.Context):
                                 trace_end_vec=trace_end_vec,
                                 rnd_list=rnd_list,
                                 byte_list=byte_list,
+                                bit_list=bit_list,
                                 single_trace=trace_to_plot)
         else:
             log.info("Saving T-test")
@@ -747,7 +794,7 @@ def run_tvla(ctx: typer.Context):
     if not np.any(failure):
         log.info("No leakage above threshold identified.")
     if np.any(failure) or np.any(nan):
-        if specific_test:
+        if specific_test_byte:
             if np.any(failure):
                 log.info("Leakage above threshold identified in the following order(s), round(s) "
                          "and byte(s) marked with X:")
@@ -771,6 +818,35 @@ def run_tvla(ctx: typer.Context):
                             if failure[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
                                 result_str += str("X").rjust(5)
                             elif nan[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
+                                result_str += str("O").rjust(5)
+                            else:
+                                result_str += "     "
+                        log.info(f"{result_str}")
+                    log.info("")
+        elif specific_test_bit:
+            if np.any(failure):
+                log.info("Leakage above threshold identified in the following order(s), round(s) "
+                         "and bit(s) marked with X:")
+            if np.any(nan):
+                log.info("Couldn't compute statistics for order(s), round(s) and bit(s) marked "
+                         "with O:")
+            with UnformattedLog():
+                bit_str = "Bit     |"
+                dash_str = "----------"
+                for i_bit in range(num_bits):
+                    bit_str += str(bit_list[i_bit]).rjust(5)
+                    dash_str += "-----"
+
+                for i_order in range(num_orders):
+                    log.info(f"Order {i_order + 1}:")
+                    log.info(f"{bit_str}")
+                    log.info(f"{dash_str}")
+                    for i_rnd in range(num_rnds):
+                        result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
+                        for i_bit in range(num_bits):
+                            if failure[i_order, rnd_ext[i_rnd], bit_ext[i_bit]]:
+                                result_str += str("X").rjust(5)
+                            elif nan[i_order, rnd_ext[i_rnd], bit_ext[i_bit]]:
                                 result_str += str("O").rjust(5)
                             else:
                                 result_str += "     "
@@ -838,16 +914,19 @@ def run_tvla(ctx: typer.Context):
         if cfg["mode"] == "aes" and specific_test:
             # By default the figures are saved under tmp/t_test_round_x_byte_y.png.
             for i_rnd in range(num_rnds):
-                for i_byte in range(num_bytes):
+                for i_data in range(num_data):
 
                     fig, axs = plt.subplots(num_orders + 1, 1, sharex=True)
-                    axs = tvla_plotting_fnc(axs, num_orders, i_rnd, i_byte,
+                    axs = tvla_plotting_fnc(axs, num_orders, i_rnd, i_data,
                                             ttest_trace, single_trace,
                                             threshold, num_samples,
                                             sample_start, metadata)
-
-                    title = "TVLA of " + "aes_t_test_round_" + str(
-                        rnd_list[i_rnd]) + "_byte_" + str(byte_list[i_byte])
+                    if specific_test_byte:
+                        title = "TVLA of " + "aes_t_test_round_" + str(
+                            rnd_list[i_rnd]) + "_byte_" + str(byte_list[i_data])
+                    elif specific_test_bit:
+                        title = "TVLA of " + "aes_t_test_round_" + str(
+                            rnd_list[i_rnd]) + "_bit_" + str(bit_list[i_data])
                     # Catch case where datetime data isn't saved
                     # to project file (e.g. older measurement)
                     try:
@@ -876,9 +955,12 @@ def run_tvla(ctx: typer.Context):
                     plt.xlabel("time [samples]")
 
                     filename = "aes_t_test_round_" + str(rnd_list[i_rnd])
-                    filename += "_byte_" + str(byte_list[i_byte]) + ".png"
+                    if specific_test_byte:
+                        filename += "_byte_" + str(byte_list[i_data]) + ".png"
+                    elif specific_test_bit:
+                        filename += "_bit_" + str(bit_list[i_data]) + ".png"
                     plt.savefig("tmp/figures/" + filename)
-                    if num_rnds == 1 and num_bytes == 1:
+                    if num_rnds == 1 and num_data == 1:
                         plt.show()
                     else:
                         plt.close()

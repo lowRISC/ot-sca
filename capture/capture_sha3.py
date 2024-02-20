@@ -115,6 +115,7 @@ def setup(cfg: dict, project: Path):
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
         batch_mode = batch,
+        bit = cfg[scope_type].get("bit"),
         acqu_channel = cfg[scope_type].get("channel"),
         ip = cfg[scope_type].get("waverunner_ip"),
         num_samples = cfg[scope_type]["num_samples"],

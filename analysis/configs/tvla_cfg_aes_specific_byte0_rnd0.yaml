@@ -7,12 +7,13 @@ save_to_disk: null
 save_to_disk_ttest: null
 round_select: [0]
 byte_select: [0]
+bit_select: null
 input_histogram_file: null
 output_histogram_file: null
 number_of_steps: 1
 ttest_step_file: null
 plot_figures: true
-test_type: "SPECIFIC"
+test_type: "SPECIFIC_BYTE"
 mode: aes
 filter_traces: true
 trace_threshold: 1000

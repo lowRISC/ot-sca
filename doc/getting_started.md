@@ -639,6 +639,25 @@ $ screen /dev/ttyACM1 115200,cs8,-ixon,-ixoff
 ```
 Note that you may need to change "ttyACM1" to something else.
 
+# Trace Preprocessing
+
+The `analysis/trace_preprocessing.py` script allows the user to preprocess traces that were
+captured with the OpenTitan trace library. This script provides two functionalities:
+- Trace filtering: Remove traces that contain samples over the tolerable deviation from average.
+- Trace aligning: Uses a trace window to align all traces according to a reference trace.
+
+The filtering can be enabled with the `-f` command line argument and the tolerable deviation
+from average with `-s`.
+To turn on the trace aligning mechanism, use the `-a` flag. The reference trace is
+defined with `-r` and the window can be specified with `-lw` and `-hw`.
+When operating with larger databases, the `-m` parameter can be used to specify the
+maximum amount of traces that are kept in memory.
+An example is shown below:
+
+```console
+$ ./trace_preprocessing.py -i db_in.db -o db_out.db -f -s 7.5 -a -p 5 -r 1 -lw 21000 -hw 23000 -ms 20 -m 1000
+```
+
 # Troubleshooting
 
 ## Unreachable Husky Scope

@@ -82,23 +82,32 @@ def plot_fvsr_stats(traces, leakage):
                            "tmp/diff_var_trace.html")
 
 
-def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
+def compute_statistics(test_type, num_orders, histograms, x_axis,
+                       rnd_list = None, byte_list = None, bit_list = None):
     """ Computing t-test statistics for a set of time samples.
     """
-    num_rnds = len(rnd_list)
-    num_bytes = len(byte_list)
+    if test_type in {"GENERAL_KEY", "GENERAL_DATA"}:
+        num_rnds = 1
+        num_data = 1
+
+    if test_type == "SPECIFIC":
+        assert rnd_list is not None
+        assert byte_list is not None
+        num_rnds = len(rnd_list)
+        num_data = len(byte_list)
+
     num_samples = histograms.shape[3]
-    ttest_trace = np.zeros((num_orders, num_rnds, num_bytes, num_samples))
+    ttest_trace = np.zeros((num_orders, num_rnds, num_data, num_samples))
 
     # Replicate the x_axis such that x has the same dimensions as fixed_set/random_set below.
     x = np.tile(x_axis, (num_samples, 1))
 
     # Compute statistics.
     for i_rnd in range(num_rnds):
-        for i_byte in range(num_bytes):
+        for i_data in range(num_data):
             # We do fixed vs. random.
-            fixed_set = histograms[i_rnd, i_byte, 0, :, :]
-            random_set = np.sum(histograms[i_rnd, i_byte, 1:, :, :], 0)
+            fixed_set = histograms[i_rnd, i_data, 0, :, :]
+            random_set = np.sum(histograms[i_rnd, i_data, 1:, :, :], 0)
             if not np.any(fixed_set != 0.0) or not np.any(random_set != 0.0):
                 # In case any of the sets is empty, the statistics can't be computed. This can
                 # happen if for example:
@@ -108,10 +117,10 @@ def compute_statistics(num_orders, rnd_list, byte_list, histograms, x_axis):
                 #   (random_set) if the corresponding key byte is zero or non-zero, respectively.
                 #   Thus, either of the sets must be empty.
                 # We return NaN and handle it when checking all results.
-                ttest_trace[:, i_rnd, i_byte, :] = np.nan
+                ttest_trace[:, i_rnd, i_data, :] = np.nan
                 continue
             tmp = ttest_hist_xy(x, fixed_set, x, random_set, num_orders)
-            ttest_trace[:, i_rnd, i_byte, :] = tmp
+            ttest_trace[:, i_rnd, i_data, :] = tmp
 
     return ttest_trace
 
@@ -301,9 +310,9 @@ def run_tvla(ctx: typer.Context):
         # Compute statistics.
         # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
         ttest_trace = Parallel(n_jobs=num_jobs)(
-            delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+            delayed(compute_statistics)(cfg["test_type"], num_orders,
                                         histograms_in[:, :, :, i:i + sample_step_ttest, :],
-                                        x_axis)
+                                        x_axis, rnd_list, byte_list)
             for i in range(0, num_samples, sample_step_ttest))
         ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
@@ -652,9 +661,9 @@ def run_tvla(ctx: typer.Context):
             # Compute statistics.
             # ttest_trace has dimensions [num_orders, num_rnds, num_bytes, num_samples].
             ttest_trace = Parallel(n_jobs=num_jobs)(
-                delayed(compute_statistics)(num_orders, rnd_list, byte_list,
+                delayed(compute_statistics)(cfg["test_type"], num_orders,
                                             histograms[:, :, :, i:i + sample_step_ttest, :],
-                                            x_axis)
+                                            x_axis, rnd_list, byte_list)
                 for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 

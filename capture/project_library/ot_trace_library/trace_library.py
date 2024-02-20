@@ -179,8 +179,9 @@ class TraceLibrary:
         Returns:
             The int plaintexts from the database.
         """
-        plaintexts = [np.frombuffer(trace.plaintext, np.uint8)
-                      for trace in self.get_traces(start, end)]
+        plaintexts = [(None if trace.plaintext is None else
+                      np.frombuffer(trace.plaintext, np.uint8)) for trace in
+                      self.get_traces(start, end)]
         if len(plaintexts) == 1:
             return plaintexts[0]
         else:
@@ -193,8 +194,9 @@ class TraceLibrary:
         Returns:
             The int ciphertexts from the database.
         """
-        ciphertexts = [np.frombuffer(trace.ciphertext, np.uint8)
-                       for trace in self.get_traces(start, end)]
+        ciphertexts = [(None if trace.ciphertext is None else
+                       np.frombuffer(trace.ciphertext, np.uint8)) for trace in
+                       self.get_traces(start, end)]
         if len(ciphertexts) == 1:
             return ciphertexts[0]
         else:
@@ -208,8 +210,9 @@ class TraceLibrary:
         Returns:
             The int keys from the database.
         """
-        keys = [np.frombuffer(trace.key, np.uint8)
-                for trace in self.get_traces(start, end)]
+        keys = [(None if trace.key is None else
+                np.frombuffer(trace.key, np.uint8)) for trace in
+                self.get_traces(start, end)]
         if len(keys) == 1:
             return keys[0]
         else:
@@ -221,6 +224,11 @@ class TraceLibrary:
         Args:
            metadata: The metadata to store.
         """
+        # As write_metadata replaces the existing metadata, drop table and
+        # create an empty one.
+        self.metadata_table.drop(self.engine)
+        self.metadata_table.create(self.engine)
+        # Write metadata into empty database.
         query = db.insert(self.metadata_table)
         data = Metadata(str(pickle.dumps(metadata), encoding="latin1"))
         self.session.execute(query, asdict(data))

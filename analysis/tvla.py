@@ -23,8 +23,10 @@ sys.path.append(ABS_PATH + '/..')
 import util.plot as plot  # noqa : E402
 from capture.project_library.project import ProjectConfig  # noqa : E402
 from capture.project_library.project import SCAProject  # noqa : E402
+from util.histograms import compute_histograms_aes_bit  # noqa : E402
 from util.histograms import compute_histograms_aes_byte  # noqa : E402
 from util.histograms import compute_histograms_general  # noqa : E402
+from util.leakage_models import compute_leakage_aes_bit  # noqa : E402
 from util.leakage_models import compute_leakage_aes_byte  # noqa : E402
 from util.leakage_models import compute_leakage_general  # noqa : E402
 from util.leakage_models import find_fixed_entry  # noqa : E402

@@ -19,6 +19,7 @@ class ScopeConfig:
     scope_type: str
     num_segments: int
     batch_mode: bool
+    bit: Optional[int] = 8
     acqu_channel: Optional[str] = None
     ip: Optional[str] = None
     num_samples: Optional[int] = 0
@@ -64,7 +65,10 @@ class Scope:
             return scope
         elif self.scope_cfg.scope_type == "waverunner":
             if self.scope_cfg.ip:
-                scope = WaveRunner(self.scope_cfg.ip)
+                resolution = self.scope_cfg.bit
+                if self.scope_cfg.bit is None:
+                    resolution = 8
+                scope = WaveRunner(self.scope_cfg.ip, resolution)
 
                 # Get current sampling rate from scope compare to cfg for sanity
                 setup_data = scope._ask("PANEL_SETUP?")

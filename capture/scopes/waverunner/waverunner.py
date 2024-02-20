@@ -72,7 +72,7 @@ class WaveRunner:
         num_samples: Number of samples per segment.
     """
 
-    def __init__(self, ip_addr):
+    def __init__(self, ip_addr, bit):
         """Inits a WaveRunner.
 
         Connects to the oscilloscope, populates and prints device information.
@@ -87,6 +87,7 @@ class WaveRunner:
         self._populate_device_info()
         self._print_device_info()
         self.acqu_channel = "C3"
+        self.bit = bit
         # Configure scope to acknowledge commands with a short command header.
         res = self._ask("CHDR SHORT;*OPC?")
         assert res == "*OPC 1"
@@ -368,8 +369,14 @@ class WaveRunner:
     def _parse_waveform(self, data):
         # Packet format example:b'C1:WF DAT1,#900002002<SAMPLES>
         len_ = int(data[13:22])
+        # 8-bit oscilloscopes use int8 format, 12- and 16-bit oscilloscopes
+        # use int16 and 2 bytes. Hence, divide length / 2.
+        dtype = np.int8
+        if self.bit > 8:
+            dtype = np.int16
+            len_ = int(len_ / 2)
         # Note: We use frombufer to minimize processing overhead.
-        waves = np.frombuffer(data, np.int8, int(len_), 22)
+        waves = np.frombuffer(data, dtype, len_, 22)
         # Reshape
         waves = waves.reshape((self.num_segments, int(waves.shape[0] / self.num_segments)))
         if waves.shape[1] != self.num_samples:
@@ -388,6 +395,12 @@ class WaveRunner:
         # processing is complete.
         res = self._ask("WAIT 10;*OPC?")
         assert res == "*OPC 1"
+        # 12- or 16-bit oscilloscope return waveform using type WORD. 8-bit
+        # oscilloscopes use BYTE.
+        if self.bit > 8:
+            self._write("CFMT DEF9,WORD,BIN")
+        else:
+            self._write("CFMT DEF9,BYTE,BIN")
         # Transfer and parse waveform data.
         if self.acqu_channel == "C1":
             data = self._ask_raw(b"C1:WF? DAT1")
@@ -400,8 +413,15 @@ class WaveRunner:
         else:
             raise RuntimeError("WAVERUNNER: Error: Channel selection invalid")
         waves = self._parse_waveform(data)
-        # Put into uint8 range
-        waves = waves + 128
+        # Put into uint8/uint16 range.
+        if self.bit == 8:
+            waves = waves + 128
+        elif self.bit == 12:
+            # Scale from 16 to 12 bit. This is needed as the 12-bit oscilloscope
+            # returns a 16-bit value per sample.
+            waves = np.int16(waves / 65536 * 4096) + 2048
+        elif self.bit == 16:
+            waves = waves + 32768
         return waves
 
     def display_message(self, msg):

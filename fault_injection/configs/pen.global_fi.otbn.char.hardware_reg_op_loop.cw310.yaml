@@ -34,5 +34,5 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  which_test: "ibex_char_mem_op_loop"
-  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0}'
+  which_test: "otbn_char_hardware_reg_op_loop"
+  expected_result: '{"loop_counter":10000,"err_status":0}'

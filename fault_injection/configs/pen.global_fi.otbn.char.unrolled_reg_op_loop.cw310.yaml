@@ -12,6 +12,13 @@ target:
 fisetup:
   fi_gear: "husky"
   fi_type: "voltage_glitch"
+  # Parameter generation.
+  parameter_generation: "random"
+  # Number of randomized iterations for the parameter sweep.
+  # For parameter_generation: "random", this is the number of iterations.
+  # For parameter_generation: "deterministic", this is the number of iterations
+  # per fixed parameter.
+  num_iterations: 10000
   # Voltage glitch width in cycles.
   glitch_width_min: 5
   glitch_width_max: 150
@@ -20,8 +27,6 @@ fisetup:
   trigger_delay_min: 0
   trigger_delay_max: 500
   trigger_step: 10
-  # Number of iterations for the parameter sweep.
-  num_iterations: 10000
 fiproject:
   # Project database type and memory threshold.
   project_db: "ot_fi_project"
@@ -34,5 +39,5 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  which_test: "ibex_char_mem_op_loop"
-  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0}'
+  which_test: "otbn_char_unrolled_reg_op_loop"
+  expected_result: '{"loop_counter":100,"err_status":0}'

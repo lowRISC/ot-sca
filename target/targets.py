@@ -27,6 +27,7 @@ class TargetConfig:
     baudrate: Optional[int] = None
     port: Optional[str] = None
     read_timeout: Optional[int] = 1
+    usb_serial: Optional[str] = None
 
 
 class Target:
@@ -58,7 +59,8 @@ class Target:
             )
         elif self.target_cfg.target_type == "chip":
             target = Chip(firmware = self.target_cfg.fw_bin,
-                          opentitantool_path = "../target/lib/opentitantool")
+                          opentitantool_path = "../target/lib/opentitantool",
+                          usb_serial=self.target_cfg.usb_serial)
         else:
             raise RuntimeError("Error: Target not supported!")
         return target

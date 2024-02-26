@@ -12,20 +12,32 @@ class Chip():
     firmware & provides helper functions.
     """
     def __init__(self, firmware, opentitantool_path,
-                 boot_delay: Optional[int] = 1):
+                 boot_delay: Optional[int] = 1,
+                 usb_serial: Optional[str] = None):
         self.firmware = firmware
         self.opentitantool = opentitantool_path
         self.boot_delay = boot_delay
+        self.usb_serial = usb_serial
         self._initialize_chip()
 
     def _initialize_chip(self):
         """Initializes the chip."""
         # Flash the chip using the opentitantool with the provided firmware.
-        flash_process = Popen([self.opentitantool, "--rcfile=",
-                               "--interface=hyper310",
-                               "--exec", "transport init",
-                               "--exec", "bootstrap " + self.firmware, "no-op"],
-                              stdout=PIPE, stderr=PIPE)
+        if self.usb_serial is not None and self.usb_serial != "":
+            flash_process = Popen([self.opentitantool,
+                                   "--usb-serial=" + str(self.usb_serial),
+                                   "--rcfile=",
+                                   "--interface=hyper310",
+                                   "--exec", "transport init",
+                                   "--exec", "bootstrap " + self.firmware, "no-op"],
+                                  stdout=PIPE, stderr=PIPE)
+        else:
+            flash_process = Popen([self.opentitantool,
+                                   "--rcfile=",
+                                   "--interface=hyper310",
+                                   "--exec", "transport init",
+                                   "--exec", "bootstrap " + self.firmware, "no-op"],
+                                  stdout=PIPE, stderr=PIPE)
         flash_process.communicate()
         rc = flash_process.returncode
         if rc != 0:
@@ -37,12 +49,21 @@ class Chip():
 
     def reset_target(self, boot_delay: Optional[int] = 1):
         """Reset OpenTitan by triggering the reset pin using opentitantool."""
-        reset_process = Popen([self.opentitantool, "--rcfile=",
-                               "--interface=hyper310",
-                               "--exec", "transport init",
-                               "--exec", "gpio write RESET false",
-                               "--exec", "gpio write RESET true", "no-op"],
-                              stdout=PIPE, stderr=PIPE)
+        if self.usb_serial is not None and self.usb_serial != "":
+            reset_process = Popen([self.opentitantool,
+                                   "--usb-serial=" + str(self.usb_serial),
+                                   "--interface=hyper310",
+                                   "--exec", "transport init",
+                                   "--exec", "gpio write RESET false",
+                                   "--exec", "gpio write RESET true", "no-op"],
+                                  stdout=PIPE, stderr=PIPE)
+        else:
+            reset_process = Popen([self.opentitantool,
+                                   "--interface=hyper310",
+                                   "--exec", "transport init",
+                                   "--exec", "gpio write RESET false",
+                                   "--exec", "gpio write RESET true", "no-op"],
+                                  stdout=PIPE, stderr=PIPE)
         reset_process.communicate()
         rc = reset_process.returncode
         if rc != 0:

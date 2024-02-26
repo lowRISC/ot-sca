@@ -46,7 +46,8 @@ def setup(cfg: dict, project: Path):
         force_program_bitstream = cfg["target"].get("force_program_bitstream"),
         baudrate = cfg["target"].get("baudrate"),
         port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes")
+        output_len = cfg["target"].get("output_len_bytes"),
+        usb_serial = cfg["target"].get("usb_serial")
     )
     target = Target(target_cfg)
 

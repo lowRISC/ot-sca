@@ -17,15 +17,27 @@ class OTAES:
         self.simple_serial = True
         if protocol == "ujson":
             self.simple_serial = False
-            # Init the AES core.
-            self.target.write(json.dumps("AesSca").encode("ascii"))
-            self.target.write(json.dumps("Init").encode("ascii"))
 
     def _ujson_aes_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
         # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.target.write(json.dumps("AesSca").encode("ascii"))
+
+    def init(self, fpga_mode_bit: int):
+        """ Initializes AES on the target.
+        Args:
+            fpga_mode_bit: Indicates whether FPGA specific AES test is started.
+        """
+        if not self.simple_serial:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # Init the AES core.
+            self.target.write(json.dumps("Init").encode("ascii"))
+            # FPGA mode.
+            time.sleep(0.01)
+            fpga_mode = {"fpga_mode": fpga_mode_bit}
+            self.target.write(json.dumps(fpga_mode).encode("ascii"))
 
     def key_set(self, key: list[int], key_length: Optional[int] = 16):
         """ Write key to AES.

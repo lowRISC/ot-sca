@@ -188,6 +188,14 @@ def configure_cipher(cfg, capture_cfg, ot_aes, ot_prng):
         ot_aes: The communication interface to the AES SCA application.
         ot_prng: The communication interface to the PRNG SCA application.
     """
+    # Check if we want to run AES SCA for FPGA or discrete. On the FPGA, we
+    # can use functionality helping us to capture cleaner traces.
+    fpga_mode_bit = 0
+    if "cw" in cfg["target"]["target_type"]:
+        fpga_mode_bit = 1
+    # Initialize AES on the target.
+    ot_aes.init(fpga_mode_bit)
+
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking and additionally
     # turning off the masking when '0'.

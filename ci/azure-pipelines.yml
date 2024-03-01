@@ -35,13 +35,13 @@ jobs:
   - bash: |
       set -e
       pushd ci
-      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0_simpleserial.yaml run-tvla
       popd
-    displayName: "Perform TVLA on AES FVSR traces"
+    displayName: "Perform TVLA on AES FVSR traces (simpleserial)"
     continueOnError: True
   - publish: ./ci/tmp/figures
-    artifact: tvla_figure
-    displayName: "Upload figure of AES TVLA."  
+    artifact: tvla_figure_simpleserial
+    displayName: "Upload figure of AES TVLA (simpleserial)."  
   - bash: |
       set -e
       pushd ci
@@ -71,6 +71,16 @@ jobs:
   - bash: |
       set -e
       pushd ci
+      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0_ujson.yaml run-tvla
+      popd
+    displayName: "Perform TVLA on AES FVSR traces (uJSON)"
+    continueOnError: True
+  - publish: ./ci/tmp/figures
+    artifact: tvla_figure_ujson
+    displayName: "Upload figure of AES TVLA (uJSON)." 
+  - bash: |
+      set -e
+      pushd ci
       mkdir -p projects
       ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_ujson.yaml -p projects/aes_sca_random_cw310_ujson
       popd
@@ -78,219 +88,3 @@ jobs:
   - publish: ./ci/projects/aes_sca_random_cw310_ujson.html
     artifact: traces_aes_random_key_ujson
     displayName: "Upload AES Random traces (ujson)"
-- job: sha3_sca_capture_cw310
-  displayName: "Capture SHA3 SCA traces (CW310)"
-  timeoutInMinutes: 30
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw310
-  steps:
-  - checkout: self
-  - bash: |
-      python3 -m pip install --user -r python-requirements.txt
-    displayName: "Install python dependencies"
-  - bash: |
-      apt update
-      apt install git-lfs
-    displayName: "Install system dependencies"
-  - bash: |
-      git-lfs pull
-    displayName: "Pull LFS binaries"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_simpleserial.yaml -p projects/sha3_sca_fvsr_cw310_simpleserial
-      popd
-    displayName: "Capture SHA3 FVSR traces (simpleserial)"
-  - publish: ./ci/projects/sha3_sca_fvsr_cw310_simpleserial.html
-    artifact: traces_sha3_fvsr_cw310_simpleserial
-    displayName: "Upload SHA3 FVSR traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_ujson.yaml -p projects/sha3_sca_fvsr_cw310_ujson
-      popd
-    displayName: "Capture SHA3 FVSR traces (uJSON)"
-  - publish: ./ci/projects/sha3_sca_fvsr_cw310_ujson.html
-    artifact: traces_sha3_fvsr_cw310_ujson
-    displayName: "Upload SHA3 FVSR traces (uJSON)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_simpleserial.yaml -p projects/sha3_sca_random_cw310_simpleserial
-      popd
-    displayName: "Capture SHA3 Random traces (simpleserial)"
-  - publish: ./ci/projects/sha3_sca_random_cw310_simpleserial.html
-    artifact: traces_sha3_random_cw310_simpleserial
-    displayName: "Upload SHA3 Random traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_ujson.yaml -p projects/sha3_sca_random_cw310_ujson
-      popd
-    displayName: "Capture SHA3 Random traces (uJSON)"
-  - publish: ./ci/projects/sha3_sca_random_cw310_ujson.html
-    artifact: traces_sha3_random_cw310_ujson
-    displayName: "Upload SHA3 Random traces (uJSON)"
-- job: sca_capture_cw305
-  displayName: "Capture AES SCA traces (CW305)"
-  timeoutInMinutes: 30
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw305
-  steps:
-  - checkout: self
-  - bash: |
-      python3 -m pip install --user -r python-requirements.txt
-    displayName: "Install python dependencies"
-  - bash: |
-      apt update
-      apt install git-lfs
-    displayName: "Install system dependencies"
-  - bash: |
-      git-lfs pull
-    displayName: "Pull LFS binaries"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw305.yaml -p projects/aes_sca_fvsr_cw305
-      popd
-    displayName: "Capture AES FVSR traces"
-  - publish: ./ci/projects/aes_sca_fvsr_cw305.html
-    artifact: traces_aes_fvsr_key_cw305
-    displayName: "Upload AES FVSR traces"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
-      popd
-    displayName: "Capture AES Random traces"
-  - publish: ./ci/projects/aes_sca_random_cw305.html
-    artifact: traces_aes_random_cw305
-    displayName: "Upload AES Random traces"
-  - bash: |
-      set -e
-      pushd ci
-      ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte_0_15_rnd_0_1.yaml run-tvla
-      popd
-    displayName: "Perform specific TVLA on AES Random traces"
-    continueOnError: True
-  - publish: ./ci/tmp/figures
-    artifact: tvla_figures_aes_specific
-    displayName: "Upload figures of specific TVLA for AES."
-- job: kmac_sca_capture_cw310
-  displayName: "Capture KMAC SCA traces (CW310)"
-  timeoutInMinutes: 30
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw310
-  steps:
-  - checkout: self
-  - bash: |
-      python3 -m pip install --user -r python-requirements.txt
-    displayName: "Install python dependencies"
-  - bash: |
-      apt update
-      apt install git-lfs
-    displayName: "Install system dependencies"
-  - bash: |
-      git-lfs pull
-    displayName: "Pull LFS binaries"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_simpleserial.yaml -p projects/kmac_sca_fvsr_cw310_simpleserial
-      popd
-    displayName: "Capture KMAC FVSR traces (simpleserial)"
-  - publish: ./ci/projects/kmac_sca_fvsr_cw310_simpleserial.html
-    artifact: traces_kmac_fvsr_cw310_simpleserial
-    displayName: "Upload KMAC FVSR traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_ujson.yaml -p projects/kmac_sca_fvsr_cw310_ujson
-      popd
-    displayName: "Capture KMAC FVSR traces (uJSON)"
-  - publish: ./ci/projects/kmac_sca_fvsr_cw310_ujson.html
-    artifact: traces_kmac_fvsr_cw310_ujson
-    displayName: "Upload KMAC FVSR traces (uJSON)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_simpleserial.yaml -p projects/kmac_sca_random_cw310_simpleserial
-      popd
-    displayName: "Capture KMAC Random traces (simpleserial)"
-  - publish: ./ci/projects/kmac_sca_random_cw310_simpleserial.html
-    artifact: traces_kmac_random_cw310_simpleserial
-    displayName: "Upload KMAC Random traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_ujson.yaml -p projects/kmac_sca_random_cw310_ujson
-      popd
-    displayName: "Capture KMAC Random traces (uJSON)"
-  - publish: ./ci/projects/kmac_sca_random_cw310_ujson.html
-    artifact: traces_kmac_random_cw310_ujson
-    displayName: "Upload KMAC Random traces (uJSON)"
-- job: ceca
-  displayName: "CECA Attack"
-  timeoutInMinutes: 30
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw310
-  steps:
-  - checkout: self
-  - bash: |
-      python3 -m pip install --user -r python-requirements.txt
-    displayName: "Install python dependencies"
-  - bash: |
-      apt update
-      apt install git-lfs
-    displayName: "Install system dependencies"
-  - bash: |
-      git-lfs pull
-    displayName: "Pull LFS binaries"
-  - bash: |
-      set -e
-      pushd ci
-      ./scripts/check-ceca.sh
-      popd
-    displayName: "CECA with CW and OT Trace Database"
-- job: fi_cw310
-  displayName: "Dummy VCC glitching (CW310)"
-  timeoutInMinutes: 30
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw310
-  steps:
-  - checkout: self
-  - bash: |
-      python3 -m pip install --user -r python-requirements.txt
-    displayName: "Install python dependencies"
-  - bash: |
-      apt update
-      apt install git-lfs
-    displayName: "Install system dependencies"
-  - bash: |
-      git-lfs pull
-    displayName: "Pull LFS binaries"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../fault_injection/fi_ibex.py -c cfg/ci_ibex_fi_vcc_dummy_cw310.yaml -p projects/ibex_fi_cw310
-      popd
-    displayName: "Dummy VCC glitching on Ibex"
-  - publish: ./ci/projects/ibex_fi_cw310.html
-    artifact: fi_plot_ibex_cw310
-    displayName: "Upload FI Ibex CW310 plot"

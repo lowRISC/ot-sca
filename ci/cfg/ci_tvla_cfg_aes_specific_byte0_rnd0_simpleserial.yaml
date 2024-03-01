@@ -9,7 +9,7 @@ round_select: [0]
 byte_select: [0]
 input_histogram_file: null
 output_histogram_file: null
-number_of_steps: 1
+number_of_steps: 10
 ttest_step_file: null
 plot_figures: true
 test_type: "SPECIFIC"

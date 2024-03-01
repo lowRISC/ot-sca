@@ -16,7 +16,7 @@ target:
   trigger: "hw"
 husky:
   sampling_rate: 200000000
-  num_segments: 20
+  num_segments: 40
   num_cycles: 60
   offset_cycles: -2
   scope_gain: 38
@@ -28,7 +28,7 @@ waverunner:
 capture:
   scope_select: husky
   # scope_select: waverunner
-  num_traces: 1000
+  num_traces: 50000
   show_plot: True
   plot_traces: 100
   trace_db: ot_trace_library

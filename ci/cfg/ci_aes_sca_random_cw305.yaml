@@ -27,7 +27,7 @@ waverunner:
 capture:
   scope_select: husky
   # scope_select: waverunner
-  num_traces: 4000
+  num_traces: 50000
   show_plot: True
   plot_traces: 100
   # trace_db: ot_trace_library

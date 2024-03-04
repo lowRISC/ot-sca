@@ -648,14 +648,14 @@ captured with the OpenTitan trace library. This script provides two functionalit
 
 The filtering can be enabled with the `-f` command line argument and the tolerable deviation
 from average with `-s`.
-To turn on the trace aligning mechanism, use the `-a` flag. The reference trace is
-defined with `-r` and the window can be specified with `-lw` and `-hw`.
+To turn on the trace aligning mechanism, use the `-a` flag. The reference trace is calculated
+from the mean of `-n` traces and the window can be specified with `-lw` and `-hw`.
 When operating with larger databases, the `-m` parameter can be used to specify the
 maximum amount of traces that are kept in memory.
 An example is shown below:
 
 ```console
-$ ./trace_preprocessing.py -i db_in.db -o db_out.db -f -s 7.5 -a -p 5 -r 1 -lw 21000 -hw 23000 -ms 20 -m 1000
+$ ./trace_preprocessing.py -i db_in.db -o db_out.db -f -s 7.5 -a -p 5 -n 1000 -lw 21000 -hw 23000 -ms 20 -m 1000
 ```
 
 # Troubleshooting

@@ -15,7 +15,8 @@ from bokeh.plotting import figure, show
 from fault_injection.project_library.project import FISuccess
 
 
-def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=False):
+def save_plot_to_file(traces, set_indices, num_traces, outfile,
+                      add_mean_stddev=False, ref_trace=None):
     """Save plot figure to file."""
     if set_indices is None:
         colors = itertools.cycle(palette)
@@ -34,12 +35,15 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=
     plot.add_tools(tools.HoverTool())
     for i in range(min(len(traces), num_traces)):
         if set_indices is None:
-            if add_mean_stddev:
+            if add_mean_stddev or ref_trace is not None:
                 plot.line(xrange, traces[i], line_color='grey')
             else:
                 plot.line(xrange, traces[i], line_color=next(colors))
         else:
             plot.line(xrange, traces[i], line_color=next(colors), legend_label=str(set_indices[i]))
+
+    if ref_trace is not None:
+        plot.line(xrange, ref_trace, line_color='firebrick', line_width=2, legend_label='mean')
 
     if add_mean_stddev:
         # Add mean and std dev to figure

@@ -457,6 +457,9 @@ def run_tvla(ctx: typer.Context):
             else:
                 sample_step_hist = 5
 
+        # Number of traces after filtering over all steps.
+        num_traces_used_total = 0
+
         for i_step in range(num_steps):
             num_traces = num_traces_vec[i_step]
             trace_start = trace_start_vec[i_step]
@@ -520,7 +523,6 @@ def run_tvla(ctx: typer.Context):
                 if ((save_to_disk_trace is True or save_to_disk_ttest is True) and
                         general_test and i_step == 0):
                     np.save('tmp/single_trace.npy', single_trace)
-
             else:
                 trace_file = np.load(cfg["trace_file"])
                 traces = trace_file['traces']
@@ -546,6 +548,8 @@ def run_tvla(ctx: typer.Context):
                 f"Will use {num_traces} traces "
                 f"({100*num_traces/num_traces_orig:.1f}%)"
             )
+
+            num_traces_used_total += num_traces
 
             # Store reference trace to plot in figure. Avoid using the first
             # trace as this initial trace could sometimes be noisy.
@@ -740,7 +744,7 @@ def run_tvla(ctx: typer.Context):
         sample_start = ttest_step_file['sample_start']
         single_trace = ttest_step_file['single_trace']
         trace_start_vec = ttest_step_file['trace_start_vec']
-        num_traces = ttest_step_file['num_traces']
+        num_traces_used_total = ttest_step_file['num_traces']
         ttest_step = ttest_step_file['ttest_step']
         num_orders = ttest_step.shape[0]
         num_samples = ttest_step.shape[3]
@@ -773,7 +777,7 @@ def run_tvla(ctx: typer.Context):
             log.info("Saving T-test Step")
             np.savez_compressed('tmp/ttest-step.npy',
                                 ttest_step=ttest_step,
-                                num_traces=num_traces,
+                                num_traces=num_traces_used_total,
                                 metadata=metadata,
                                 sample_start=sample_start,
                                 trace_start_vec=trace_start_vec,
@@ -901,7 +905,7 @@ def run_tvla(ctx: typer.Context):
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Traces:\n" + str(num_traces) + "\n\n"
+            textbox = textbox + "Traces:\n" + str(num_traces_used_total) + "\n\n"
         except KeyError:
             textbox = textbox
         if textbox != "":

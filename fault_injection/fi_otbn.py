@@ -78,6 +78,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         project: The project to store the results.
         ot_communication: The OpenTitan OTBN FI communication interface.
     """
+    # Setup key manager if needed by test.
+    ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Configure the trigger.
     ot_communication.init_trigger()
     # Start the parameter sweep.
@@ -87,15 +89,13 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         while remaining_iterations > 0:
             # Get fault parameters (e.g., trigger delay, glitch voltage).
             fault_parameters = fi_gear.generate_fi_parameters()
-
             # Arm the FI gear.
             fi_gear.arm_trigger(fault_parameters)
-
             # Start test on OpenTitan.
             ot_communication.start_test(cfg)
 
             # Read response.
-            response = ot_communication.read_response()
+            response = ot_communication.read_response(max_tries=20)
 
             # Compare response.
             # Check if result is expected result (FI failed), unexpected result
@@ -111,6 +111,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 ot_communication = target.reset_target(com_reset = True)
                 # Re-establish UART connection.
                 ot_communication = OTFIOtbn(target)
+                # Setup key manager if needed by test.
+                ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Configure the trigger.
                 ot_communication.init_trigger()
                 # Reset FIGear if necessary.

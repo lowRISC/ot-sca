@@ -54,11 +54,46 @@ class OTFIOtbn:
         time.sleep(0.01)
         self.target.write(json.dumps("CharHardwareDmemOpLoop").encode("ascii"))
 
+    def otbn_key_sideload(self) -> None:
+        """ Starts the otbn.fi.key_sideload test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # KeySideload command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("KeySideload").encode("ascii"))
+
+    def otbn_load_integrity(self) -> None:
+        """ Starts the otbn.fi.load_integrity test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # LoadIntegrity command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("LoadIntegrity").encode("ascii"))
+
+    def init_keymgr(self, test: str) -> None:
+        """ Initialize the key manager on the chip.
+        Args:
+            test: Name of the test. Used to determine if key manager init is
+                  needed.
+        """
+        if "key_sideload" in test:
+            # OtbnFi command.
+            self._ujson_otbn_fi_cmd()
+            # InitTrigger command.
+            time.sleep(0.01)
+            self.target.write(json.dumps("InitKeyMgr").encode("ascii"))
+            # As the init resets the chip, we need to call it again to complete
+            # the initialization of the key manager.
+            time.sleep(2)
+            self._ujson_otbn_fi_cmd()
+            time.sleep(0.01)
+            self.target.write(json.dumps("InitKeyMgr").encode("ascii"))
+            time.sleep(2)
+
     def init_trigger(self) -> None:
         """ Initialize the FI trigger on the chip.
-
-        Args:
-            cfg: Config dict containing the selected test.
         """
         # OtbnFi command.
         self._ujson_otbn_fi_cmd()

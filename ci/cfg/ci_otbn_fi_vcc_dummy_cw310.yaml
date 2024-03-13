@@ -8,7 +8,7 @@ target:
   target_freq: 24000000
   baudrate: 115200
   protocol: "ujson"
-  port: "/dev/ttyACM1"
+  port: "/dev/ttyACM_CW310_1"
   # Trigger source.
   # hw: Precise, hardware-generated trigger - FPGA only.
   # sw: Fully software-controlled trigger.

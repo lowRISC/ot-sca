@@ -126,9 +126,8 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegisterFileRead").encode("ascii"))
 
-    def init_trigger(self) -> None:
-        """ Initialize the FI trigger on the chip.
-
+    def init(self) -> None:
+        """ Initialize the Ibex FI code on the chip.
         Args:
             cfg: Config dict containing the selected test.
         """
@@ -136,7 +135,7 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # InitTrigger command.
         time.sleep(0.01)
-        self.target.write(json.dumps("InitTrigger").encode("ascii"))
+        self.target.write(json.dumps("Init").encode("ascii"))
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

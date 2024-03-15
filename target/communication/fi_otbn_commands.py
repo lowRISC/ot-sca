@@ -92,14 +92,14 @@ class OTFIOtbn:
             self.target.write(json.dumps("InitKeyMgr").encode("ascii"))
             time.sleep(2)
 
-    def init_trigger(self) -> None:
-        """ Initialize the FI trigger on the chip.
+    def init(self) -> None:
+        """ Initialize the OTBN FI code on the chip.
         """
         # OtbnFi command.
         self._ujson_otbn_fi_cmd()
-        # InitTrigger command.
+        # Init command.
         time.sleep(0.01)
-        self.target.write(json.dumps("InitTrigger").encode("ascii"))
+        self.target.write(json.dumps("Init").encode("ascii"))
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

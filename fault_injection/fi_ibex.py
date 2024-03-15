@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -98,8 +99,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         project: The project to store the results.
         ot_communication: The OpenTitan Ibex FI communication interface.
     """
-    # Configure the trigger.
-    ot_communication.init_trigger()
+    # Configure the Ibex FI code on the target.
+    ot_communication.init()
     # Store results in array for a quick access.
     fi_results = []
     # Start the parameter sweep.
@@ -118,12 +119,28 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
 
             # Read response.
             response = ot_communication.read_response()
+            response_compare = response
+            expected_response = cfg["test"]["expected_result"]
+
+            # If the test decides to ignore alerts triggered by the alert
+            # handler, remove it from the received and expected response.
+            # In the database, the received alert is still available for
+            # further diagnosis.
+            if cfg["test"]["ignore_alerts"]:
+                resp_json = json.loads(response_compare)
+                exp_json = json.loads(expected_response)
+                if "alerts" in resp_json:
+                    del resp_json["alerts"]
+                    response_compare = json.dumps(resp_json)
+                if "alerts" in exp_json:
+                    del exp_json["alerts"]
+                    expected_response = json.dumps(exp_json)
 
             # Compare response.
             # Check if result is expected result (FI failed), unexpected result
             # (FI successful), or no response (FI failed.)
             fi_result = FISuccess.SUCCESS
-            if response == cfg["test"]["expected_result"]:
+            if response_compare == expected_response:
                 # Expected result received. No FI effect.
                 fi_result = FISuccess.EXPRESPONSE
             elif response == "":
@@ -133,8 +150,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 ot_communication = target.reset_target(com_reset = True)
                 # Re-establish UART connection.
                 ot_communication = OTFIIbex(target)
-                # Configure the trigger.
-                ot_communication.init_trigger()
+                # Configure the Ibex FI code on the target.
+                ot_communication.init()
                 # Reset FIGear if necessary.
                 fi_gear.reset()
 

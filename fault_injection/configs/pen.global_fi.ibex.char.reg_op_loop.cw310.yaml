@@ -8,7 +8,7 @@ target:
   target_freq: 24000000
   baudrate: 115200
   protocol: "ujson"
-  port: "/dev/ttyACM1"
+  port: "/dev/ttyACM_CW310_1"
 fisetup:
   fi_gear: "husky"
   fi_type: "voltage_glitch"
@@ -35,4 +35,9 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_reg_op_loop"
-  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0}'
+  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0,"alerts":0}'
+  # Set to true if the test should ignore alerts returned by the test. As the
+  # alert handler on the device could sometime fire alerts that are not
+  # related to the FI, ignoring is by default set to true. A manual analysis
+  # still can be performed as the alerts are stored in the database.
+  ignore_alerts: True

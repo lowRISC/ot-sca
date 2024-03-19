@@ -141,6 +141,9 @@ def setup(cfg: dict, project: Path):
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),
         pll_frequency = cfg["target"]["pll_frequency"],
+        channel_configs = cfg[scope_type].get("channel_configs"),
+        trigger_config = cfg[scope_type].get("trigger_config"),
+        timebase_config = cfg[scope_type].get("timebase_config")
     )
     scope = Scope(scope_cfg)
 

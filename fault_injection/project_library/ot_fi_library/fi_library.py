@@ -118,10 +118,17 @@ class FILibrary:
             The FIResults from the database.
         """
         self.flush_to_disk()
-        if start and end:
+        if (start is not None) and (end is not None):
+            # SQL ID starts at 1.
+            start = start + 1
             query = db.select(self.firesults_table).where(
                 (self.firesults_table.c.fi_id >= start) &
                 (self.firesults_table.c.fi_id <= end))
+        elif (start is not None):
+            # SQL ID starts at 1.
+            start = start + 1
+            query = db.select(self.firesults_table).where(
+                (self.firesults_table.c.fi_id == start))
         else:
             query = db.select(self.firesults_table)
 

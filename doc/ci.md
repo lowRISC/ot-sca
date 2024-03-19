@@ -1,33 +1,30 @@
 # Continuous Integration (CI)
 
-This repository has access to a pool of FPGAs in Azure Pipelines for running
-continuous integration tests on.
+This repository has access to a pool of machines that have FPGAs attached and
+can be used to run GitHub Actions continuous integration jobs on.
 
-See [azure-pipelines.yml](../ci/azure-pipelines.yml) for the Azure pipeline
-that currently runs on each pull request.
+See [.github/workflows/fpga.yml](../.github/workflows/fpga.yml) for a GitHub
+Actions workflow that uses these FPGAs and runs on each pull request.
 
 ## Selecting FPGAs
 
-The `FPGA SCA` Azure agent pool contains both a CW305 and CW310 agent.
+The pool of FPGAs contains both a CW305 and CW310 runner.
 
-To run a pipeline job on a particular FPGA, you must specify the board type in
-the YAML specification file:
+To run a job on a machine with a particular FPGA, you must specify either the
+`cw305` or `cw310` labels in addition to `ubuntu-22.04-fpga` in the YAML
+specification file:
 
 ```yaml
 jobs:
-- job: some_cw305_job
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw305
-  steps:
-    - ...
+  some_cw305_job:
+    runs-on: [ubuntu-22.04-fpga, cw305]
+    steps:
+      - ...
 
-- job: some_cw310_job
-  pool:
-    name: FPGA SCA
-    demands: BOARD -equals cw310
-  steps:
-    - ...
+  some_cw310_job:
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    steps:
+      - ...
 ```
 
 ## Approving external CI runs
@@ -36,10 +33,8 @@ The CI pipelines run on systems managed by lowRISC. To prevent external GitHub
 users from running arbitrary code on our systems, CI will not run on pull
 requests from forks of users outside the [lowRISC GitHub organisation].
 
-Members of the lowRISC GitHub organisation can manually allow a pull request to
-run in CI by [adding a comment][Azure comment triggers]:
+GitHub users with write access to the repository can allow a pull request to run
+in CI using the GitHub UI. A button should appear next to the list of checks
+that will be run.
 
-> /AzurePipelines run
-
-[Azure comment triggers]: https://learn.microsoft.com/en-us/azure/devops/pipelines/repos/github?view=azure-devops&tabs=yaml#comment-triggers
 [lowRISC GitHub organisation]: https://github.com/lowrisc/

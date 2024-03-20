@@ -1,0 +1,31 @@
+target:
+  target_type: chip
+  fw_bin: "../objs/sca_ujson_chip_signed.img"
+  target_clk_mult: 1
+  target_freq: 100000000
+  baudrate: 115200
+  output_len_bytes: 16
+  protocol: "ujson"
+  port: "/dev/ttyUSB1"
+waverunner:
+  waverunner_ip: 192.168.33.128
+  num_segments: 20
+  # cycles will only be used if not given in samples
+  num_cycles: 100
+  offset_cycles: 0
+  # sampling rate needed for cycle to sample conversion
+  sampling_rate: 2500000000
+  channel: C1
+  sparsing: 0
+capture:
+  scope_select: waverunner
+  num_traces: 5000
+  show_plot: True
+  plot_traces: 100
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  # which_test: ibex.sca.tl_write
+  # which_test: ibex.sca.tl_read
+  # which_test: ibex.sca.register_file_write
+  which_test: ibex.sca.register_file_read

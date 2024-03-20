@@ -1,0 +1,28 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: False
+  fw_bin: ../objs/sca_ujson_fpga_cw310.bin
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+  protocol: "ujson"
+  port: "/dev/ttyACM4"
+husky:
+  samling_rate: 200000000
+  num_segments: 20
+  num_cycles: 100
+  offset_cycles: 0
+  scope_gain: 27
+capture:
+  scope_select: husky
+  num_traces: 5000
+  show_plot: True
+  plot_traces: 100
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  # which_test: ibex.sca.tl_write
+  # which_test: ibex.sca.tl_read
+  # which_test: ibex.sca.register_file_write
+  which_test: ibex.sca.register_file_read

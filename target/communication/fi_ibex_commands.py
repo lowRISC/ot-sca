@@ -54,6 +54,60 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharMemOpLoop").encode("ascii"))
 
+    def ibex_char_flash_read(self) -> None:
+        """ Starts the ibex.char.flash_read test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharFlashRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharFlashRead").encode("ascii"))
+
+    def ibex_char_flash_write(self) -> None:
+        """ Starts the ibex.char.flash_write test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharFlashWrite command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharFlashWrite").encode("ascii"))
+
+    def ibex_char_sram_read(self) -> None:
+        """ Starts the ibex.char.sram_read test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramRead").encode("ascii"))
+
+    def ibex_char_sram_write(self) -> None:
+        """ Starts the ibex.char.sram_write test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramWrite command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramWrite").encode("ascii"))
+
+    def ibex_char_unconditional_branch(self) -> None:
+        """ Starts the ibex.char.unconditional_branch test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharUncondBranch command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharUncondBranch").encode("ascii"))
+
+    def ibex_char_conditional_branch(self) -> None:
+        """ Starts the ibex.char.conditional_branch test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranch command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranch").encode("ascii"))
+
     def init_trigger(self) -> None:
         """ Initialize the FI trigger on the chip.
 

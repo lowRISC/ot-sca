@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 import util.helpers as helpers
 from target.communication.sca_otbn_commands import OTOTBNVERT
+from target.communication.sca_prng_commands import OTPRNG
 from target.communication.sca_trigger_commands import OTTRIGGER
 from target.targets import Target, TargetConfig
 from util import check_version
@@ -191,39 +192,45 @@ def establish_communication(target, capture_cfg: CaptureConfig):
 
     Returns:
         ot_otbn_vert: The communication interface to the OTBN app.
+        ot_prng: The communication interface to the PRNG SCA application.
         ot_trig: The communication interface to the SCA trigger.
     """
     # Create communication interface to OTBN.
     ot_otbn_vert = OTOTBNVERT(target=target, protocol=capture_cfg.protocol)
 
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+
     # Create communication interface to SCA trigger.
     ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
 
-    return ot_otbn_vert, ot_trig
+    return ot_otbn_vert, ot_prng, ot_trig
 
 
-def configure_cipher(cfg: dict, target, capture_cfg: CaptureConfig,
-                     ot_otbn_vert) -> OTOTBNVERT:
+def configure_cipher(cfg: dict, capture_cfg: CaptureConfig, ot_otbn_vert,
+                     ot_prng) -> OTOTBNVERT:
     """ Configure the OTBN app.
 
     Establish communication with the OTBN keygen app and configure the seed.
 
     Args:
         cfg: The configuration for the current experiment.
-        target: The OT target.
         curve_cfg: The curve config.
         capture_cfg: The configuration of the capture.
         ot_otbn_vert: The communication interface to the OTBN app.
+        ot_prng: The communication interface to the PRNG SCA application.
 
     Returns:
         curve_cfg: The curve configuration values.
     """
+    # Initialize OTBN on the target.
+    ot_otbn_vert.init()
+
     # Seed host's PRNG.
     random.seed(cfg["test"]["batch_prng_seed"])
 
     # Seed the target's PRNGs
-    ot_otbn_vert.write_batch_prng_seed(cfg["test"]["batch_prng_seed"].to_bytes(
-        4, "little"))
+    ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
     # select the otbn app on the device (0 -> keygen, 1 -> modinv)
     ot_otbn_vert.choose_otbn_app(cfg["test"]["app"])
@@ -474,12 +481,7 @@ def check_ciphertext_keygen(ot_otbn_vert: OTOTBNVERT, expected_key,
     """
     # Read the output, unmask the key, and check if it matches
     # expectations.
-    share0 = ot_otbn_vert.read_output(curve_cfg.seed_bytes)
-    share1 = ot_otbn_vert.read_output(curve_cfg.seed_bytes)
-    if share0 is None:
-        raise RuntimeError('Random share0 is none')
-    if share1 is None:
-        raise RuntimeError('Random share1 is none')
+    share0, share1 = ot_otbn_vert.read_seeds(curve_cfg.seed_bytes)
 
     d0 = int.from_bytes(share0, byteorder='little')
     d1 = int.from_bytes(share1, byteorder='little')
@@ -505,8 +507,7 @@ def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
         actual_output: The received output of the modinv operation.
     """
     # Read the output, unmask it, and check if it matches expectations.
-    kalpha_inv = ot_otbn_vert.read_output(curve_cfg.key_bytes)
-    alpha = ot_otbn_vert.read_output(curve_cfg.modinv_mask_bytes)
+    kalpha_inv, alpha = ot_otbn_vert.read_alpha(curve_cfg.key_bytes, curve_cfg.modinv_mask_bytes)
     if kalpha_inv is None:
         raise RuntimeError('kaplpha_inv is none')
     if alpha is None:
@@ -589,8 +590,8 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
 
                 # Store trace into database.
                 project.append_trace(wave=waves[0, :],
-                                     plaintext=mask,
-                                     ciphertext=share0 + share1,
+                                     plaintext=bytearray(mask),
+                                     ciphertext=bytearray(share0 + share1),
                                      key=seed_used)
 
             # Memory allocation optimization for CW trace library.
@@ -660,11 +661,11 @@ def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
 
                 # Store trace into database.
                 project.append_trace(wave=waves[0, :],
-                                     plaintext=k_used,
+                                     plaintext=bytearray(k_used),
                                      ciphertext=bytearray(
                                          actual_output.to_bytes(
                                              curve_cfg.key_bytes, 'little')),
-                                     key=k_used)
+                                     key=bytearray(k_used))
 
             # Memory allocation optimization for CW trace library.
             num_segments_storage = project.optimize_capture(
@@ -729,6 +730,7 @@ def main(argv=None):
         key_len_bytes=cfg["test"]["key_len_bytes"],
         text_len_bytes=cfg["test"]["text_len_bytes"],
         protocol=cfg["target"]["protocol"],
+        port = cfg["target"].get("port"),
         C=bytearray(),
         seed_fixed=bytearray(),
         expected_fixed_key=bytearray(),
@@ -739,10 +741,10 @@ def main(argv=None):
     )
 
     # Open communication with target.
-    ot_otbn_vert, ot_trig = establish_communication(target, capture_cfg)
+    ot_otbn_vert, ot_prng, ot_trig = establish_communication(target, capture_cfg)
 
     # Configure cipher.
-    curve_cfg = configure_cipher(cfg, target, capture_cfg, ot_otbn_vert)
+    curve_cfg = configure_cipher(cfg, capture_cfg, ot_otbn_vert, ot_prng)
 
     # Configure trigger source.
     # 0 for HW, 1 for SW.

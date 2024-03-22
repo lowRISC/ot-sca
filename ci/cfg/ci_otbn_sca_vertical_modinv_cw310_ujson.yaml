@@ -1,20 +1,19 @@
 target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: True
-  fw_bin: "../objs/otbn_vertical_serial_fpga_cw310.bin"
+  force_program_bitstream: False
+  fw_bin: ../objs/sca_ujson_fpga_cw310.bin
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
   output_len_bytes: 40
-  protocol: "simpleserial"
-  # protocol: "ujson"
-  # port: "/dev/ttyACM4"
+  protocol: "ujson"
+  port: "/dev/ttyACM_CW310_1"
   # Trigger source.
   # hw: Precise, hardware-generated trigger - FPGA only.
   # sw: Fully software-controlled trigger.
-  trigger: "hw"
+  trigger: "sw"
 husky:
   sampling_rate: 200000000
   num_segments: 20
@@ -23,16 +22,11 @@ husky:
   scope_gain: 24
   adc_mul: 1
   decimate: 1
-waverunner:
-  waverunner_ip: 100.107.71.10
-  num_segments: 20
-  num_samples: 6000
-  sample_offset: 0
 capture:
   scope_select: husky
   show_plot: True
-  plot_traces: 100
-  num_traces: 1000
+  plot_traces: 10
+  num_traces: 100
   trace_threshold: 10000
   trace_db: ot_trace_library
 test:

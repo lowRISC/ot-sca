@@ -1,0 +1,45 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: False
+  fw_bin: ../objs/sca_ujson_fpga_cw310.bin
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+  output_len_bytes: 40
+  protocol: "ujson"
+  port: "/dev/ttyACM_CW310_1"
+  # Trigger source.
+  # hw: Precise, hardware-generated trigger - FPGA only.
+  # sw: Fully software-controlled trigger.
+  trigger: "hw"
+husky:
+  sampling_rate: 200000000
+  num_segments: 1
+  num_cycles: 200
+  offset_cycles: 0
+  scope_gain: 24
+  adc_mul: 1
+  decimate: 1
+capture:
+  scope_select: husky
+  show_plot: True
+  plot_traces: 10
+  num_traces: 100
+  trace_threshold: 10000
+  trace_db: ot_trace_library
+test:
+  batch_prng_seed: 6
+  key_len_bytes: 40
+  text_len_bytes: 40
+  plain_text_len_bytes: 40
+  masks_off: False
+  # Currently, 'p256' is the only supported curve.
+  curve: p256
+  # Select the OTBN app to analyze. Currently available: 'keygen', 'modinv'
+  app: keygen
+  # For app = keygen: There are two fixed-vs-random test types, KEY and SEED
+  # Currently batch-mode capture only works with SEED
+  test_type: SEED
+  batch_mode: False

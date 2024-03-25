@@ -108,6 +108,24 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranch").encode("ascii"))
 
+    def ibex_char_register_file(self) -> None:
+        """ Starts the ibex.char.register_file test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharRegisterFile command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharRegisterFile").encode("ascii"))
+
+    def ibex_char_register_file_read(self) -> None:
+        """ Starts the ibex.char.register_file_read test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharRegisterFileRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharRegisterFileRead").encode("ascii"))
+
     def init_trigger(self) -> None:
         """ Initialize the FI trigger on the chip.
 

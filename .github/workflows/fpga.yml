@@ -148,6 +148,65 @@ jobs:
           name: traces_sha3_random_cw310_ujson
           path: ./ci/projects/sha3_sca_random_cw310_ujson.html
 
+  otbn_sca_capture_cw310:
+    name: Capture OTBN SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture OTBN Vertical Keygen traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_otbn.py -c cfg/ci_otbn_sca_vertical_keygen_cw310_simpleserial.yaml -p projects/otbn_sca_vertical_keygen_cw310_simpleserial
+
+      - name: Upload OTBN Vertical Keygen traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_otbn_sca_vertical_keygen_cw310_simpleserial
+          path: ./ci/projects/otbn_sca_vertical_keygen_cw310_simpleserial.html
+      
+      - name: Capture OTBN Vertical Keygen traces (ujson)
+        working-directory: ci
+        run: |
+          ../capture/capture_otbn.py -c cfg/ci_otbn_sca_vertical_keygen_cw310_ujson.yaml -p projects/otbn_sca_vertical_keygen_cw310_ujson
+
+      - name: Upload OTBN Vertical Keygen traces (ujson)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_otbn_sca_vertical_keygen_cw310_ujson
+          path: ./ci/projects/otbn_sca_vertical_keygen_cw310_ujson.html
+
+      - name: Capture OTBN Vertical Modinv traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_otbn.py -c cfg/ci_otbn_sca_vertical_modinv_cw310_simpleserial.yaml -p projects/otbn_sca_vertical_modinv_cw310_simpleserial
+
+      - name: Upload OTBN Vertical Modinv traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_otbn_sca_vertical_modinv_cw310_simpleserial
+          path: ./ci/projects/otbn_sca_vertical_modinv_cw310_simpleserial.html
+      
+      - name: Capture OTBN Vertical Modinv traces (ujson)
+        working-directory: ci
+        run: |
+          ../capture/capture_otbn.py -c cfg/ci_otbn_sca_vertical_modinv_cw310_ujson.yaml -p projects/otbn_sca_vertical_modinv_cw310_ujson
+
+      - name: Upload OTBN Vertical Modinv traces (ujson)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_otbn_sca_vertical_modinv_cw310_ujson
+          path: ./ci/projects/otbn_sca_vertical_modinv_cw310_ujson.html
+
   sca_capture_cw305:
     name: Capture AES SCA traces (CW305)
     runs-on: [ubuntu-22.04-fpga, cw305]

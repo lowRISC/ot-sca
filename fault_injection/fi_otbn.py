@@ -65,6 +65,25 @@ def setup(cfg: dict, project: Path):
     return target, fi_gear, project
 
 
+def print_fi_statistic(fi_results: list) -> None:
+    """ Print FI Statistic.
+
+    Prints the number of FISuccess.SUCCESS, FISuccess.EXPRESPONSE, and
+    FISuccess.NORESPONSE.
+
+    Args:
+        fi_results: The FI results.
+    """
+    num_total = len(fi_results)
+    num_succ = round((fi_results.count(FISuccess.SUCCESS) / num_total) * 100, 2)
+    num_exp = round((fi_results.count(FISuccess.EXPRESPONSE) / num_total) * 100, 2)
+    num_no = round((fi_results.count(FISuccess.NORESPONSE) / num_total) * 100, 2)
+    logger.info(f"{num_total} faults, {fi_results.count(FISuccess.SUCCESS)}"
+                f"({num_succ}%) successful, {fi_results.count(FISuccess.EXPRESPONSE)}"
+                f"({num_exp}%) expected, and {fi_results.count(FISuccess.NORESPONSE)}"
+                f"({num_no}%) no response.")
+
+
 def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                        project: FIProject, ot_communication: OTFIOtbn) -> None:
     """ Fault parameter sweep.
@@ -82,6 +101,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
     ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Configure the trigger.
     ot_communication.init_trigger()
+    # Store results in array for a quick access.
+    fi_results = []
     # Start the parameter sweep.
     remaining_iterations = fi_gear.get_num_fault_injections()
     with tqdm(total=remaining_iterations, desc="Injecting", ncols=80,
@@ -128,9 +149,11 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 x_pos = fault_parameters.get("x_pos"),
                 y_pos = fault_parameters.get("y_pos")
             )
+            fi_results.append(fi_result)
 
             remaining_iterations -= 1
             pbar.update(1)
+    print_fi_statistic(fi_results)
 
 
 def print_plot(project: FIProject, config: dict, file: Path) -> None:

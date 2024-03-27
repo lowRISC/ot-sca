@@ -90,6 +90,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramWrite").encode("ascii"))
 
+    def ibex_char_sram_static(self) -> None:
+        """ Starts the ibex.char.sram_static test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramWrite command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramStatic").encode("ascii"))
+
     def ibex_char_unconditional_branch(self) -> None:
         """ Starts the ibex.char.unconditional_branch test.
         """

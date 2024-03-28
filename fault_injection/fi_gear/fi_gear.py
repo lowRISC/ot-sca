@@ -85,6 +85,7 @@ class FIGear:
         elif self.gear_type == "husky" and self.fi_type == "voltage_glitch":
             self.gear = HuskyVCC(
                 pll_frequency = cfg["target"]["pll_frequency"],
+                serial_number = cfg["fisetup"].get("fi_gear_sn"),
                 glitch_width_min = cfg["fisetup"]["glitch_width_min"],
                 glitch_width_max = cfg["fisetup"]["glitch_width_max"],
                 glitch_width_step = cfg["fisetup"]["glitch_width_step"],

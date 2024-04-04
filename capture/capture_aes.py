@@ -310,6 +310,8 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
+    # This command intentionally causes the program to crash
+    print(create_err)
     with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.

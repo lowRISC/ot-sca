@@ -1,0 +1,43 @@
+target:
+  target_type: chip
+  fw_bin: "../objs/sca_ujson_chip_signed.img"
+  target_clk_mult: 1
+  target_freq: 100000000
+  baudrate: 115200
+  output_len_bytes: 16
+  protocol: "ujson"
+  port: "/dev/ttyUSB1"
+waverunner:
+  waverunner_ip: 192.168.33.128
+  num_segments: 20
+  # cycles will only be used if not given in samples
+  num_cycles: 160
+  offset_cycles: 115
+  # sampling rate needed for cycle to sample conversion
+  sampling_rate: 2500000000
+  channel: C1
+  sparsing: 0
+capture:
+  scope_select: waverunner
+  num_traces: 60
+  show_plot: True
+  plot_traces: 10
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+  # trace_db: cw
+test:
+  # which_test: hmac_batch_random
+  # which_test: hmac_batch_fvsr
+  # which_test: hmac_random
+  which_test: hmac_fvsr
+  key_len_bytes: 32
+  key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E,
+              0x22, 0xB2, 0x5C, 0xDD, 0xF9, 0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12,
+              0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
+  mask_fixed: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  msg_len_bytes: 16
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  # seed for PRNG to generate sequence of messages, masks, and keys; Python random
+  # class on host, Mersenne twister implementation on OT SW.
+  batch_prng_seed: 0

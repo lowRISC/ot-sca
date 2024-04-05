@@ -122,28 +122,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             response_compare = response
             expected_response = cfg["test"]["expected_result"]
 
-            # If the test decides to ignore alerts triggered by the alert
-            # handler, remove it from the received and expected response.
-            # In the database, the received alert is still available for
-            # further diagnosis.
-            if cfg["test"]["ignore_alerts"]:
-                resp_json = json.loads(response_compare)
-                exp_json = json.loads(expected_response)
-                if "alerts" in resp_json:
-                    del resp_json["alerts"]
-                    response_compare = json.dumps(resp_json)
-                if "alerts" in exp_json:
-                    del exp_json["alerts"]
-                    expected_response = json.dumps(exp_json)
-
             # Compare response.
-            # Check if result is expected result (FI failed), unexpected result
-            # (FI successful), or no response (FI failed.)
-            fi_result = FISuccess.SUCCESS
-            if response_compare == expected_response:
-                # Expected result received. No FI effect.
-                fi_result = FISuccess.EXPRESPONSE
-            elif response == "":
+            if response_compare == "":
                 # No UART response received.
                 fi_result = FISuccess.NORESPONSE
                 # Resetting OT as it most likely crashed.
@@ -154,6 +134,29 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 ot_communication.init()
                 # Reset FIGear if necessary.
                 fi_gear.reset()
+            else:
+                # If the test decides to ignore alerts triggered by the alert
+                # handler, remove it from the received and expected response.
+                # In the database, the received alert is still available for
+                # further diagnosis.
+                if cfg["test"]["ignore_alerts"]:
+                    resp_json = json.loads(response_compare)
+                    exp_json = json.loads(expected_response)
+                    if "alerts" in resp_json:
+                        del resp_json["alerts"]
+                        response_compare = json.dumps(resp_json,
+                                                      separators=(',', ':'))
+                    if "alerts" in exp_json:
+                        del exp_json["alerts"]
+                        expected_response = json.dumps(exp_json,
+                                                       separators=(',', ':'))
+
+                # Check if result is expected result (FI failed), unexpected result
+                # (FI successful), or no response (FI failed.)
+                fi_result = FISuccess.SUCCESS
+                if response_compare == expected_response:
+                    # Expected result received. No FI effect.
+                    fi_result = FISuccess.EXPRESPONSE
 
             # Store result into FIProject.
             project.append_firesult(

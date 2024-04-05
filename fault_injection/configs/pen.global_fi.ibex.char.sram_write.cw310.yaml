@@ -36,4 +36,9 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_sram_write"
-  expected_result: '{"result":0,"err_status":0}'
+  expected_result: '{"result":0,"err_status":0,"alerts":0}'
+  # Set to true if the test should ignore alerts returned by the test. As the
+  # alert handler on the device could sometime fire alerts that are not
+  # related to the FI, ignoring is by default set to true. A manual analysis
+  # still can be performed as the alerts are stored in the database.
+  ignore_alerts: True

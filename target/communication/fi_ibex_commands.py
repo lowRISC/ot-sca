@@ -149,6 +149,42 @@ class OTFIIbex:
         test_function = getattr(self, cfg["test"]["which_test"])
         test_function()
 
+    def ibex_char_csr_write(self) -> None:
+        """ Starts the ibex.fi.char.csr_write test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCsrWrite command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCsrWrite").encode("ascii"))
+
+    def ibex_char_csr_read(self) -> None:
+        """ Starts the ibex.fi.char.csr_read test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCsrRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCsrRead").encode("ascii"))
+
+    def ibex_address_translation_config(self) -> None:
+        """ Starts the ibex.fi.address_translation_config test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # AddressTranslationCfg command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("AddressTranslationCfg").encode("ascii"))
+
+    def ibex_address_translation(self) -> None:
+        """ Starts the ibex.fi.address_translation test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # AddressTranslation command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("AddressTranslation").encode("ascii"))
+
     def read_response(self, max_tries: Optional[int] = 1) -> str:
         """ Read response from Ibex FI framework.
         Args:

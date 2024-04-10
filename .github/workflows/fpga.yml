@@ -337,3 +337,14 @@ jobs:
         with:
           name: fi_plot_otbn_cw310
           path: ./ci/projects/otbn_fi_cw310.html
+      
+      - name: Dummy VCC glitching on AES
+        working-directory: ci
+        run: |
+          ../fault_injection/fi_crypto.py -c cfg/ci_crypto_aes_vcc_dummy_cw310.yaml -p projects/aes_fi_cw310
+
+      - name: Upload FI AES CW310 plot
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi_plot_aes_cw310
+          path: ./ci/projects/aes_fi_cw310.html

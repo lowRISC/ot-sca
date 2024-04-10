@@ -1,35 +1,28 @@
 target:
-  target_type: chip
-  fw_bin: "../objs/sca_ujson_chip_signed.img"
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: False
+  fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
   output_len_bytes: 16
-  target_clk_mult: 1
-  target_freq: 100000000
+  target_clk_mult: 0.24
+  target_freq: 24000000
   baudrate: 115200
   protocol: "ujson"
-  port: "/dev/ttyUSB1"
-  usb_serial: "205F355C3236"
+  port: "/dev/ttyACM4"
 fisetup:
-  fi_gear: "dummy"
+  fi_gear: "husky"
   fi_type: "voltage_glitch"
-  # Parameter generation.
   parameter_generation: "random"
-  # Number of randomized iterations for the parameter sweep.
-  # For parameter_generation: "random", this is the number of iterations.
-  # For parameter_generation: "deterministic", this is the number of iterations
-  # per fixed parameter.
-  num_iterations: 100
-  # Voltage glitch width in ns.
-  glitch_voltage_min: 2.7
-  glitch_voltage_max: 3.3
-  glitch_voltage_step: 0.05
-  # Voltage glitch width in ns.
+  # Voltage glitch width in cycles.
   glitch_width_min: 5
   glitch_width_max: 150
   glitch_width_step: 3
-  # Range for trigger delay in ns.
+  # Range for trigger delay in cycles.
   trigger_delay_min: 0
   trigger_delay_max: 500
   trigger_step: 10
+  # Number of iterations for the parameter sweep.
+  num_iterations: 100
 fiproject:
   # Project database type and memory threshold.
   project_db: "ot_fi_project"
@@ -42,8 +35,10 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  which_test: "otbn_char_unrolled_reg_op_loop"
-  expected_result: '{"loop_counter":100,"err_status":0,"alerts":0}'
+  # which_test: "crypto_fi_kmac_key"
+  which_test: "crypto_fi_kmac_absorb"
+  # which_test: "crypto_fi_kmac_squeeze"
+  expected_result: '{"ciphertext":[184,34,91,108,231,47,251,27],"alerts":0}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

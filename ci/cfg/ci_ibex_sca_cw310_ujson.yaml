@@ -10,19 +10,16 @@ target:
   port: "/dev/ttyACM_CW310_1"
 husky:
   samling_rate: 200000000
-  num_segments: 20
-  num_cycles: 100
-  offset_cycles: 0
+  num_segments: 1
+  num_cycles: 50
+  offset_cycles: 100
   scope_gain: 27
 capture:
   scope_select: husky
-  num_traces: 100
+  num_traces: 40
   show_plot: True
   plot_traces: 20
   trace_db: ot_trace_library
   trace_threshold: 10000
 test:
-  # which_test: ibex.sca.tl_write
-  # which_test: ibex.sca.tl_read
-  # which_test: ibex.sca.register_file_write
-  which_test: ibex.sca.register_file_read
+  which_test: ibex_sca_register_file_read_random

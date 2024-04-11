@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 import util.helpers as helpers
 from target.communication.sca_ibex_commands import OTIbex
+from target.communication.sca_prng_commands import OTPRNG
 from target.communication.sca_trigger_commands import OTTRIGGER
 from target.targets import Target, TargetConfig
 from util import check_version, plot
@@ -54,11 +55,12 @@ def abort_handler_during_loop(this_project, sig, frame):
 class CaptureConfig:
     """ Configuration class for the current capture.
     """
-    capture_mode: str
+    test_mode: str
     num_traces: int
     num_segments: int
     protocol: str
     port: Optional[str] = "None"
+    batch_prng_seed: Optional[str] = "None"
 
 
 def setup(cfg: dict, project: Path):
@@ -104,10 +106,15 @@ def setup(cfg: dict, project: Path):
 
     logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
 
+    # Determine if we are in batch mode or not.
+    batch = False
+    if "batch" in cfg["test"]["which_test"]:
+        batch = True
+
     # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
         scope_type = scope_type,
-        batch_mode = True,
+        batch_mode = batch,
         bit = cfg[scope_type].get("bit"),
         acqu_channel = cfg[scope_type].get("channel"),
         ip = cfg[scope_type].get("waverunner_ip"),
@@ -143,38 +150,51 @@ def establish_communication(target, capture_cfg: CaptureConfig):
 
     Returns:
         ot_ibex: The communication interface to the Ibex SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
         ot_trig: The communication interface to the SCA trigger.
     """
     # Create communication interface to OT Ibex.
     ot_ibex = OTIbex(target=target, protocol=capture_cfg.protocol)
 
+    # Create communication interface to OT PRNG.
+    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+
     # Create communication interface to SCA trigger.
     ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
 
-    return ot_ibex, ot_trig
+    return ot_ibex, ot_prng, ot_trig
 
 
-def generate_data():
+def generate_data(test_mode, num_data):
     """ Returns data used by the test.
 
     Either a fixed dataset or a random one is generated.
 
     Returns:
-        data: Data used by the test.
+        data: The data set used for the test.
+        data_fixed: The fixed data set.
     """
-    fixed_data = random.randint(0, 1)
-    if fixed_data:
-        data = [0xDEADBEEF, 0xCDCDCDCD, 0xABADCAFE, 0x8BADF00D, 0xFDFDFDFD,
-                0xA5A5A5A5, 0xABABABAB, 0xC00010FF]
-    else:
-        data = []
-        for i in range(0, 8):
-            data.append(random.randint(0, 65535))
-    return data
+    data = []
+    data_fixed = 0xABBABABE
+    # First sample is always fixed.
+    sample_fixed = True
+    for i in range(num_data):
+        if "fvsr" in test_mode:
+            if sample_fixed:
+                data.append(data_fixed)
+            else:
+                data.append(random.getrandbits(32))
+            sample_fixed = random.getrandbits(32) & 0x1
+        elif "random" in test_mode:
+            tmp = random.getrandbits(32)
+            data.append(tmp)
+        else:
+            raise RuntimeError("Error: Invalid test mode!")
+    return data, data_fixed
 
 
-def capture(scope: Scope, ot_ibex: OTIbex, capture_cfg: CaptureConfig,
-            project: SCAProject, target: Target):
+def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
+            capture_cfg: CaptureConfig, project: SCAProject, target: Target):
     """ Capture power consumption during execution of Ibex SCA penetration tests.
 
     Supports the following captures:
@@ -185,7 +205,8 @@ def capture(scope: Scope, ot_ibex: OTIbex, capture_cfg: CaptureConfig,
 
     Args:
         scope: The scope class representing a scope (Husky or WaveRunner).
-        ot_ibex: The OpenTitan AES communication interface.
+        ot_ibex: The communication interface to the Ibex SCA application.
+        ot_prng: The communication interface to the PRNG SCA application.
         capture_cfg: The configuration of the capture.
         project: The SCA project.
         target: The OpenTitan target.
@@ -193,6 +214,14 @@ def capture(scope: Scope, ot_ibex: OTIbex, capture_cfg: CaptureConfig,
     ot_ibex.init()
     # Optimization for CW trace library.
     num_segments_storage = 1
+
+    # Seed the PRNG used for generating random data.
+    if "batch" in capture_cfg.test_mode:
+        # Seed host's PRNG.
+        random.seed(capture_cfg.batch_prng_seed)
+
+        # Seed the target's PRNG.
+        ot_prng.seed_prng(capture_cfg.batch_prng_seed.to_bytes(4, "little"))
 
     # Register ctrl-c handler to store traces on abort.
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
@@ -202,34 +231,65 @@ def capture(scope: Scope, ot_ibex: OTIbex, capture_cfg: CaptureConfig,
         while remaining_num_traces > 0:
             # Arm the scope.
             scope.arm()
-            data = generate_data()
-            if capture_cfg.capture_mode == "ibex.sca.register_file_read":
-                ot_ibex.register_file_read(capture_cfg.num_segments, data)
-            elif capture_cfg.capture_mode == "ibex.sca.register_file_write":
-                ot_ibex.register_file_write(capture_cfg.num_segments, data)
-            elif capture_cfg.capture_mode == "ibex.sca.tl_read":
-                ot_ibex.tl_read(capture_cfg.num_segments, data)
-            elif capture_cfg.capture_mode == "ibex.sca.tl_write":
-                ot_ibex.tl_write(capture_cfg.num_segments, data)
+            if "batch" in capture_cfg.test_mode:
+                num_data = capture_cfg.num_segments
+            else:
+                # In non-batch mode, 8 uint32 values are used.
+                num_data = 8
+            # Generate data set used for the test.
+            data, data_fixed = generate_data(capture_cfg.test_mode, num_data)
+            # Start the test based on the mode.
+            if "batch" in capture_cfg.test_mode:
+                if "fvsr" in capture_cfg.test_mode:
+                    # In FvsR batch, the fixed dataset and the number of segments
+                    # is transferred to the device. The rest of the dataset is
+                    # generated on the device. Trigger is set number of segments.
+                    ot_ibex.start_test(capture_cfg.test_mode, data_fixed, capture_cfg.num_segments)
+                elif "random" in capture_cfg.test_mode:
+                    # In Random batch, number of segments is transferred to the
+                    # device. number of segments random datasets are generated
+                    # on the device. Trigger is set number of segments.
+                    ot_ibex.start_test(capture_cfg.test_mode,
+                                       capture_cfg.num_segments)
+            else:
+                # In the non-batch mode, the dataset is generated in ot-sca and
+                # transferred to the device. Trigger is set once.
+                ot_ibex.start_test(capture_cfg.test_mode, data)
 
             # Capture traces.
             waves = scope.capture_and_transfer_waves(target)
             assert waves.shape[0] == capture_cfg.num_segments
 
-            # Convert data into bytearray for storage in database.
-            data_bytes = []
-            for d in data:
-                data_bytes.append(d.to_bytes(4, "little"))
+            response = ot_ibex.ibex_sca_read_response()
+            # Check response. 0 for non-batch and the last data element in
+            # batch mode.
+            if "batch" in capture_cfg.test_mode:
+                assert response == data[-1]
+            else:
+                assert response == 0
 
             # Store traces.
-            for i in range(capture_cfg.num_segments):
-                # Sanity check retrieved data (wave).
-                assert len(waves[i, :]) >= 1
-                # Store trace into database.
-                project.append_trace(wave = waves[i, :],
-                                     plaintext = b''.join(data_bytes),
-                                     ciphertext = None,
-                                     key = None)
+            if "batch" in capture_cfg.test_mode:
+                for i in range(capture_cfg.num_segments):
+                    # Sanity check retrieved data (wave).
+                    assert len(waves[i, :]) >= 1
+                    # Store trace into database.
+                    project.append_trace(wave = waves[i, :],
+                                         plaintext = data[i].to_bytes(4, 'little'),
+                                         ciphertext = None,
+                                         key = None)
+            else:
+                # Convert data into bytearray for storage in database.
+                data_bytes = []
+                for d in data:
+                    data_bytes.append(d.to_bytes(4, "little"))
+                    # Sanity check retrieved data (wave).
+                    assert len(waves[0, :]) >= 1
+                    # Store trace into database.
+                    project.append_trace(wave = waves[0, :],
+                                         plaintext = b''.join(data_bytes),
+                                         ciphertext = None,
+                                         key = None)
 
             # Memory allocation optimization for CW trace library.
             num_segments_storage = project.optimize_capture(num_segments_storage)
@@ -279,21 +339,22 @@ def main(argv=None):
     target, scope, project = setup(cfg, args.project)
 
     # Create capture config object.
-    capture_cfg = CaptureConfig(capture_mode = cfg["test"]["which_test"],
+    capture_cfg = CaptureConfig(test_mode = cfg["test"]["which_test"],
                                 num_traces = cfg["capture"]["num_traces"],
                                 num_segments = scope.scope_cfg.num_segments,
                                 protocol = cfg["target"]["protocol"],
-                                port = cfg["target"].get("port"))
-    logger.info(f"Setting up capture {capture_cfg.capture_mode}...")
+                                port = cfg["target"].get("port"),
+                                batch_prng_seed = cfg["test"].get("batch_prng_seed"))
+    logger.info(f"Setting up capture {capture_cfg.test_mode}...")
 
     # Open communication with target.
-    ot_ibex, ot_trig = establish_communication(target, capture_cfg)
+    ot_ibex, ot_prng, ot_trig = establish_communication(target, capture_cfg)
 
     # Configure SW trigger.
     ot_trig.select_trigger(1)
 
     # Capture traces.
-    capture(scope, ot_ibex, capture_cfg, project, target)
+    capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)

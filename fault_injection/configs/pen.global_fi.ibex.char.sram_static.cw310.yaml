@@ -35,5 +35,5 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  which_test: "ibex_char_sram_write"
+  which_test: "ibex_char_sram_static"
   expected_result: '{"err_status":0,"addresses":[0,0,0,0,0,0,0,0]}'

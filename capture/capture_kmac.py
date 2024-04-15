@@ -191,6 +191,8 @@ def configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng):
         capture_cfg: The capture config.
         ot_kmac: The communication interface to the KMAC SCA application.
         ot_prng: The communication interface to the PRNG SCA application.
+    Returns:
+        device_id: The ID of the target device.
     """
     # Check if we want to run KMAC SCA for FPGA or discrete. On the FPGA, we
     # can use functionality helping us to capture cleaner traces.
@@ -198,7 +200,7 @@ def configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng):
     if "cw" in cfg["target"]["target_type"]:
         fpga_mode_bit = 1
     # Initialize KMAC on the target.
-    ot_kmac.init(fpga_mode_bit)
+    device_id = ot_kmac.init(fpga_mode_bit)
 
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking.
@@ -211,6 +213,7 @@ def configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng):
 
         # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+    return device_id
 
 
 def generate_ref_crypto(sample_fixed, mode, batch, key, key_fixed, plaintext,
@@ -477,7 +480,7 @@ def main(argv=None):
     ot_kmac, ot_prng, ot_trig = establish_communication(target, capture_cfg)
 
     # Configure cipher.
-    configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng)
+    device_id = configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng)
 
     # Configure trigger source.
     # 0 for HW, 1 for SW.
@@ -494,6 +497,7 @@ def main(argv=None):
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     metadata["cfg"] = cfg
     metadata["num_samples"] = scope.scope_cfg.num_samples

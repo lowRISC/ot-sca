@@ -98,11 +98,13 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         fi_gear: The FI gear to use.
         project: The project to store the results.
         ot_communication: The OpenTitan OTBN FI communication interface.
+    Returns:
+        device_id: The ID of the target device.
     """
     # Setup key manager if needed by test.
     ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Configure the OTBN FI code on the target.
-    ot_communication.init()
+    device_id = ot_communication.init()
     # Store results in array for a quick access.
     fi_results = []
     # Start the parameter sweep.
@@ -175,6 +177,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             remaining_iterations -= 1
             pbar.update(1)
     print_fi_statistic(fi_results)
+    return device_id
 
 
 def print_plot(project: FIProject, config: dict, file: Path) -> None:
@@ -214,7 +217,7 @@ def main(argv=None):
     ot_communication = OTFIOtbn(target)
 
     # FI parameter sweep.
-    fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
+    device_id = fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
 
     # Print plot.
     print_plot(project.get_firesults(start=0, end=cfg["fiproject"]["num_plots"]),
@@ -222,6 +225,7 @@ def main(argv=None):
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     # Store bitstream information.
     metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")

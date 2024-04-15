@@ -210,8 +210,10 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
         capture_cfg: The configuration of the capture.
         project: The SCA project.
         target: The OpenTitan target.
+    Returns:
+        device_id: The ID of the target device.
     """
-    ot_ibex.init()
+    device_id = ot_ibex.init()
     # Optimization for CW trace library.
     num_segments_storage = 1
 
@@ -297,6 +299,7 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
             pbar.update(capture_cfg.num_segments)
+    return device_id
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
@@ -354,13 +357,14 @@ def main(argv=None):
     ot_trig.select_trigger(1)
 
     # Capture traces.
-    capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
+    device_id = capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     metadata["cfg"] = cfg
     metadata["num_samples"] = scope.scope_cfg.num_samples

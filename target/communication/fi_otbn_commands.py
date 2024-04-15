@@ -94,12 +94,16 @@ class OTFIOtbn:
 
     def init(self) -> None:
         """ Initialize the OTBN FI code on the chip.
+        Returns:
+            The device ID of the device.
         """
         # OtbnFi command.
         self._ujson_otbn_fi_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Read back device ID from device.
+        return self.read_response(max_tries=30)
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

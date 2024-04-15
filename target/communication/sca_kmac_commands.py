@@ -38,6 +38,8 @@ class OTKMAC:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
+            # Read back device ID from device.
+            return self.read_response(max_tries=30)
 
     def write_key(self, key: list[int]):
         """ Write the key to KMAC.
@@ -148,3 +150,19 @@ class OTKMAC:
                         return batch_digest[0:len_bytes]
                     except Exception:
                         pass  # noqa: E302
+
+    def read_response(self, max_tries: Optional[int] = 1) -> str:
+        """ Read response from Ibex SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""

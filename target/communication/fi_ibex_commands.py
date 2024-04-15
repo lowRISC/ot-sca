@@ -81,6 +81,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramRead").encode("ascii"))
 
+    def ibex_char_sram_write_static(self) -> None:
+        """ Starts the ibex.char.sram_write_static test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramWriteStatic command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramWriteStatic").encode("ascii"))
+
     def ibex_char_sram_write(self) -> None:
         """ Starts the ibex.char.sram_write test.
         """

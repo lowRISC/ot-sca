@@ -135,16 +135,20 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegisterFileRead").encode("ascii"))
 
-    def init(self) -> None:
+    def init(self) -> list:
         """ Initialize the Ibex FI code on the chip.
         Args:
             cfg: Config dict containing the selected test.
+        Returns:
+            The device ID of the device.
         """
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
         # InitTrigger command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Read back device ID from device.
+        return self.read_response(max_tries=30)
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

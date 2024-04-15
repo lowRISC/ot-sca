@@ -46,6 +46,8 @@ class OTIbex:
         self._ujson_ibex_sca_cmd()
         # Init the Ibex SCA tests.
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Read back device ID from device.
+        return self.read_response(max_tries=30)
 
     def ibex_sca_register_file_read_batch_random(self, num_segments: int):
         """ Start ibex.sca.register_file_read_batch_random test.
@@ -355,3 +357,19 @@ class OTIbex:
             test_function(arg1, arg2)
         else:
             test_function()
+
+    def read_response(self, max_tries: Optional[int] = 1) -> str:
+        """ Read response from Ibex SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""

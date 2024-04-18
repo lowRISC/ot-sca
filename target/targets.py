@@ -87,7 +87,7 @@ class Target:
         """Resets the target. """
         self.target.reset_target()
         if com_reset and self.target_cfg.protocol == "ujson":
-            self._init_communication()
+            self.com_interface = self._init_communication()
 
     def write(self, data, cmd: Optional[str] = ""):
         """Write data to the target. """

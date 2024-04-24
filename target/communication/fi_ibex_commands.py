@@ -81,14 +81,23 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramRead").encode("ascii"))
 
-    def ibex_char_sram_write_static(self) -> None:
-        """ Starts the ibex.char.sram_write_static test.
+    def ibex_char_sram_write_static_unrolled(self) -> None:
+        """ Starts the ibex.char.sram_write_static_unrolled test.
         """
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharSramWriteStatic command.
+        # CharSramWriteStaticUnrolled command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharSramWriteStatic").encode("ascii"))
+        self.target.write(json.dumps("CharSramWriteStaticUnrolled").encode("ascii"))
+
+    def ibex_char_sram_write_read(self) -> None:
+        """ Starts the ibex.char.sram_write_read test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramWriteRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramWriteRead").encode("ascii"))
 
     def ibex_char_sram_write(self) -> None:
         """ Starts the ibex.char.sram_write test.
@@ -108,6 +117,60 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramStatic").encode("ascii"))
 
+    def ibex_char_conditional_branch_beq(self) -> None:
+        """ Starts the ibex.char.conditional_branch_beq test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBeq command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBeq").encode("ascii"))
+
+    def ibex_char_conditional_branch_bne(self) -> None:
+        """ Starts the ibex.char.conditional_branch_bne test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBne command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBne").encode("ascii"))
+
+    def ibex_char_conditional_branch_bge(self) -> None:
+        """ Starts the ibex.char.conditional_branch_bge test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBge command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBge").encode("ascii"))
+
+    def ibex_char_conditional_branch_bgeu(self) -> None:
+        """ Starts the ibex.char.conditional_branch_bgeu test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBgeu command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBgeu").encode("ascii"))
+
+    def ibex_char_conditional_branch_blt(self) -> None:
+        """ Starts the ibex.char.conditional_branch_blt test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBglt command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBlt").encode("ascii"))
+
+    def ibex_char_conditional_branch_bltu(self) -> None:
+        """ Starts the ibex.char.conditional_branch_bltu test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCondBranchBgltu command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCondBranchBltu").encode("ascii"))
+
     def ibex_char_unconditional_branch(self) -> None:
         """ Starts the ibex.char.unconditional_branch test.
         """
@@ -116,15 +179,6 @@ class OTFIIbex:
         # CharUncondBranch command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharUncondBranch").encode("ascii"))
-
-    def ibex_char_conditional_branch(self) -> None:
-        """ Starts the ibex.char.conditional_branch test.
-        """
-        # IbexFi command.
-        self._ujson_ibex_fi_cmd()
-        # CharCondBranch command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("CharCondBranch").encode("ascii"))
 
     def ibex_char_register_file(self) -> None:
         """ Starts the ibex.char.register_file test.

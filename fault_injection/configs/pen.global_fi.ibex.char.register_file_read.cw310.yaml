@@ -36,7 +36,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_register_file_read"
-  expected_result: '{"result":0,"err_status":0,"alerts":0}'
+  expected_result: '{"err_status":0,"addresses":[0,0,0,0,0,0,0,0],"data":[0,0,0,0,0,0,0,0],"alerts":[0,0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

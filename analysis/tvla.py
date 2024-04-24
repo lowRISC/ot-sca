@@ -573,12 +573,7 @@ def run_tvla(ctx: typer.Context):
                     # arrays. For compatiblity, we need to convert everything to numpy arrays.
                     # Eventually, we can drop this.
                     if i_step == 0:
-                        if OTTraceLib:
-                            if general_test_data:
-                                plaintexts_nparrays = project.get_plaintexts()
-                            else:
-                                keys_nparrays = project.get_keys()
-                        else:
+                        if not OTTraceLib:
                             # Convert all keys from the project file to numpy
                             # arrays once.
                             keys_nparrays = []
@@ -590,12 +585,17 @@ def run_tvla(ctx: typer.Context):
                                 else:
                                     keys_nparrays.append(np.frombuffer(project.project.keys[i],
                                                                        dtype=np.uint8))
-
                     # Select the correct slice of keys for each step.
-                    if general_test_data:
-                        plaintexts[:] = plaintexts_nparrays[trace_start:trace_end + 1]
+                    if OTTraceLib:
+                        if general_test_data:
+                            plaintexts[:] = project.get_plaintexts(trace_start, trace_end + 1)
+                        else:
+                            keys[:] = project.get_keys(trace_start, trace_end + 1)
                     else:
-                        keys[:] = keys_nparrays[trace_start:trace_end + 1]
+                        if general_test_data:
+                            plaintexts[:] = plaintexts_nparrays[trace_start:trace_end + 1]
+                        else:
+                            keys[:] = keys_nparrays[trace_start:trace_end + 1]
 
                 # Only select traces to use.
                 if general_test_key:

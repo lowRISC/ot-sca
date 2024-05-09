@@ -229,22 +229,24 @@ def generate_ref_crypto(sample_fixed, mode, key, plaintext):
         plaintext: The next plaintext.
         key: The next key.
         ciphertext: The next ciphertext.
-        sample_fixed: Is the next sample fixed or not?
     """
     if mode == "aes_fvsr_key":
         if sample_fixed:
-            plaintext, ciphertext, key = dg.get_fixed()
+            plaintext, ciphertext, key = dg.get_fixed('FVSR_KEY')
         else:
-            plaintext, ciphertext, key = dg.get_random()
-        # The next sample is either fixed or random.
-        sample_fixed = plaintext[0] & 0x1
+            plaintext, ciphertext, key = dg.get_random('FVSR_KEY')
+    elif mode == "aes_fvsr_data":
+        if sample_fixed:
+            plaintext, ciphertext, key = dg.get_fixed('FVSR_DATA')
+        else:
+            plaintext, ciphertext, key = dg.get_random('FVSR_DATA')
     else:
         if mode == "aes_random":
             cipher = AES.new(bytes(key), AES.MODE_ECB)
             ciphertext_bytes = cipher.encrypt(bytes(plaintext))
             ciphertext = [x for x in ciphertext_bytes]
 
-    return plaintext, key, ciphertext, sample_fixed
+    return plaintext, key, ciphertext
 
 
 def check_ciphertext(ot_aes, expected_last_ciphertext, ciphertext_len):
@@ -271,11 +273,13 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
             project: SCAProject, target: Target):
     """ Capture power consumption during AES encryption.
 
-    Supports four different capture types:
+    Supports six different capture types:
     * aes_random: Fixed key, random plaintext.
     * aes_random_batch: Fixed key, random plaintext in batch mode.
-    * aes_fvsr: Fixed vs. random key.
-    * aes_fvsr_batch: Fixed vs. random key batch.
+    * aes_fvsr_key: Fixed vs. random key.
+    * aes_fvsr_key_batch: Fixed vs. random key batch.
+    * aes_fvsr_data: Fixed vs. random data.
+    * aes_fvsr_data_batch: Fixed vs. random data batch.
 
     Args:
         scope: The scope class representing a scope (Husky or WaveRunner).
@@ -292,20 +296,25 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
     key = key_fixed
     logger.info(f"Initializing OT AES with key {binascii.b2a_hex(bytes(key))} ...")
     if capture_cfg.capture_mode == "aes_fvsr_key":
-        dg.set_start()
+        dg.set_start('FVSR_KEY')
+    elif capture_cfg.capture_mode == "aes_fvsr_data":
+        dg.set_start('FVSR_DATA')
     else:
         ot_aes.key_set(key)
 
     # Generate plaintexts and keys for first batch.
     if capture_cfg.batch_mode:
         if capture_cfg.capture_mode == "aes_fvsr_key":
-            ot_aes.start_fvsr_batch_generate()
+            ot_aes.start_fvsr_batch_generate(1)
             ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
+        elif capture_cfg.capture_mode == "aes_fvsr_data":
+            ot_aes.start_fvsr_batch_generate(2)
         elif capture_cfg.capture_mode == "aes_random":
             ot_aes.batch_plaintext_set(text)
 
     # FVSR setup.
     sample_fixed = 1
+    prng_state = 0x99999999
 
     # Optimization for CW trace library.
     num_segments_storage = 1
@@ -326,21 +335,34 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                     # Fixed key, random plaintexts.
                     ot_aes.batch_alternative_encrypt(
                         capture_cfg.num_segments.to_bytes(4, "little"))
-                else:
+                elif capture_cfg.capture_mode == "aes_fvsr_key":
                     # Fixed vs random key test.
                     ot_aes.fvsr_key_batch_encrypt(
                         capture_cfg.num_segments.to_bytes(4, "little"))
+                else:
+                    # Fixed vs random data test.
+                    ot_aes.fvsr_data_batch_encrypt(
+                        capture_cfg.num_segments.to_bytes(4, "little"))
             else:
                 # Non batch mode.
-                if capture_cfg.capture_mode == "aes_fvsr_key":
+                if capture_cfg.capture_mode == "aes_fvsr_key" or \
+                   capture_cfg.capture_mode == "aes_fvsr_data":
                     # Generate reference crypto material for aes_fvsr_key in non-batch mode
-                    text, key, ciphertext, sample_fixed = generate_ref_crypto(
+                    text, key, ciphertext = generate_ref_crypto(
                         sample_fixed = sample_fixed,
                         mode = capture_cfg.capture_mode,
                         key = key,
                         plaintext = text
                     )
+                    if capture_cfg.capture_mode == "aes_fvsr_key":
+                        sample_fixed = text[0] & 0x1
+                    else:
+                        sample_fixed = prng_state & 0x1
+                        prng_state = prng_state >> 1
+                        if sample_fixed:
+                            prng_state ^= 0x80000057
                     ot_aes.key_set(key)
+
                 ot_aes.single_encrypt(text)
 
             # Capture traces.
@@ -352,12 +374,19 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
             # Store traces
             for i in range(capture_cfg.num_segments):
                 if capture_cfg.batch_mode or capture_cfg.capture_mode == "aes_random":
-                    text, key, ciphertext, sample_fixed = generate_ref_crypto(
+                    text, key, ciphertext = generate_ref_crypto(
                         sample_fixed = sample_fixed,
                         mode = capture_cfg.capture_mode,
                         key = key,
                         plaintext = text
                     )
+                    sample_fixed = text[0] & 0x1
+                    if capture_cfg.capture_mode == "aes_fvsr_data":
+                        sample_fixed = prng_state & 0x1
+                        prng_state = prng_state >> 1
+                        if sample_fixed:
+                            prng_state ^= 0x80000057
+
                 # Sanity check retrieved data (wave).
                 assert len(waves[i, :]) >= 1
                 # Store trace into database.
@@ -373,8 +402,6 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
 
             # Compare received ciphertext with generated.
             compare_len = capture_cfg.output_len
-            if capture_cfg.batch_mode and capture_cfg.capture_mode == "aes_fvsr_key":
-                compare_len = 4
             check_ciphertext(ot_aes, ciphertext, compare_len)
 
             # Memory allocation optimization for CW trace library.
@@ -425,6 +452,8 @@ def main(argv=None):
     mode = "aes_fvsr_key"
     if "aes_random" in cfg["test"]["which_test"]:
         mode = "aes_random"
+    elif "data" in cfg["test"]["which_test"]:
+        mode = "aes_fvsr_data"
 
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)

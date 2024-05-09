@@ -172,6 +172,7 @@ class OTAES:
         """
         if self.simple_serial:
             self.target.write(cmd="e", data=num_segments)
+            self.target.wait_ack()
         else:
             # AesSca command.
             self._ujson_aes_sca_cmd()

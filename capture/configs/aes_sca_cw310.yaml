@@ -48,6 +48,8 @@ test:
   # which_test: aes_random
   # which_test: aes_fvsr_key
   # which_test: aes_fvsr_key_batch
+  # which_test: aes_fvsr_data
+  # which_test: aes_fvsr_data_batch
   key_len_bytes: 16
   text_len_bytes: 16
   # These initial values are used only for random capture but not fixed-vs-random.
@@ -59,3 +61,4 @@ test:
   # 32-bit seed for masking on device. To switch off the masking, use 0 as LFSR seed.
   # lfsr_seed: 0x00000000
   lfsr_seed: 0xdeadbeef
+  prng_state: 0x99999999

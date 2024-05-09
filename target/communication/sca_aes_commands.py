@@ -94,11 +94,10 @@ class OTAES:
             seed_data = {"seed": [x for x in seed]}
             self.target.write(json.dumps(seed_data).encode("ascii"))
 
-    def start_fvsr_batch_generate(self):
+    def start_fvsr_batch_generate(self, command):
         """Set SW PRNG to starting values for FvsR data
         generation.
         """
-        command = 1
         if self.simple_serial:
             self.target.write(cmd="d", data=command.to_bytes(4, "little"))
             self.target.wait_ack()
@@ -166,7 +165,7 @@ class OTAES:
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def fvsr_key_batch_encrypt(self, num_segments):
-        """ Start batch encryption for FVSR.
+        """ Start batch encryption for FVSR key.
         Args:
             num_segments: Number of encryptions to perform.
         """
@@ -178,6 +177,24 @@ class OTAES:
             self._ujson_aes_sca_cmd()
             # FvsrKeyBatchEncrypt command.
             self.target.write(json.dumps("FvsrKeyBatchEncrypt").encode("ascii"))
+            # Number of encryptions.
+            time.sleep(0.01)
+            num_encryption_data = {"data": [x for x in num_segments]}
+            self.target.write(json.dumps(num_encryption_data).encode("ascii"))
+
+    def fvsr_data_batch_encrypt(self, num_segments):
+        """ Start batch encryption for FVSR data.
+        Args:
+            num_segments: Number of encryptions to perform.
+        """
+        if self.simple_serial:
+            self.target.write(cmd = "h", data = num_segments)
+            self.target.wait_ack()
+        else:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # FvsrKeyBatchEncrypt command.
+            self.target.write(json.dumps("FvsrDataBatchEncrypt").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
             num_encryption_data = {"data": [x for x in num_segments]}

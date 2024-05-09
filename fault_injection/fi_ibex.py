@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -46,7 +47,8 @@ def setup(cfg: dict, project: Path):
         force_program_bitstream = cfg["target"].get("force_program_bitstream"),
         baudrate = cfg["target"].get("baudrate"),
         port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes")
+        output_len = cfg["target"].get("output_len_bytes"),
+        usb_serial = cfg["target"].get("usb_serial")
     )
     target = Target(target_cfg)
 
@@ -65,6 +67,25 @@ def setup(cfg: dict, project: Path):
     return target, fi_gear, project
 
 
+def print_fi_statistic(fi_results: list) -> None:
+    """ Print FI Statistic.
+
+    Prints the number of FISuccess.SUCCESS, FISuccess.EXPRESPONSE, and
+    FISuccess.NORESPONSE.
+
+    Args:
+        fi_results: The FI results.
+    """
+    num_total = len(fi_results)
+    num_succ = round((fi_results.count(FISuccess.SUCCESS) / num_total) * 100, 2)
+    num_exp = round((fi_results.count(FISuccess.EXPRESPONSE) / num_total) * 100, 2)
+    num_no = round((fi_results.count(FISuccess.NORESPONSE) / num_total) * 100, 2)
+    logger.info(f"{num_total} faults, {fi_results.count(FISuccess.SUCCESS)}"
+                f"({num_succ}%) successful, {fi_results.count(FISuccess.EXPRESPONSE)}"
+                f"({num_exp}%) expected, and {fi_results.count(FISuccess.NORESPONSE)}"
+                f"({num_no}%) no response.")
+
+
 def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                        project: FIProject, ot_communication: OTFIIbex) -> None:
     """ Fault parameter sweep.
@@ -77,9 +98,13 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         fi_gear: The FI gear to use.
         project: The project to store the results.
         ot_communication: The OpenTitan Ibex FI communication interface.
+    Returns:
+        device_id: The ID of the target device.
     """
-    # Configure the trigger.
-    ot_communication.init_trigger()
+    # Configure the Ibex FI code on the target.
+    device_id = ot_communication.init()
+    # Store results in array for a quick access.
+    fi_results = []
     # Start the parameter sweep.
     remaining_iterations = fi_gear.get_num_fault_injections()
     with tqdm(total=remaining_iterations, desc="Injecting", ncols=80,
@@ -96,25 +121,44 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
 
             # Read response.
             response = ot_communication.read_response()
+            response_compare = response
+            expected_response = cfg["test"]["expected_result"]
 
             # Compare response.
-            # Check if result is expected result (FI failed), unexpected result
-            # (FI successful), or no response (FI failed.)
-            fi_result = FISuccess.SUCCESS
-            if response == cfg["test"]["expected_result"]:
-                # Expected result received. No FI effect.
-                fi_result = FISuccess.EXPRESPONSE
-            elif response == "":
+            if response_compare == "":
                 # No UART response received.
                 fi_result = FISuccess.NORESPONSE
                 # Resetting OT as it most likely crashed.
                 ot_communication = target.reset_target(com_reset = True)
                 # Re-establish UART connection.
                 ot_communication = OTFIIbex(target)
-                # Configure the trigger.
-                ot_communication.init_trigger()
+                # Configure the Ibex FI code on the target.
+                ot_communication.init()
                 # Reset FIGear if necessary.
                 fi_gear.reset()
+            else:
+                # If the test decides to ignore alerts triggered by the alert
+                # handler, remove it from the received and expected response.
+                # In the database, the received alert is still available for
+                # further diagnosis.
+                if cfg["test"]["ignore_alerts"]:
+                    resp_json = json.loads(response_compare)
+                    exp_json = json.loads(expected_response)
+                    if "alerts" in resp_json:
+                        del resp_json["alerts"]
+                        response_compare = json.dumps(resp_json,
+                                                      separators=(',', ':'))
+                    if "alerts" in exp_json:
+                        del exp_json["alerts"]
+                        expected_response = json.dumps(exp_json,
+                                                       separators=(',', ':'))
+
+                # Check if result is expected result (FI failed), unexpected result
+                # (FI successful), or no response (FI failed.)
+                fi_result = FISuccess.SUCCESS
+                if response_compare == expected_response:
+                    # Expected result received. No FI effect.
+                    fi_result = FISuccess.EXPRESPONSE
 
             # Store result into FIProject.
             project.append_firesult(
@@ -126,9 +170,12 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 x_pos = fault_parameters.get("x_pos"),
                 y_pos = fault_parameters.get("y_pos")
             )
+            fi_results.append(fi_result)
 
             remaining_iterations -= 1
             pbar.update(1)
+    print_fi_statistic(fi_results)
+    return device_id
 
 
 def print_plot(project: FIProject, config: dict, file: Path) -> None:
@@ -168,7 +215,7 @@ def main(argv=None):
     ot_communication = OTFIIbex(target)
 
     # FI parameter sweep.
-    fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
+    device_id = fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
 
     # Print plot.
     print_plot(project.get_firesults(start=0, end=cfg["fiproject"]["num_plots"]),
@@ -176,6 +223,7 @@ def main(argv=None):
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     # Store bitstream information.
     metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")

@@ -2,7 +2,7 @@ target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: False
-  fw_bin: "../objs/fi_ibex_fpga_cw310.bin"
+  fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
   output_len_bytes: 16
   target_clk_mult: 0.24
   target_freq: 24000000
@@ -35,4 +35,9 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_mem_op_loop"
-  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0}'
+  expected_result: '{"loop_counter1":10000,"loop_counter2":0,"err_status":0,"alerts":0}'
+  # Set to true if the test should ignore alerts returned by the test. As the
+  # alert handler on the device could sometime fire alerts that are not
+  # related to the FI, ignoring is by default set to true. A manual analysis
+  # still can be performed as the alerts are stored in the database.
+  ignore_alerts: True

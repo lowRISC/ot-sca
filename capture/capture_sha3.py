@@ -90,7 +90,8 @@ def setup(cfg: dict, project: Path):
         force_program_bitstream = cfg["target"].get("force_program_bitstream"),
         baudrate = cfg["target"].get("baudrate"),
         port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes")
+        output_len = cfg["target"].get("output_len_bytes"),
+        usb_serial = cfg["target"].get("usb_serial")
     )
     target = Target(target_cfg)
 
@@ -175,6 +176,8 @@ def configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng):
         capture_cfg: The capture config.
         ot_sha3: The communication interface to the SHA3 SCA application.
         ot_prng: The communication interface to the PRNG SCA application.
+    Returns:
+        device_id: The ID of the target device.
     """
     # Check if we want to run KMAC SCA for FPGA or discrete. On the FPGA, we
     # can use functionality helping us to capture cleaner traces.
@@ -182,7 +185,7 @@ def configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng):
     if "cw" in cfg["target"]["target_type"]:
         fpga_mode_bit = 1
     # Initialize KMAC on the target.
-    ot_sha3.init(fpga_mode_bit)
+    device_id = ot_sha3.init(fpga_mode_bit)
 
     if cfg["test"]["masks_off"] is True:
         logger.info("Configure device to use constant, fast entropy!")
@@ -201,6 +204,7 @@ def configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng):
 
         # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+    return device_id
 
 
 def generate_ref_crypto(sample_fixed, mode, batch, plaintext,
@@ -291,12 +295,15 @@ def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target, text_fixe
         capture_cfg: The capture config.
         target: The OT target.
         text_fixed: The fixed text for FVSR.
+    Returns:
+        ot_sha3: The communication interface handler.
+        device_id: The ID of the target device.
     """
     # Open communication with target.
     ot_sha3, ot_prng, ot_trig = establish_communication(target, capture_cfg)
 
     # Configure cipher.
-    configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng)
+    device_id = configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng)
 
     # Configure trigger source.
     # 0 for HW, 1 for SW.
@@ -309,7 +316,7 @@ def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target, text_fixe
     if capture_cfg.batch_mode:
         ot_sha3.fvsr_fixed_msg_set(text_fixed)
 
-    return ot_sha3
+    return ot_sha3, device_id
 
 
 def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
@@ -327,6 +334,8 @@ def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
         capture_cfg: The configuration of the capture.
         project: The SCA project.
         target: The OpenTitan target.
+    Returns:
+        device_id: The ID of the target device.
     """
     # Initial plaintext.
     text_fixed = capture_cfg.text_fixed
@@ -341,7 +350,7 @@ def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
     num_segments_storage = 1
 
     # Initialize target.
-    ot_sha3 = init_target(cfg, capture_cfg, target, text_fixed)
+    ot_sha3, device_id = init_target(cfg, capture_cfg, target, text_fixed)
 
     # Register ctrl-c handler to store traces on abort.
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
@@ -426,10 +435,11 @@ def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
                 # No response, reset device and start over.
                 logger.info("No response received, resetting device!")
                 target.reset_target()
-                ot_sha3 = init_target(cfg, capture_cfg, target, text_fixed)
+                ot_sha3, device_id = init_target(cfg, capture_cfg, target, text_fixed)
 
             # Memory allocation optimization for CW trace library.
             num_segments_storage = project.optimize_capture(num_segments_storage)
+    return device_id
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
@@ -489,13 +499,14 @@ def main(argv=None):
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
 
     # Capture traces.
-    capture(scope, cfg, capture_cfg, project, target)
+    device_id = capture(scope, cfg, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     metadata["cfg"] = cfg
     metadata["num_samples"] = scope.scope_cfg.num_samples

@@ -27,6 +27,7 @@ class TargetConfig:
     baudrate: Optional[int] = None
     port: Optional[str] = None
     read_timeout: Optional[int] = 1
+    usb_serial: Optional[str] = None
 
 
 class Target:
@@ -58,7 +59,8 @@ class Target:
             )
         elif self.target_cfg.target_type == "chip":
             target = Chip(firmware = self.target_cfg.fw_bin,
-                          opentitantool_path = "../target/lib/opentitantool")
+                          opentitantool_path = "../objs/opentitantool",
+                          usb_serial=self.target_cfg.usb_serial)
         else:
             raise RuntimeError("Error: Target not supported!")
         return target
@@ -85,7 +87,7 @@ class Target:
         """Resets the target. """
         self.target.reset_target()
         if com_reset and self.target_cfg.protocol == "ujson":
-            self._init_communication()
+            self.com_interface = self._init_communication()
 
     def write(self, data, cmd: Optional[str] = ""):
         """Write data to the target. """

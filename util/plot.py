@@ -15,7 +15,8 @@ from bokeh.plotting import figure, show
 from fault_injection.project_library.project import FISuccess
 
 
-def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=False):
+def save_plot_to_file(traces, set_indices, num_traces, outfile,
+                      add_mean_stddev=False, ref_trace=None):
     """Save plot figure to file."""
     if set_indices is None:
         colors = itertools.cycle(palette)
@@ -34,12 +35,15 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile, add_mean_stddev=
     plot.add_tools(tools.HoverTool())
     for i in range(min(len(traces), num_traces)):
         if set_indices is None:
-            if add_mean_stddev:
+            if add_mean_stddev or ref_trace is not None:
                 plot.line(xrange, traces[i], line_color='grey')
             else:
                 plot.line(xrange, traces[i], line_color=next(colors))
         else:
             plot.line(xrange, traces[i], line_color=next(colors), legend_label=str(set_indices[i]))
+
+    if ref_trace is not None:
+        plot.line(xrange, ref_trace, line_color='firebrick', line_width=2, legend_label='mean')
 
     if add_mean_stddev:
         # Add mean and std dev to figure
@@ -81,17 +85,33 @@ def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
                            cfg["fisetup"][y_axis + "_max"]))
     plot.xaxis.axis_label = x_axis + " " + cfg["fiproject"]["plot_x_axis_legend"]
     plot.yaxis.axis_label = y_axis + " " + cfg["fiproject"]["plot_y_axis_legend"]
+
+    exp_x = []
+    exp_y = []
+    unexp_x = []
+    unexp_y = []
+    no_x = []
+    no_y = []
     for fi_result in fi_results:
-        color = "red"
-        label = "No response"
+        fi_result_dict = dataclasses.asdict(fi_result)
         if fi_result.fi_result == FISuccess.SUCCESS:
-            color = "green"
-            label = "Unexpected response"
+            unexp_x.append(fi_result_dict[x_axis])
+            unexp_y.append(fi_result_dict[y_axis])
         elif fi_result.fi_result == FISuccess.EXPRESPONSE:
-            color = "yellow"
-            label = "Expected response"
-        fi_result = dataclasses.asdict(fi_result)
-        plot.scatter(fi_result[x_axis], fi_result[y_axis], legend_label = label,
-                     line_color=color, fill_color=color)
-        plot.scatter()
+            exp_x.append(fi_result_dict[x_axis])
+            exp_y.append(fi_result_dict[y_axis])
+        else:
+            no_x.append(fi_result_dict[x_axis])
+            no_y.append(fi_result_dict[y_axis])
+
+    if unexp_x:
+        plot.scatter(unexp_x, unexp_y, line_color="green", fill_color="green",
+                     legend_label="Unexpected response")
+    if exp_x:
+        plot.scatter(exp_x, exp_y, line_color="orange", fill_color="orange",
+                     legend_label="Expected response")
+    if no_x:
+        plot.scatter(no_x, no_y, line_color="red", fill_color="red",
+                     legend_label="No response")
+
     show(plot)

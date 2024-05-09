@@ -1,0 +1,350 @@
+name: fpga
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+# Cancel running jobs if the branch is updated.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  aes_sca_capture_cw310:
+    name: Capture AES SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture AES FVSR traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_simpleserial.yaml -p projects/aes_sca_fvsr_cw310
+
+      - name: Upload AES FVSR traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_aes_fvsr
+          path: ./ci/projects/aes_sca_fvsr_cw310.html
+
+      - name: Perform TVLA on AES FVSR traces
+        working-directory: ci
+        run: |
+          ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte0_rnd0.yaml run-tvla
+        continue-on-error: true
+
+      - name: Upload figure of AES TVLA  
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvla_figure
+          path: ./ci/tmp/figures
+
+      - name: Capture AES Random traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_simpleserial.yaml -p projects/aes_sca_random_cw310
+
+      - name: Upload AES Random traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_aes_random_key
+          path: ./ci/projects/aes_sca_random_cw310.html
+
+      - name: Compare AES Random traces against golden trace
+        working-directory: ci
+        run: |
+          ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
+
+      - name: Capture AES FVSR traces (ujson)
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
+
+      - name: Upload AES FVSR traces (ujson)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_aes_fvsr_ujson
+          path: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
+
+      - name: Capture AES Random traces (ujson)
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_ujson.yaml -p projects/aes_sca_random_cw310_ujson
+
+      - name: Upload AES Random traces (ujson)
+        uses: actions/upload-artifact@v4
+        with:
+          path: ./ci/projects/aes_sca_random_cw310_ujson.html
+          name: traces_aes_random_key_ujson
+
+  sha3_sca_capture_cw310:
+    name: Capture SHA3 SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture SHA3 FVSR traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_simpleserial.yaml -p projects/sha3_sca_fvsr_cw310_simpleserial
+
+      - name: Upload SHA3 FVSR traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_sha3_fvsr_cw310_simpleserial
+          path: ./ci/projects/sha3_sca_fvsr_cw310_simpleserial.html
+
+      - name: Capture SHA3 FVSR traces (uJSON)
+        working-directory: ci
+        run: |
+          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_ujson.yaml -p projects/sha3_sca_fvsr_cw310_ujson
+
+      - name: Upload SHA3 FVSR traces (uJSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_sha3_fvsr_cw310_ujson
+          path: ./ci/projects/sha3_sca_fvsr_cw310_ujson.html
+
+      - name: Capture SHA3 Random traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_simpleserial.yaml -p projects/sha3_sca_random_cw310_simpleserial
+
+      - name: Upload SHA3 Random traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_sha3_random_cw310_simpleserial
+          path: ./ci/projects/sha3_sca_random_cw310_simpleserial.html
+
+      - name: Capture SHA3 Random traces (uJSON)
+        working-directory: ci
+        run: |
+          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_ujson.yaml -p projects/sha3_sca_random_cw310_ujson
+
+      - name: Upload SHA3 Random traces (uJSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_sha3_random_cw310_ujson
+          path: ./ci/projects/sha3_sca_random_cw310_ujson.html
+
+  sca_capture_cw305:
+    name: Capture AES SCA traces (CW305)
+    runs-on: [ubuntu-22.04-fpga, cw305]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture AES FVSR traces
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw305.yaml -p projects/aes_sca_fvsr_cw305
+
+      - name: Upload AES FVSR traces
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_aes_fvsr_key_cw305
+          path: ./ci/projects/aes_sca_fvsr_cw305.html
+
+      - name: Capture AES Random traces
+        working-directory: ci
+        run: |
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
+
+      - name: Upload AES Random traces
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_aes_random_cw305
+          path: ./ci/projects/aes_sca_random_cw305.html
+
+      - name: Perform specific TVLA on AES Random traces
+        working-directory: ci
+        run: |
+          ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte_0_15_rnd_0_1.yaml run-tvla
+        continue-on-error: true
+
+      - name: Upload figures of specific TVLA for AES.
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvla_figures_aes_specific
+          path: ./ci/tmp/figures
+
+  kmac_sca_capture_cw310:
+    name: Capture KMAC SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture KMAC FVSR traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_simpleserial.yaml -p projects/kmac_sca_fvsr_cw310_simpleserial
+
+      - name: Upload KMAC FVSR traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_kmac_fvsr_cw310_simpleserial
+          path: ./ci/projects/kmac_sca_fvsr_cw310_simpleserial.html
+
+      - name: Capture KMAC FVSR traces (uJSON)
+        working-directory: ci
+        run: |
+          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_ujson.yaml -p projects/kmac_sca_fvsr_cw310_ujson
+
+      - name: Upload KMAC FVSR traces (uJSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_kmac_fvsr_cw310_ujson
+          path: ./ci/projects/kmac_sca_fvsr_cw310_ujson.html
+
+      - name: Capture KMAC Random traces (simpleserial)
+        working-directory: ci
+        run: |
+          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_simpleserial.yaml -p projects/kmac_sca_random_cw310_simpleserial
+
+      - name: Upload KMAC Random traces (simpleserial)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_kmac_random_cw310_simpleserial
+          path: ./ci/projects/kmac_sca_random_cw310_simpleserial.html
+
+      - name: Capture KMAC Random traces (uJSON)
+        working-directory: ci
+        run: |
+          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_ujson.yaml -p projects/kmac_sca_random_cw310_ujson
+
+      - name: Upload KMAC Random traces (uJSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_kmac_random_cw310_ujson
+          path: ./ci/projects/kmac_sca_random_cw310_ujson.html
+
+  ibex_sca_capture_cw310:
+    name: Capture Ibex SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture Ibex SCA traces for ibex.sca.register_file_read (ujson)
+        working-directory: ci
+        run: |
+          ../capture/capture_ibex.py -c cfg/ci_ibex_sca_cw310_ujson.yaml -p projects/ibex_sca_cw310_ujson
+
+      - name: Upload Ibex SCA traces for ibex.sca.register_file_read (ujson)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_ibex_sca_cw310_ujson
+          path: ./ci/projects/ibex_sca_cw310_ujson.html
+
+  ceca:
+    name: CECA Attack
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+
+      - name: CECA with CW and OT Trace Database
+        working-directory: ci
+        run: |
+          ./scripts/check-ceca.sh
+
+  fi_cw310:
+    name: Dummy VCC glitching (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Dummy VCC glitching on Ibex
+        working-directory: ci
+        run: |
+          ../fault_injection/fi_ibex.py -c cfg/ci_ibex_fi_vcc_dummy_cw310.yaml -p projects/ibex_fi_cw310
+
+      - name: Upload FI Ibex CW310 plot
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi_plot_ibex_cw310
+          path: ./ci/projects/ibex_fi_cw310.html
+
+      - name: Dummy VCC glitching on OTBN
+        working-directory: ci
+        run: |
+          ../fault_injection/fi_otbn.py -c cfg/ci_otbn_fi_vcc_dummy_cw310.yaml -p projects/otbn_fi_cw310
+
+      - name: Upload FI OTBN CW310 plot
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi_plot_otbn_cw310
+          path: ./ci/projects/otbn_fi_cw310.html
+      
+      - name: Dummy VCC glitching on AES
+        working-directory: ci
+        run: |
+          ../fault_injection/fi_crypto.py -c cfg/ci_crypto_aes_vcc_dummy_cw310.yaml -p projects/aes_fi_cw310
+
+      - name: Upload FI AES CW310 plot
+        uses: actions/upload-artifact@v4
+        with:
+          name: fi_plot_aes_cw310
+          path: ./ci/projects/aes_fi_cw310.html

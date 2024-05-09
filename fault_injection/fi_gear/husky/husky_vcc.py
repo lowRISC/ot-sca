@@ -15,7 +15,8 @@ class HuskyVCC:
     """ Initialize Husky for VCC glitching.
 
     Args:
-        pll_frequency. The PLL frequency of the target.
+        pll_frequency: The PLL frequency of the target.
+        serial_number: The SN of the Husky.
         glitch_width_min: Lower bound for the glitch width.
         glitch_width_max: Upper bound for the glitch width.
         glitch_width_step: Step for the glitch width.
@@ -23,14 +24,15 @@ class HuskyVCC:
         trigger_delay_max: Upper bound for the trigger delay.
         trigger_step: Step for the trigger delay.
     """
-    def __init__(self, pll_frequency: int, glitch_width_min: float,
-                 glitch_width_max: float, glitch_width_step: float,
-                 trigger_delay_min: int, trigger_delay_max: int,
-                 trigger_step: int, num_iterations: int,
+    def __init__(self, pll_frequency: int, serial_number: str,
+                 glitch_width_min: float, glitch_width_max: float,
+                 glitch_width_step: float, trigger_delay_min: int,
+                 trigger_delay_max: int, trigger_step: int, num_iterations: int,
                  parameter_generation: str):
         # Set Husky parameters.
         self.scope = None
         self.pll_frequency = pll_frequency
+        self.sn = serial_number
 
         # Set glitch parameter space.
         self.glitch_width_min = glitch_width_min
@@ -57,8 +59,12 @@ class HuskyVCC:
         Configure Husky crowbar in such a way that the glitcher uses the HP
         MOSFET and a single glitch is clkgen_freq long.
         """
-        check_version.check_husky("1.5.0")
-        self.scope = cw.scope()
+        if self.sn is not None:
+            check_version.check_husky("1.5.0", sn=str(self.sn))
+            self.scope = cw.scope(sn=str(self.sn))
+        else:
+            check_version.check_husky("1.5.0")
+            self.scope = cw.scope()
 
         if not self.scope._is_husky:
             raise RuntimeError("Only ChipWhisperer Husky is supported!")

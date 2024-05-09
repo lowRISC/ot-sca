@@ -6,10 +6,13 @@ import argparse
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 import chipwhisperer as cw
 import numpy as np
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 ABS_PATH = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(ABS_PATH + '/..')
@@ -20,6 +23,16 @@ from util import check_version  # noqa : E402
 from util import plot  # noqa : E402
 
 logger = logging.getLogger()
+
+
+@dataclass
+class Trace:
+    """ Configuration class for the current capture.
+    """
+    wave: list
+    plaintext: list
+    ciphertext: list
+    key: list
 
 
 def parse_arguments(argv):
@@ -67,7 +80,14 @@ def parse_arguments(argv):
                         type=int,
                         required=False,
                         default=10000,
-                        help="Maximum amount of traces held in memory")
+                        help="Maximum amount of traces held in memory per process")
+    parser.add_argument("-c",
+                        "--num_cores",
+                        dest="num_cores",
+                        type=int,
+                        required=False,
+                        default=1,
+                        help="Number of cores used for the trace alignment")
     parser.add_argument("-p",
                         "--print_num_traces",
                         dest="print_num_traces",
@@ -75,13 +95,14 @@ def parse_arguments(argv):
                         required=False,
                         default=100,
                         help="Number of traces to print")
-    parser.add_argument("-r",
-                        "--ref_trace",
-                        dest="ref_trace",
+    parser.add_argument("-n",
+                        "--num_traces_mean",
+                        dest="num_traces_mean",
                         type=int,
                         required=False,
                         default=100,
-                        help="Reference trace for trace aligning")
+                        help="Number of traces used for calculating mean for the\
+                            trace algining reference trace")
     parser.add_argument("-lw",
                         "--low_window",
                         dest="low_window",
@@ -107,13 +128,14 @@ def parse_arguments(argv):
     return args
 
 
-def print_traces(args, project: SCAProject, filename: Path):
+def print_traces(args, project: SCAProject, filename: Path, ref_trace = None):
     """ Print traces to file.
 
     Args:
         args: The command line arguments.
         project_in: The project.
         filename: The filename of the plot file.
+        ref_trace: Reference trace to highlight in the plot.
     """
     metadata = project.get_metadata()
     num_traces = args.print_num_traces
@@ -124,7 +146,8 @@ def print_traces(args, project: SCAProject, filename: Path):
                            set_indices = None,
                            num_traces = num_traces,
                            outfile = filename,
-                           add_mean_stddev=False)
+                           add_mean_stddev=False,
+                           ref_trace = ref_trace)
 
 
 def filter_traces(args: dict, project_in: SCAProject, project_out: SCAProject):
@@ -197,13 +220,78 @@ def filter_traces(args: dict, project_in: SCAProject, project_out: SCAProject):
         return project_in
 
 
+def align_traces_process(args: dict, in_traces: list, in_ptx: list,
+                         in_ctx: list, in_k: list, ref_trace: Trace,
+                         job_id: str):
+    """ Align traces function to be distributed to multiple processes.
+
+    Args:
+        args: The command line arguments.
+        in_traces: The input traces.
+        in_ptx: The input plaintexts.
+        in_ctx: The input ciphertexts.
+        in_k: The input keys.
+        ref_trace: The reference trace.
+        job_id: The identifier for the current job.
+    """
+    # Create configuration for a temporary project. Needed to convert DB to
+    # CW database as we utilize functionality from CW for the trace
+    # alignment.
+    tmp_project_path = str(Path(args.project_out).parent) + "/tmp" + job_id + ".cwp"
+    tmp_project = ProjectConfig(type = "cw", path = tmp_project_path,
+                                wave_dtype = np.uint16, overwrite = True,
+                                trace_threshold = args.max_traces_mem)
+    cw_project = SCAProject(tmp_project)
+    cw_project.create_project()
+    # Convert SCAProject into ChipWhisperer project.
+    # Insert reference mean trace into position 0 of the CW library.
+    # This trace will be removed after processing the trace set.
+    cw_project.append_trace(wave = ref_trace.wave,
+                            plaintext = ref_trace.plaintext,
+                            ciphertext = ref_trace.ciphertext,
+                            key = ref_trace.key)
+    for idx, trace in enumerate(in_traces):
+        cw_project.append_trace(wave = trace,
+                                plaintext = in_ptx[idx],
+                                ciphertext = in_ctx[idx],
+                                key = in_k[idx])
+
+    # Align traces using CW functionality.
+    resync_traces = cw.analyzer.preprocessing.ResyncSAD(cw_project.project)
+    resync_traces.ref_trace = 0
+    resync_traces.target_window = (args.low_window, args.high_window)
+    resync_traces.max_shift = args.max_shift
+    # Append traces to array.
+    traces = []
+    for i in range(resync_traces.num_traces()):
+        if resync_traces.get_trace(i) is None:
+            continue
+        # Write traces back to output project.
+        # Do not include reference trace that we generated before.
+        if (resync_traces.get_textin(i) is not ref_trace.plaintext and
+                resync_traces.get_textout(i) is not ref_trace.ciphertext and
+                resync_traces.get_known_key(i) is not ref_trace.key):
+            trace = Trace(wave = resync_traces.get_trace(i).astype(np.uint16),
+                          plaintext = resync_traces.get_textin(i),
+                          ciphertext = resync_traces.get_textout(i),
+                          key = resync_traces.get_known_key(i))
+            traces.append(trace)
+    cw_project.close(save=False)
+    in_traces = []
+    in_ptx = []
+    in_ctx = []
+    in_k = []
+    return traces
+
+
 def align_traces(args: dict, project_in: SCAProject, project_out: SCAProject):
     """ Align traces.
 
     This function aligns all traces using a window (defined with the
     low_window and high_window command line argument) with the "Sum of
     Absolute Difference (SAD)" algorithm provided in the ChipWhisperer ResyncSAD
-    function.
+    function. A reference trace is used that consists of the mean of
+    num_traces_mean traces.
     Args:
         args: The command line arguments.
         project_in: The project provided.
@@ -212,54 +300,51 @@ def align_traces(args: dict, project_in: SCAProject, project_out: SCAProject):
     if args.align_enable:
         metadata = project_in.get_metadata()
         logger.info(f"Start aligning {metadata['num_traces']} traces...")
-        # Store the reference trace and the corresponding crypto material.
-        ref_trace = project_in.get_waves(args.ref_trace)
-        ref_ptx = project_in.get_plaintexts(args.ref_trace)
-        ref_ctx = project_in.get_ciphertexts(args.ref_trace)
-        rf_k = project_in.get_keys(args.ref_trace)
+
+        # Calculate the mean of num_traces_mean traces and use as reference
+        # trace for the aligning.
+        traces_mean = project_in.get_waves(1, args.num_traces_mean)
+        traces_new = np.empty((len(traces_mean), len(traces_mean[0])), dtype=np.uint16)
+        for i_trace in range(len(traces_mean)):
+            traces_new[i_trace] = traces_mean[i_trace]
+        ref_mean_wave = traces_new.mean(axis=0).astype(np.uint16)
+        ref_ptx = np.zeros(len(project_in.get_plaintexts(0)), dtype=np.uint16)
+        ref_ctx = np.zeros(len(project_in.get_ciphertexts(0)), dtype=np.uint16)
+        ref_k = np.zeros(len(project_in.get_keys(0)), dtype=np.uint16)
+        ref_trace = Trace(wave = ref_mean_wave, plaintext = ref_ptx,
+                          ciphertext = ref_ctx, key = ref_k)
+        # Iterate over the traces, keep max. max_traces_mem in memory.
         num_traces_aligned = 0
         trace_end = 0
-        max_traces_mem = args.max_traces_mem
+        max_traces_mem_core = args.max_traces_mem
         if metadata["num_traces"] < args.max_traces_mem:
-            max_traces_mem = metadata["num_traces"]
-        # Iterate over the traces, keep max. max_traces_mem in memory.
-        for trace_it in range(0, metadata["num_traces"], max_traces_mem):
-            trace_end += max_traces_mem
-            # Convert SCAProject into ChipWhisperer project.
-            cw_project = cw.common.api.ProjectFormat.Project()
+            max_traces_mem_core = int(metadata["num_traces"] / args.num_cores)
+        max_traces_mem_total = max_traces_mem_core * args.num_cores
+        for trace_it in tqdm(range(0, metadata["num_traces"], max_traces_mem_total),
+                             desc="Aligning", ncols=80,
+                             unit=str(max_traces_mem_total) + " traces"):
+            # Get current trace set.
+            trace_end = trace_it + max_traces_mem_total
             in_traces = project_in.get_waves(trace_it, trace_end)
             in_ptx = project_in.get_plaintexts(trace_it, trace_end)
             in_ctx = project_in.get_ciphertexts(trace_it, trace_end)
             in_k = project_in.get_keys(trace_it, trace_end)
-            cw_project.traces.append(cw.Trace(ref_trace, ref_ptx, ref_ctx, rf_k), dtype = np.uint16)
-            for idx, trace in enumerate(in_traces):
-                cw_project.traces.append(cw.Trace(trace,
-                                                  in_ptx[idx],
-                                                  in_ctx[idx], in_k[idx]),
-                                         dtype = np.uint16)
-            # Align traces using CW functionality.
-            resync_traces = cw.analyzer.preprocessing.ResyncSAD(cw_project)
-            resync_traces.ref_trace = 0
-            resync_traces.target_window = (args.low_window, args.high_window)
-            resync_traces.max_shift = args.max_shift
-            aligned_traces = cw.common.api.ProjectFormat.Project()
-            for i in range(resync_traces.num_traces()):
-                if resync_traces.get_trace(i) is None:
-                    continue
-                aligned_traces.traces.append(cw.Trace(resync_traces.get_trace(i),
-                                                      resync_traces.get_textin(i),
-                                                      resync_traces.get_textout(i),
-                                                      resync_traces.get_known_key(i)),
-                                             dtype=np.uint16)
-            # Write traces back to output project.
-            for trace in aligned_traces.traces:
-                project_out.append_trace(wave = trace.wave,
-                                         plaintext = trace.textin,
-                                         ciphertext = trace.textout,
-                                         key = trace.key)
-                num_traces_aligned += 1
-            cw_project.close()
-            aligned_traces.close()
+            # Distribute trace aligning to multiple processes.
+            aligned_traces_total = Parallel(n_jobs=args.num_cores)(delayed(
+                align_traces_process)(args, in_traces[i:i + max_traces_mem_core],
+                                      in_ptx[i:i + max_traces_mem_core],
+                                      in_ctx[i:i + max_traces_mem_core],
+                                      in_k[i:i + max_traces_mem_core],
+                                      ref_trace, str(trace_it + i))
+                for i in range(0, trace_end, max_traces_mem_core))
+            # Store aligned traces in output project.
+            for align_traces in aligned_traces_total:
+                for aligned_trace in align_traces:
+                    project_out.append_trace(wave = aligned_trace.wave,
+                                             plaintext = aligned_trace.plaintext,
+                                             ciphertext = aligned_trace.ciphertext,
+                                             key = aligned_trace.key)
+                    num_traces_aligned += 1
             project_out.save()
             # Free memory.
             in_traces = None
@@ -269,7 +354,7 @@ def align_traces(args: dict, project_in: SCAProject, project_out: SCAProject):
         metadata["num_traces"] = num_traces_aligned
         project_out.write_metadata(metadata)
         logger.info(f"Aligned {num_traces_aligned} traces")
-        print_traces(args, project_out, "traces_aligned")
+        print_traces(args, project_out, "traces_aligned", ref_mean_wave)
 
 
 def main(argv=None):

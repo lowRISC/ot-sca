@@ -17,15 +17,31 @@ class OTAES:
         self.simple_serial = True
         if protocol == "ujson":
             self.simple_serial = False
-            # Init the AES core.
-            self.target.write(json.dumps("AesSca").encode("ascii"))
-            self.target.write(json.dumps("Init").encode("ascii"))
 
     def _ujson_aes_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
         # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.target.write(json.dumps("AesSca").encode("ascii"))
+
+    def init(self, fpga_mode_bit: int):
+        """ Initializes AES on the target.
+        Args:
+            fpga_mode_bit: Indicates whether FPGA specific AES test is started.
+        Returns:
+            The device ID of the device.
+        """
+        if not self.simple_serial:
+            # AesSca command.
+            self._ujson_aes_sca_cmd()
+            # Init the AES core.
+            self.target.write(json.dumps("Init").encode("ascii"))
+            # FPGA mode.
+            time.sleep(0.01)
+            fpga_mode = {"fpga_mode": fpga_mode_bit}
+            self.target.write(json.dumps(fpga_mode).encode("ascii"))
+            # Read back device ID from device.
+            return self.read_response(max_tries=30)
 
     def key_set(self, key: list[int], key_length: Optional[int] = 16):
         """ Write key to AES.
@@ -245,3 +261,19 @@ class OTAES:
                         return ciphertext[0:len_bytes]
                     except Exception:
                         pass  # noqa: E302
+
+    def read_response(self, max_tries: Optional[int] = 1) -> str:
+        """ Read response from AES SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""

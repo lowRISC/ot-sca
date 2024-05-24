@@ -35,9 +35,9 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  # which_test: "crypto_fi_aes_key"
-  # which_test: "crypto_fi_aes_plaintext"
-  which_test: "crypto_fi_aes_encrypt"
+  # which_test: "crypto_aes_key"
+  # which_test: "crypto_aes_plaintext"
+  which_test: "crypto_aes_encrypt"
   # which_test: "crypto_fi_aes_ciphertext"
   expected_result: '{"ciphertext":[141,145,88,155,234,129,16,92,221,12,69,21,69,208,99,12],"alerts":0,"err_status":0}'
   # Set to true if the test should ignore alerts returned by the test. As the

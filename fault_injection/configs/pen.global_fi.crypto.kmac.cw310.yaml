@@ -35,9 +35,9 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  # which_test: "crypto_fi_kmac_key"
-  which_test: "crypto_fi_kmac_absorb"
-  # which_test: "crypto_fi_kmac_squeeze"
+  # which_test: "crypto_kmac_key"
+  which_test: "crypto_kmac_absorb"
+  # which_test: "crypto_kmac_squeeze"
   expected_result: '{"ciphertext":[184,34,91,108,231,47,251,27],"alerts":0,"err_status":0}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not

@@ -180,6 +180,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharUncondBranch").encode("ascii"))
 
+    def ibex_char_unconditional_branch_nop(self) -> None:
+        """ Starts the ibex.char.unconditional_branch_nop test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharUncondBranchNop command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharUncondBranchNop").encode("ascii"))
+
     def ibex_char_register_file(self) -> None:
         """ Starts the ibex.char.register_file test.
         """

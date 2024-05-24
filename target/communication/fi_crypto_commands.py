@@ -99,7 +99,7 @@ class OTFICrypto:
         # Mode payload.
         time.sleep(0.01)
         mode = {"key_trigger": True, "absorb_trigger": False,
-                "squeeze_trigger": False}
+                "static_trigger": False, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_absorb(self) -> None:
@@ -113,7 +113,7 @@ class OTFICrypto:
         # Mode payload.
         time.sleep(0.01)
         mode = {"key_trigger": False, "absorb_trigger": True,
-                "squeeze_trigger": False}
+                "static_trigger": False, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_squeeze(self) -> None:
@@ -127,7 +127,21 @@ class OTFICrypto:
         # Mode payload.
         time.sleep(0.01)
         mode = {"key_trigger": False, "absorb_trigger": False,
-                "squeeze_trigger": True}
+                "static_trigger": False, "squeeze_trigger": True}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
+    def crypto_kmac_static(self) -> None:
+        """ Starts the crypto.fi.kmac_static test.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Kmac command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Kmac").encode("ascii"))
+        # Mode payload.
+        time.sleep(0.01)
+        mode = {"key_trigger": False, "absorb_trigger": False,
+                "static_trigger": True, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def start_test(self, cfg: dict) -> None:

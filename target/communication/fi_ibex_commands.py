@@ -209,8 +209,6 @@ class OTFIIbex:
 
     def init(self) -> list:
         """ Initialize the Ibex FI code on the chip.
-        Args:
-            cfg: Config dict containing the selected test.
         Returns:
             The device ID of the device.
         """

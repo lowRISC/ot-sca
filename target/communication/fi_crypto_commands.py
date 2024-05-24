@@ -21,12 +21,16 @@ class OTFICrypto:
 
     def init(self) -> None:
         """ Initialize the Crypto FI code on the chip.
+        Returns:
+            The device ID of the device.
         """
         # CryptoFi command.
         self._ujson_crypto_fi_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Read back device ID from device.
+        return self.read_response(max_tries=30)
 
     def crypto_fi_aes_key(self) -> None:
         """ Starts the crypto.fi.aes_key test.

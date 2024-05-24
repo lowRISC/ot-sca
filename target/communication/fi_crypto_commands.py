@@ -14,7 +14,7 @@ class OTFICrypto:
     def __init__(self, target) -> None:
         self.target = target
 
-    def _ujson_crypto_fi_cmd(self) -> None:
+    def _ujson_crypto_cmd(self) -> None:
         time.sleep(0.01)
         self.target.write(json.dumps("CryptoFi").encode("ascii"))
         time.sleep(0.01)
@@ -25,18 +25,18 @@ class OTFICrypto:
             The device ID of the device.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
         # Read back device ID from device.
         return self.read_response(max_tries=30)
 
-    def crypto_fi_aes_key(self) -> None:
+    def crypto_aes_key(self) -> None:
         """ Starts the crypto.fi.aes_key test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -46,11 +46,11 @@ class OTFICrypto:
                 "encrypt_trigger": False, "ciphertext_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_aes_plaintext(self) -> None:
+    def crypto_aes_plaintext(self) -> None:
         """ Starts the crypto.fi.aes_plaintext test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -60,11 +60,11 @@ class OTFICrypto:
                 "encrypt_trigger": False, "ciphertext_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_aes_encrypt(self) -> None:
+    def crypto_aes_encrypt(self) -> None:
         """ Starts the crypto.fi.aes_encrypt test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -74,11 +74,11 @@ class OTFICrypto:
                 "encrypt_trigger": True, "ciphertext_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_aes_ciphertext(self) -> None:
+    def crypto_aes_ciphertext(self) -> None:
         """ Starts the crypto.fi.aes_ciphertext test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -88,11 +88,11 @@ class OTFICrypto:
                 "encrypt_trigger": False, "ciphertext_trigger": True}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_kmac_key(self) -> None:
+    def crypto_kmac_key(self) -> None:
         """ Starts the crypto.fi.kmac_key test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -102,11 +102,11 @@ class OTFICrypto:
                 "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_kmac_absorb(self) -> None:
+    def crypto_kmac_absorb(self) -> None:
         """ Starts the crypto.fi.kmac_absorb test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -116,11 +116,11 @@ class OTFICrypto:
                 "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_fi_kmac_squeeze(self) -> None:
+    def crypto_kmac_squeeze(self) -> None:
         """ Starts the crypto.fi.kmac_squeeze test.
         """
         # CryptoFi command.
-        self._ujson_crypto_fi_cmd()
+        self._ujson_crypto_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))

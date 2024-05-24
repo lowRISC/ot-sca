@@ -1,0 +1,44 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: False
+  fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
+  output_len_bytes: 16
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+  protocol: "ujson"
+  port: "/dev/ttyACM4"
+fisetup:
+  fi_gear: "husky"
+  fi_type: "voltage_glitch"
+  parameter_generation: "random"
+  # Voltage glitch width in cycles.
+  glitch_width_min: 5
+  glitch_width_max: 150
+  glitch_width_step: 3
+  # Range for trigger delay in cycles.
+  trigger_delay_min: 0
+  trigger_delay_max: 500
+  trigger_step: 10
+  # Number of iterations for the parameter sweep.
+  num_iterations: 100
+fiproject:
+  # Project database type and memory threshold.
+  project_db: "ot_fi_project"
+  project_mem_threshold: 10000
+  # Store FI plot.
+  show_plot: True
+  num_plots: 10
+  plot_x_axis: "trigger_delay"
+  plot_x_axis_legend: "[cycles]"
+  plot_y_axis: "glitch_width"
+  plot_y_axis_legend: "[cycles]"
+test:
+  which_test: "ibex_char_unconditional_branch_nop"
+  expected_result: '{"result":0,"err_status":0,"alerts":0}'
+  # Set to true if the test should ignore alerts returned by the test. As the
+  # alert handler on the device could sometime fire alerts that are not
+  # related to the FI, ignoring is by default set to true. A manual analysis
+  # still can be performed as the alerts are stored in the database.
+  ignore_alerts: True

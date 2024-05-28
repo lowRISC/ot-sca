@@ -32,6 +32,15 @@ class OTFICrypto:
         # Read back device ID from device.
         return self.read_response(max_tries=30)
 
+    def crypto_shadow_reg_access(self) -> None:
+        """ Starts the crypto.fi.shadow_reg_access test.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # ShadowRegAccess command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
+
     def crypto_aes_key(self) -> None:
         """ Starts the crypto.fi.aes_key test.
         """

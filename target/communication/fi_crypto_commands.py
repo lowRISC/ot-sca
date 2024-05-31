@@ -10,33 +10,18 @@ import time
 from typing import Optional
 
 
-class OTFICrypto:
+from target.communication.otfi import OTFI
+
+
+class OTFICrypto(OTFI):
     def __init__(self, target) -> None:
-        self.target = target
-
-    def _ujson_crypto_cmd(self) -> None:
-        time.sleep(0.01)
-        self.target.write(json.dumps("CryptoFi").encode("ascii"))
-        time.sleep(0.01)
-
-    def init(self) -> None:
-        """ Initialize the Crypto FI code on the chip.
-        Returns:
-            The device ID of the device.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Init command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Init").encode("ascii"))
-        # Read back device ID from device.
-        return self.read_response(max_tries=30)
+        super().__init__(target, "Crypto")
 
     def crypto_shadow_reg_access(self) -> None:
         """ Starts the crypto.fi.shadow_reg_access test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # ShadowRegAccess command.
         time.sleep(0.01)
         self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
@@ -45,7 +30,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.aes_key test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -59,7 +44,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.aes_plaintext test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -73,7 +58,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.aes_encrypt test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -87,7 +72,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.aes_ciphertext test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
@@ -101,7 +86,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.kmac_key test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -115,7 +100,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.kmac_absorb test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -129,7 +114,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.kmac_squeeze test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -143,7 +128,7 @@ class OTFICrypto:
         """ Starts the crypto.fi.kmac_static test.
         """
         # CryptoFi command.
-        self._ujson_crypto_cmd()
+        self._ujson_fi_cmd()
         # Kmac command.
         time.sleep(0.01)
         self.target.write(json.dumps("Kmac").encode("ascii"))
@@ -152,31 +137,3 @@ class OTFICrypto:
         mode = {"key_trigger": False, "absorb_trigger": False,
                 "static_trigger": True, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
-
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
-
-        Call the function selected in the config file. Uses the getattr()
-        construct to call the function.
-
-        Args:
-            cfg: Config dict containing the selected test.
-        """
-        test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
-        """ Read response from Crypto FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""

@@ -10,19 +10,18 @@ import time
 from typing import Optional
 
 
-class OTFIIbex:
-    def __init__(self, target) -> None:
-        self.target = target
+from target.communication.otfi import OTFI
 
-    def _ujson_ibex_fi_cmd(self) -> None:
-        time.sleep(0.01)
-        self.target.write(json.dumps("IbexFi").encode("ascii"))
+
+class OTFIIbex(OTFI):
+    def __init__(self, target) -> None:
+        super().__init__(target, "Ibex")
 
     def ibex_char_unrolled_reg_op_loop(self) -> None:
         """ Starts the ibex.char.unrolled_reg_op_loop test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharUnrolledRegOpLoop command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharUnrolledRegOpLoop").encode("ascii"))
@@ -31,7 +30,7 @@ class OTFIIbex:
         """ Starts the ibex.char.unrolled_mem_op_loop test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharUnrolledMemOpLoop command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharUnrolledMemOpLoop").encode("ascii"))
@@ -40,7 +39,7 @@ class OTFIIbex:
         """ Starts the ibex.char.reg_op_loop test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharRegOpLoop command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegOpLoop").encode("ascii"))
@@ -49,7 +48,7 @@ class OTFIIbex:
         """ Starts the ibex.char.mem_op_loop test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharMemOpLoop command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharMemOpLoop").encode("ascii"))
@@ -58,7 +57,7 @@ class OTFIIbex:
         """ Starts the ibex.char.flash_read test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharFlashRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharFlashRead").encode("ascii"))
@@ -67,7 +66,7 @@ class OTFIIbex:
         """ Starts the ibex.char.flash_write test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharFlashWrite command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharFlashWrite").encode("ascii"))
@@ -76,7 +75,7 @@ class OTFIIbex:
         """ Starts the ibex.char.sram_read test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharSramRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramRead").encode("ascii"))
@@ -85,7 +84,7 @@ class OTFIIbex:
         """ Starts the ibex.char.sram_write_static_unrolled test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharSramWriteStaticUnrolled command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramWriteStaticUnrolled").encode("ascii"))
@@ -94,7 +93,7 @@ class OTFIIbex:
         """ Starts the ibex.char.sram_write_read test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharSramWriteRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramWriteRead").encode("ascii"))
@@ -103,7 +102,7 @@ class OTFIIbex:
         """ Starts the ibex.char.sram_write test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharSramWrite command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramWrite").encode("ascii"))
@@ -112,7 +111,7 @@ class OTFIIbex:
         """ Starts the ibex.char.sram_static test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharSramWrite command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramStatic").encode("ascii"))
@@ -121,7 +120,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_beq test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBeq command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBeq").encode("ascii"))
@@ -130,7 +129,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_bne test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBne command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBne").encode("ascii"))
@@ -139,7 +138,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_bge test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBge command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBge").encode("ascii"))
@@ -148,7 +147,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_bgeu test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBgeu command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBgeu").encode("ascii"))
@@ -157,7 +156,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_blt test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBglt command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBlt").encode("ascii"))
@@ -166,7 +165,7 @@ class OTFIIbex:
         """ Starts the ibex.char.conditional_branch_bltu test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCondBranchBgltu command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBltu").encode("ascii"))
@@ -175,7 +174,7 @@ class OTFIIbex:
         """ Starts the ibex.char.unconditional_branch test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharUncondBranch command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharUncondBranch").encode("ascii"))
@@ -184,7 +183,7 @@ class OTFIIbex:
         """ Starts the ibex.char.unconditional_branch_nop test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharUncondBranchNop command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharUncondBranchNop").encode("ascii"))
@@ -193,7 +192,7 @@ class OTFIIbex:
         """ Starts the ibex.char.register_file test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharRegisterFile command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegisterFile").encode("ascii"))
@@ -202,41 +201,16 @@ class OTFIIbex:
         """ Starts the ibex.char.register_file_read test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharRegisterFileRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegisterFileRead").encode("ascii"))
-
-    def init(self) -> list:
-        """ Initialize the Ibex FI code on the chip.
-        Returns:
-            The device ID of the device.
-        """
-        # IbexFi command.
-        self._ujson_ibex_fi_cmd()
-        # InitTrigger command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Init").encode("ascii"))
-        # Read back device ID from device.
-        return self.read_response(max_tries=30)
-
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
-
-        Call the function selected in the config file. Uses the getattr()
-        construct to call the function.
-
-        Args:
-            cfg: Config dict containing the selected test.
-        """
-        test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()
 
     def ibex_char_csr_write(self) -> None:
         """ Starts the ibex.fi.char.csr_write test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCsrWrite command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCsrWrite").encode("ascii"))
@@ -245,7 +219,7 @@ class OTFIIbex:
         """ Starts the ibex.fi.char.csr_read test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # CharCsrRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCsrRead").encode("ascii"))
@@ -254,7 +228,7 @@ class OTFIIbex:
         """ Starts the ibex.fi.address_translation_config test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # AddressTranslationCfg command.
         time.sleep(0.01)
         self.target.write(json.dumps("AddressTranslationCfg").encode("ascii"))
@@ -263,23 +237,7 @@ class OTFIIbex:
         """ Starts the ibex.fi.address_translation test.
         """
         # IbexFi command.
-        self._ujson_ibex_fi_cmd()
+        self._ujson_fi_cmd()
         # AddressTranslation command.
         time.sleep(0.01)
         self.target.write(json.dumps("AddressTranslation").encode("ascii"))
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
-        """ Read response from Ibex FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""

@@ -5,135 +5,48 @@
 
 Communication with OpenTitan happens over the uJSON command interface.
 """
+import copy
 import json
 import time
 from typing import Optional
 
 
 from target.communication.otfi import OTFI
+from target.communication.otfi_test import OTFITest
+
+
+MODES = {
+    "aes": {
+        "key_trigger": False, "plaintext_trigger": False,
+        "encrypt_trigger": False, "ciphertext_trigger": False
+    },
+    "kmac": {
+        "key_trigger": False, "absorb_trigger": False,
+        "static_trigger": False, "squeeze_trigger": False
+    },
+}
+
+
+def _get_mode(ip, mode_id):
+    assert ip in MODES, f"IP {ip} not in MODES ({MODES})"
+    mode = copy.deepcopy(MODES[ip])
+    assert mode_id in mode, f"Mode id {mode_id} not in {ip} mode ({mode})"
+    mode[mode_id] = True
+    return mode
 
 
 class OTFICrypto(OTFI):
+    TESTS = [
+        OTFITest("shadow_reg_access"),
+        OTFITest("aes_key", "Aes", _get_mode("aes", "key_trigger")),
+        OTFITest("aes_plaintext", "Aes", _get_mode("aes", "plaintext_trigger")),
+        OTFITest("aes_encrypt", "Aes", _get_mode("aes", "encrypt_trigger")),
+        OTFITest("aes_ciphertext", "Aes", _get_mode("aes", "ciphertext_trigger")),
+        OTFITest("kmac_key", "Kmac", _get_mode("kmac", "key_trigger")),
+        OTFITest("kmac_absorb", "Kmac", _get_mode("kmac", "absorb_trigger")),
+        OTFITest("kmac_static", "Kmac", _get_mode("kmac", "static_trigger")),
+        OTFITest("kmac_squeeze", "Kmac", _get_mode("kmac", "squeeze_trigger")),
+    ]
+
     def __init__(self, target) -> None:
         super().__init__(target, "Crypto")
-
-    def crypto_shadow_reg_access(self) -> None:
-        """ Starts the crypto.fi.shadow_reg_access test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # ShadowRegAccess command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
-
-    def crypto_aes_key(self) -> None:
-        """ Starts the crypto.fi.aes_key test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Aes command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Aes").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": True, "plaintext_trigger": False,
-                "encrypt_trigger": False, "ciphertext_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_aes_plaintext(self) -> None:
-        """ Starts the crypto.fi.aes_plaintext test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Aes command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Aes").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": True,
-                "encrypt_trigger": False, "ciphertext_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_aes_encrypt(self) -> None:
-        """ Starts the crypto.fi.aes_encrypt test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Aes command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Aes").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": False,
-                "encrypt_trigger": True, "ciphertext_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_aes_ciphertext(self) -> None:
-        """ Starts the crypto.fi.aes_ciphertext test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Aes command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Aes").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": False,
-                "encrypt_trigger": False, "ciphertext_trigger": True}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_kmac_key(self) -> None:
-        """ Starts the crypto.fi.kmac_key test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Kmac command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Kmac").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": True, "absorb_trigger": False,
-                "static_trigger": False, "squeeze_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_kmac_absorb(self) -> None:
-        """ Starts the crypto.fi.kmac_absorb test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Kmac command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Kmac").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": True,
-                "static_trigger": False, "squeeze_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_kmac_squeeze(self) -> None:
-        """ Starts the crypto.fi.kmac_squeeze test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Kmac command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Kmac").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": False,
-                "static_trigger": False, "squeeze_trigger": True}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_kmac_static(self) -> None:
-        """ Starts the crypto.fi.kmac_static test.
-        """
-        # CryptoFi command.
-        self._ujson_fi_cmd()
-        # Kmac command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Kmac").encode("ascii"))
-        # Mode payload.
-        time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": False,
-                "static_trigger": True, "squeeze_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))

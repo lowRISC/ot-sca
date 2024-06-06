@@ -101,10 +101,10 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
     Returns:
         device_id: The ID of the target device.
     """
-    # Setup key manager if needed by test.
-    ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Configure the OTBN FI code on the target.
     device_id = ot_communication.init()
+    # Setup key manager if needed by test.
+    ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Store results in array for a quick access.
     fi_results = []
     # Start the parameter sweep.
@@ -132,10 +132,10 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 ot_communication = target.reset_target(com_reset = True)
                 # Re-establish UART connection.
                 ot_communication = OTFIOtbn(target)
-                # Setup key manager if needed by test.
-                ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Configure the OTBN FI code on the target.
                 ot_communication.init()
+                # Setup key manager if needed by test.
+                ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Reset FIGear if necessary.
                 fi_gear.reset()
             else:

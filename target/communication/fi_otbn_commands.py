@@ -84,13 +84,7 @@ class OTFIOtbn:
             # InitTrigger command.
             time.sleep(0.01)
             self.target.write(json.dumps("InitKeyMgr").encode("ascii"))
-            # As the init resets the chip, we need to call it again to complete
-            # the initialization of the key manager.
-            time.sleep(2)
-            self._ujson_otbn_fi_cmd()
-            time.sleep(0.01)
-            self.target.write(json.dumps("InitKeyMgr").encode("ascii"))
-            time.sleep(2)
+            time.sleep(0.5)
 
     def init(self) -> None:
         """ Initialize the OTBN FI code on the chip.

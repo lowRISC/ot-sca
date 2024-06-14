@@ -21,7 +21,7 @@ from scopes.scope import (Scope, ScopeConfig, convert_num_cycles,
 from tqdm import tqdm
 
 import util.helpers as helpers
-from target.communication.sca_otbn_commands import OTOTBNVERT
+from target.communication.sca_otbn_commands import OTOTBN
 from target.communication.sca_trigger_commands import OTTRIGGER
 from target.targets import Target, TargetConfig
 from util import check_version
@@ -197,7 +197,7 @@ def establish_communication(target, capture_cfg: CaptureConfig):
         ot_trig: The communication interface to the SCA trigger.
     """
     # Create communication interface to OTBN.
-    ot_otbn_vert = OTOTBNVERT(target=target, protocol=capture_cfg.protocol)
+    ot_otbn_vert = OTOTBN(target=target, protocol=capture_cfg.protocol)
 
     # Create communication interface to SCA trigger.
     ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
@@ -206,7 +206,7 @@ def establish_communication(target, capture_cfg: CaptureConfig):
 
 
 def configure_cipher(cfg: dict, target, capture_cfg: CaptureConfig,
-                     ot_otbn_vert) -> OTOTBNVERT:
+                     ot_otbn_vert) -> OTOTBN:
     """ Configure the OTBN app.
 
     Establish communication with the OTBN keygen app and configure the seed.
@@ -458,7 +458,7 @@ def generate_ref_crypto_modinv(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
     return k_used, input_k0_used, input_k1_used, expected_output, sample_fixed
 
 
-def check_ciphertext_keygen(ot_otbn_vert: OTOTBNVERT, expected_key,
+def check_ciphertext_keygen(ot_otbn_vert: OTOTBN, expected_key,
                             curve_cfg: CurveConfig):
     """ Compares the received with the generated key.
 
@@ -495,7 +495,7 @@ def check_ciphertext_keygen(ot_otbn_vert: OTOTBNVERT, expected_key,
     return share0, share1
 
 
-def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
+def check_ciphertext_modinv(ot_otbn_vert: OTOTBN, expected_output,
                             curve_cfg: CurveConfig):
     """ Compares the received modular inverse output with the generated output.
 
@@ -527,7 +527,7 @@ def check_ciphertext_modinv(ot_otbn_vert: OTOTBNVERT, expected_output,
     return actual_output
 
 
-def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
+def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBN,
                    capture_cfg: CaptureConfig, curve_cfg: CurveConfig,
                    project: SCAProject, target: Target):
     """ Capture power consumption during selected OTBN operation.
@@ -605,7 +605,7 @@ def capture_keygen(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
             pbar.update(capture_cfg.num_segments)
 
 
-def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBNVERT,
+def capture_modinv(cfg: dict, scope: Scope, ot_otbn_vert: OTOTBN,
                    capture_cfg: CaptureConfig, curve_cfg: CurveConfig,
                    project: SCAProject, target: Target):
     """ Capture power consumption during selected OTBN operation.

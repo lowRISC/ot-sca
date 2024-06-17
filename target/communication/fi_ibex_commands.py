@@ -268,6 +268,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("AddressTranslation").encode("ascii"))
 
+    def ibex_char_hardened_check_eq_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck").encode("ascii"))
+
     def read_response(self, max_tries: Optional[int] = 1) -> str:
         """ Read response from Ibex FI framework.
         Args:

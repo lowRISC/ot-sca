@@ -268,14 +268,32 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("AddressTranslation").encode("ascii"))
 
-    def ibex_char_hardened_check_eq_unimps(self) -> None:
-        """ Starts the ibex.fi.char.hardened_check_eq_unimps test.
+    def ibex_char_hardened_check_eq_unimp(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_unimp test.
         """
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharHardenedCheck command.
+        # CharHardenedCheckUnimp command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharHardenedCheck").encode("ascii"))
+        self.target.write(json.dumps("CharHardenedCheckUnimp").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_2_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_2_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck2Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck2Unimps").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_3_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_3_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck3Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck3Unimps").encode("ascii"))
 
     def read_response(self, max_tries: Optional[int] = 1) -> str:
         """ Read response from Ibex FI framework.

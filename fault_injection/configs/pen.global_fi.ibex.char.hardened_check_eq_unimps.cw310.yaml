@@ -34,7 +34,9 @@ fiproject:
   plot_y_axis: "glitch_width"
   plot_y_axis_legend: "[cycles]"
 test:
-  which_test: "ibex_char_hardened_check_eq_unimps"
+  which_test: "ibex_char_hardened_check_eq_unimp"
+  # which_test: "ibex_char_hardened_check_eq_2_unimps"
+  # which_test: "ibex_char_hardened_check_eq_3_unimps"
   # For this test, the expected result is actually a crash of the system. On
   # a successful FI attack, this could be one result:
   expected_result: '{"result1":0,"result2":1,"err_status":0,"alerts":0}'

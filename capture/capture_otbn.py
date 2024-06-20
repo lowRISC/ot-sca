@@ -139,18 +139,21 @@ def setup(cfg: dict, project: Path):
 
     # Create scope config & setup scope.
     scope_cfg = ScopeConfig(
-        scope_type=scope_type,
+        scope_type = scope_type,
         batch_mode = batch,
         bit = cfg[scope_type].get("bit"),
-        acqu_channel=cfg[scope_type].get("channel"),
-        ip=cfg[scope_type].get("waverunner_ip"),
-        num_samples=cfg[scope_type]["num_samples"],
-        offset_samples=cfg[scope_type]["offset_samples"],
-        sampling_rate=cfg[scope_type].get("sampling_rate"),
-        num_segments=cfg[scope_type]["num_segments"],
-        sparsing=cfg[scope_type].get("sparsing"),
-        scope_gain=cfg[scope_type].get("scope_gain"),
-        pll_frequency=cfg["target"]["pll_frequency"],
+        acqu_channel = cfg[scope_type].get("channel"),
+        ip = cfg[scope_type].get("waverunner_ip"),
+        num_samples = cfg[scope_type]["num_samples"],
+        offset_samples = cfg[scope_type]["offset_samples"],
+        sampling_rate = cfg[scope_type].get("sampling_rate"),
+        num_segments = cfg[scope_type].get("num_segments"),
+        sparsing = cfg[scope_type].get("sparsing"),
+        scope_gain = cfg[scope_type].get("scope_gain"),
+        pll_frequency = cfg["target"]["pll_frequency"],
+        channel_configs = cfg[scope_type].get("channel_configs"),
+        trigger_config = cfg[scope_type].get("trigger_config"),
+        timebase_config = cfg[scope_type].get("timebase_config")
     )
     scope = Scope(scope_cfg)
 

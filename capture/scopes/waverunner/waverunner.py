@@ -5,9 +5,38 @@
 """Support for capturing traces using LeCroy WaveRunner 9104."""
 
 import re
+from dataclasses import dataclass
 
 import numpy as np
 import vxi11
+
+
+@dataclass
+class Channel:
+    """ Scope configuration for a channel.
+    """
+    name: str
+    trace_enable: str
+    vdiv: str
+    offset: str
+
+
+@dataclass
+class Timebase:
+    """ Timebase configuration.
+    """
+    tdiv: str
+    delay: str
+
+
+@dataclass
+class Trigger:
+    """ Trigger configuration.
+    """
+    channel: str
+    edge: str
+    coupling: str
+    level: str
 
 
 class _Timeout:
@@ -384,6 +413,50 @@ class WaveRunner:
             # Truncate, but means scope returns more samples than expected!
             waves = waves[:, 0:self.num_samples]
         return waves
+
+    def configure_channel(self, channel: Channel):
+        """Configures a channel on the scope.
+        """
+        commands = [
+            # Enable / disable visualization of trace. Disabling increases the
+            # capture rate.
+            f"{channel.name}:TRA {channel.trace_enable}",
+            # Time / division.
+            f"TDIV {channel.tdiv}",
+            # Trigger delay.
+            f"TRDL {channel.delay}",
+            # Volts / division.
+            f"{channel.name}:VDIV {channel.vdiv}",
+            # DC offset.
+            f"{channel.name}:OFST {channel.offset}",
+        ]
+        self._write(";".join(commands))
+
+    def configure_timebase(self, timebase: Timebase):
+        """Configures the timebase of the scope.
+        """
+        commands = [
+            # Time / division.
+            f"TDIV {timebase.tdiv}",
+            # Trigger delay.
+            f"TRDL {timebase.delay}",
+        ]
+        self._write(";".join(commands))
+
+    def configure_trigger(self, trigger: Trigger):
+        """Configures the trigger on the scope.
+        """
+        commands = [
+            # Select trigger: edge, channel 2, no hold-off.
+            "TRSE EDGE,SR,C2,HT,OFF",
+            # Rising edge.
+            f"{trigger.channel}:TRSL {trigger.edge}",
+            # DC coupling.
+            f"{trigger.channel}:TRCP {trigger.coupling}",
+            # Trigger level.
+            f"{trigger.channel}:TRLV {trigger.level}",
+        ]
+        self._write(";".join(commands))
 
     def capture_and_transfer_waves(self):
         """Waits until the acqu is complete and transfers waveforms.

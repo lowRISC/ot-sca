@@ -1,6 +1,6 @@
 target:
   target_type: cw310
-  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_a1.bit"
   force_program_bitstream: True
   fw_bin: "../objs/otbn_vertical_serial_fpga_cw310.bin"
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.

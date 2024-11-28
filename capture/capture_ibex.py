@@ -285,13 +285,13 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
                 data_bytes = []
                 for d in data:
                     data_bytes.append(d.to_bytes(4, "little"))
-                    # Sanity check retrieved data (wave).
-                    assert len(waves[0, :]) >= 1
-                    # Store trace into database.
-                    project.append_trace(wave = waves[0, :],
-                                         plaintext = b''.join(data_bytes),
-                                         ciphertext = None,
-                                         key = None)
+                # Sanity check retrieved data (wave).
+                assert len(waves[0, :]) >= 1
+                # Store trace into database.
+                project.append_trace(wave = waves[0, :],
+                                     plaintext = b''.join(data_bytes),
+                                     ciphertext = None,
+                                     key = None)
 
             # Memory allocation optimization for CW trace library.
             num_segments_storage = project.optimize_capture(num_segments_storage)

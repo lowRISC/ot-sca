@@ -18,6 +18,69 @@ class OTFIOtbn:
         time.sleep(0.01)
         self.target.write(json.dumps("OtbnFi").encode("ascii"))
 
+    def otbn_char_dmem_access(self) -> None:
+        """ Starts the otbn.fi.char.dmem.access test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharDmemAccess command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharDmemAccess").encode("ascii"))
+
+    def otbn_char_dmem_write(self) -> None:
+        """ Starts the otbn.fi.char.dmem.write test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharDmemWrite command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharDmemWrite").encode("ascii"))
+
+    def otbn_char_rf(self) -> None:
+        """ Starts the otbn.fi.char.rf test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharRF command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharRF").encode("ascii"))
+
+    def otbn_char_beq(self) -> None:
+        """ Starts the otbn.fi.char.beq test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharBeq command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharBeq").encode("ascii"))
+
+    def otbn_char_jal(self) -> None:
+        """ Starts the otbn.fi.char.jal test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharJal command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharJal").encode("ascii"))
+
+    def otbn_char_bn_wsrr(self) -> None:
+        """ Starts the otbn.fi.char.bn.wsrr test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharBnWsrr command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharBnWsrr").encode("ascii"))
+
+    def otbn_char_lw(self) -> None:
+        """ Starts the otbn.fi.char.lw test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharLw command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharLw").encode("ascii"))
+
     def otbn_char_unrolled_reg_op_loop(self) -> None:
         """ Starts the otbn.fi.char.unrolled.reg.op.loop test.
         """

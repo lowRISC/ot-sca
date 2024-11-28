@@ -27,6 +27,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharUnrolledRegOpLoop").encode("ascii"))
 
+    def ibex_char_unrolled_reg_op_loop_chain(self) -> None:
+        """ Starts the ibex.char.unrolled_reg_op_loop_chain test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharUnrolledRegOpLoopChain command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharUnrolledRegOpLoopChain").encode("ascii"))
+
     def ibex_char_unrolled_mem_op_loop(self) -> None:
         """ Starts the ibex.char.unrolled_mem_op_loop test.
         """
@@ -167,7 +176,7 @@ class OTFIIbex:
         """
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharCondBranchBgltu command.
+        # CharCondBranchBltu command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharCondBranchBltu").encode("ascii"))
 
@@ -294,6 +303,33 @@ class OTFIIbex:
         # CharHardenedCheck3Unimps command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharHardenedCheck3Unimps").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_4_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_4_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck4Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck4Unimps").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_5_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_5_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck5Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck5Unimps").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_complement_branch(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_complement_branch test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheckComplementBranch command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheckComplementBranch").encode("ascii"))
 
     def read_response(self, max_tries: Optional[int] = 1) -> str:
         """ Read response from Ibex FI framework.

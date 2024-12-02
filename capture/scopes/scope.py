@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from scopes.chipwhisperer.husky import Husky
-from scopes.waverunner.waverunner import WaveRunner
+from scopes.waverunner.waverunner import Channel, Timebase, Trigger, WaveRunner
 
 
 @dataclass
@@ -28,6 +28,9 @@ class ScopeConfig:
     scope_gain: Optional[float] = 1
     pll_frequency: Optional[int] = 1
     sampling_rate: Optional[int] = 0
+    channel_configs: Optional[list] = None
+    trigger_config: Optional[str] = None
+    timebase_config: Optional[str] = None
 
 
 class Scope:
@@ -90,6 +93,25 @@ class Scope:
                     first_point = self.scope_cfg.offset_samples,
                     acqu_channel = self.scope_cfg.acqu_channel
                 )
+                # If a user defined config is provided, configure the channel,
+                # timebase, and the trigger.
+                if self.scope_cfg.channel_configs is not None:
+                    for channel_config in self.scope_cfg.channel_configs:
+                        scope.configure_channel(
+                            Channel(name = channel_config["name"],
+                                    trace_enable = channel_config["trace_enable"],
+                                    vdiv = channel_config["vdiv"],
+                                    offset = channel_config["offset"]))
+                if self.scope_cfg.timebase_config is not None:
+                    scope.configure_timebase(
+                        Timebase(tdiv = self.scope_cfg.timebase_config["tdiv"],
+                                 delay = self.scope_cfg.timebase_config["delay"]))
+                if self.scope_cfg.trigger_config is not None:
+                    scope.configure_trigger(
+                        Trigger(channel = self.scope_cfg.trigger_config["channel"],
+                                edge = self.scope_cfg.trigger_config["edge"],
+                                coupling = self.scope_cfg.trigger_config["coupling"],
+                                level = self.scope_cfg.trigger_config["level"]))
                 return scope
             else:
                 raise RuntimeError("Error: No WaveRunner IP provided!")

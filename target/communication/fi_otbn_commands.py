@@ -63,6 +63,33 @@ class OTFIOtbn:
         time.sleep(0.01)
         self.target.write(json.dumps("CharJal").encode("ascii"))
 
+    def otbn_char_mem(self) -> None:
+        """ Starts the otbn.fi.char.mem test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharMem command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharMem").encode("ascii"))
+
+    def otbn_char_bn_sel(self) -> None:
+        """ Starts the otbn.fi.char.bn.sel test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharBnSel command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharBnSel").encode("ascii"))
+
+    def otbn_char_bn_rshi(self) -> None:
+        """ Starts the otbn.fi.char.bn.rshi test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # CharBnRshi command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharBnRshi").encode("ascii"))
+
     def otbn_char_bn_wsrr(self) -> None:
         """ Starts the otbn.fi.char.bn.wsrr test.
         """
@@ -134,6 +161,15 @@ class OTFIOtbn:
         # LoadIntegrity command.
         time.sleep(0.01)
         self.target.write(json.dumps("LoadIntegrity").encode("ascii"))
+
+    def otbn_pc(self) -> None:
+        """ Starts the otbn.pc test.
+        """
+        # OtbnFi command.
+        self._ujson_otbn_fi_cmd()
+        # PC command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("PC").encode("ascii"))
 
     def init_keymgr(self, test: str) -> None:
         """ Initialize the key manager on the chip.

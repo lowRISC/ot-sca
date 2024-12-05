@@ -174,6 +174,14 @@ class OTFIOtbn:
         test_function = getattr(self, cfg["test"]["which_test"])
         test_function()
 
+    def write_payload(self, payload: dict) -> None:
+        """ Send test payload to OpenTitan.
+        Args:
+            payload: The data to send to the target.
+        """
+        time.sleep(0.01)
+        self.target.write(json.dumps(payload).encode("ascii"))
+
     def read_response(self, max_tries: Optional[int] = 1) -> str:
         """ Read response from Otbn FI framework.
         Args:

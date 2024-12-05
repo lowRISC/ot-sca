@@ -109,6 +109,9 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
     fi_results = []
     # Start the parameter sweep.
     remaining_iterations = fi_gear.get_num_fault_injections()
+    # Helper variable tracking whether we already transmitted the test config
+    # if one exists.
+    config_transmitted = False
     with tqdm(total=remaining_iterations, desc="Injecting", ncols=80,
               unit=" different faults") as pbar:
         while remaining_iterations > 0:
@@ -116,8 +119,17 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             fault_parameters = fi_gear.generate_fi_parameters()
             # Arm the FI gear.
             fi_gear.arm_trigger(fault_parameters)
+
             # Start test on OpenTitan.
             ot_communication.start_test(cfg)
+            # Send initial config to the device. Only needed at the first run
+            # after a reset.
+            if "config" in cfg["test"] and config_transmitted is False:
+                ot_communication.write_payload(cfg["test"]["config"])
+                config_transmitted = True
+            # Send payload to device, if test requires an input.
+            if "input" in cfg["test"]:
+                ot_communication.write_payload(cfg["test"]["input"])
 
             # Read response.
             response = ot_communication.read_response()
@@ -138,6 +150,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Reset FIGear if necessary.
                 fi_gear.reset()
+                # Trigger re-write of initial config at next run.
+                config_transmitted = False
             else:
                 # If the test decides to ignore alerts triggered by the alert
                 # handler, remove it from the received and expected response.

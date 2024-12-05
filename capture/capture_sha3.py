@@ -95,6 +95,9 @@ def setup(cfg: dict, project: Path):
     )
     target = Target(target_cfg)
 
+    # Check target firmware.
+    target.check_fw_version("1.5")
+
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
 

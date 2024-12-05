@@ -224,3 +224,15 @@ class CWFPGA(object):
             io.pin_set_state("USB_A14", 1)
             # Add a small delay to allow OpenTitan to boot up.
             time.sleep(0.1)
+
+    def check_fw_version(self, min_version: str):
+        """Checks whether the SAM3X CW310 FW matches the expected version. """
+        major_min, minor_min = min_version.split(".")
+        target = cw.target(None, cw.targets.CW310)
+        fw = target.latest_fw
+        if fw["major"] < int(major_min) or fw["minor"] < int(minor_min):
+            print(f'Error: CW310 SAM3X FW is {str(fw["major"])}.{str(fw["minor"])} '
+                  f'should be {min_version}. Check the CW310 manual for updating the firmware.')
+            return False
+        else:
+            return True

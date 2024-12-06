@@ -134,7 +134,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             # Read response.
             response = ot_communication.read_response()
             response_compare = response
-            expected_response = cfg["test"]["expected_result"]
+            # By default, assume that the fault was successful
+            fi_result = FISuccess.SUCCESS
 
             # Compare response.
             if response_compare == "":
@@ -152,7 +153,10 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 fi_gear.reset()
                 # Trigger re-write of initial config at next run.
                 config_transmitted = False
-            else:
+            elif "expected_result" in cfg["test"]:
+                # Most but not all tests (e.g., tests returning random data)
+                # expect a certain response.
+                expected_response = cfg["test"]["expected_result"]
                 # If the test decides to ignore alerts triggered by the alert
                 # handler, remove it from the received and expected response.
                 # In the database, the received alert is still available for

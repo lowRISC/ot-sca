@@ -126,3 +126,9 @@ class Target:
             return self.target.target.is_done()
         else:
             return True
+
+    def check_fw_version(self, min_version: str):
+        """Check if target CW is >= min:version. Only for CW310 FPGA."""
+        if self.target_cfg.target_type == "cw310":
+            if not self.target.check_fw_version(min_version):
+                raise RuntimeError("Error: Please upgrade target firmware!")

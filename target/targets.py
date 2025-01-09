@@ -28,6 +28,7 @@ class TargetConfig:
     port: Optional[str] = None
     read_timeout: Optional[int] = 1
     usb_serial: Optional[str] = None
+    interface: Optional[str] = "hyper310"
 
 
 class Target:
@@ -60,7 +61,8 @@ class Target:
         elif self.target_cfg.target_type == "chip":
             target = Chip(firmware = self.target_cfg.fw_bin,
                           opentitantool_path = "../objs/opentitantool",
-                          usb_serial=self.target_cfg.usb_serial)
+                          usb_serial = self.target_cfg.usb_serial,
+                          interface = self.target_cfg.interface)
         else:
             raise RuntimeError("Error: Target not supported!")
         return target

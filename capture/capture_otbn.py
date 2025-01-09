@@ -116,7 +116,8 @@ def setup(cfg: dict, project: Path):
         baudrate = cfg["target"].get("baudrate"),
         port = cfg["target"].get("port"),
         output_len = cfg["target"].get("output_len_bytes"),
-        usb_serial = cfg["target"].get("usb_serial")
+        usb_serial = cfg["target"].get("usb_serial"),
+        interface = cfg["target"].get("interface")
     )
     target = Target(target_cfg)
 

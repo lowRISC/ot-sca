@@ -270,111 +270,18 @@ Capturing: 100%|█████████████████████�
 Created plot with 10 traces: ~/ot-sca/cw/projects/sample_traces_aes.html
 ```
 
+### Generating Bitstreams for OT-SCA
 
-### Generating OpenTitan Binaries
+If you want to build the bitstreams by yourself instead of using the pre-build
+ones stored in `objs/`, please follow this [guide](./building_fpga_bitstreams.md).
 
-Instead of using the example binaries provided by this repository via Git LFS,
-you can regenerate them from the
-[OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
+### Building the Penetration Testing Framework
 
-Below, we quickly outline the necessary steps for building the binaries for the
-CW310 and CW305 boards from the sources. For more information on the build
-steps, refer to the [OpenTitan FPGA documentation](https://docs.opentitan.org/doc/ug/getting_started_fpga/).
-
-Note that below we use `$REPO_TOP` to refer to the main OpenTitan repository
-top, not this `ot-sca` repo.
-
-#### Earl Grey for CW310
-
-To build the binaries for performing SCA on the full Earl Grey top level of
-OpenTitan using the CW310, follow these steps:
-
-1. Go to the root directory of the OpenTitan repository.
-1. Build the regular binaries with
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/...
-    ```
-1. Then, the bitstream generation can be started by running
-    ```console
-    $ . /tools/xilinx/Vivado/2020.2/settings64.sh
-    $ cd $REPO_TOP
-    $ fusesoc --cores-root . run --flag=fileset_top --target=synth lowrisc:systems:chip_earlgrey_cw310
-    ```
-   The generated bitstream can be found in
-    ```
-    build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
-    ```
-   and will be loaded to the FPGA using the ChipWhisperer Python API.
-
-1. To generate the OpenTitan application binary (simpleserial interface), e.g.,
-   for recording AES power traces on the CW310, run
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/sca:aes_serial
-    ```
-   The path to the generated binary is:
-   ```
-   $REPO_TOP/bazel-bin/sw/device/sca/
-   ```
-   To generate the OpenTitan application binary for uJSON that includes all SCA
-   targets, run
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/tests/crypto/cryptotest/firmware:firmware
-    ```
-
-#### English Breakfast for CW305
-
-To build the binaries for performing SCA of e.g. AES on the reduced English
-Breakfast top level of OpenTitan using the CW305, follow these steps:
-
-1. Go to the root directory of the OpenTitan repository.
-1. Before generating the OpenTitan FPGA bitstream for the CW305 target board, you first have to run:
-      ```console
-      $ cd $REPO_TOP
-      $ ./util/topgen-fusesoc.py --files-root=. --topname=top_englishbreakfast
-      ```
-   to generate top-level specific versions of some IP cores such as RV_PLIC,
-   TL-UL crossbars etc.
-1. Then run
-      ```console
-      $ cd $REPO_TOP
-      $ ./hw/top_englishbreakfast/util/prepare_sw.py --build --top=englishbreakfast
-      ```
-   in order to prepare the OpenTitan software build flow for English
-   Breakfast and build the required binaries. More precisely, this script
-   runs some code generators, patches some auto-generated source files and
-   finally generates the boot ROM needed for bitstream generation.
-1. Finally, the bitstream generation can be started by running
-    ```console
-    $ cd $REPO_TOP
-    $ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:chip_englishbreakfast_cw305
-    ```
-   The generated bitstream can be found in
-    ```
-    build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
-    ```
-   and will be loaded to the FPGA using the ChipWhisperer Python API.
-
-1. To generate the OpenTitan application binary for recording AES power traces,
-   make sure the `prepare_sw.py` script has been run before executing
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/sca:aes_serial --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
-    ```
-1. The path to the generated binary will be printed to the terminal after running
-   ```console
-   $ cd $REPO_TOP
-   $ ci/scripts/target-location.sh //sw/device/sca:aes_serial
-   ```
-
-If you need to generate binaries for CW310 after you generate binaries for
-CW305, use the following command:
-```console
-$ ./hw/top_englishbreakfast/util/prepare_sw.py --delete
-```
-and clean the auto-generated files with a checkout.
+Similarly, to build the penetration testing framework, please follow the
+[guide](https://github.com/lowRISC/opentitan/tree/master/sw/device/tests/penetrationtests)
+in the OpenTitan repository. For the FPGA framework, place the generated `.bin`
+into the `objs/` directory. For the chip framework, the `.img` files need to be
+used.
 
 ## Configuration
 

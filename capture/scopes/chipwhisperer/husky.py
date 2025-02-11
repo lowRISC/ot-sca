@@ -15,9 +15,10 @@ from util import check_version  # noqa: E402
 
 class Husky:
     def __init__(self, scope_gain, batch_mode, num_samples, num_segments,
-                 offset_samples, sampling_rate, pll_frequency):
-        check_version.check_husky("1.5.0")
+                 offset_samples, sampling_rate, pll_frequency, scope_sn):
+        check_version.check_husky("1.5.0", sn=scope_sn)
         self.scope = None
+        self.sn = scope_sn
         self.scope_gain = scope_gain
         self.batch_mode = batch_mode
         # In our setup, Husky operates on the PLL frequency of the target and
@@ -39,7 +40,7 @@ class Husky:
 
     def initialize_scope(self):
         """Initializes chipwhisperer scope."""
-        scope = cw.scope()
+        scope = cw.scope(sn=self.sn)
         scope.gain.db = self.scope_gain
         scope.adc.basic_mode = "rising_edge"
         if not scope._is_husky:

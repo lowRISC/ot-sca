@@ -50,12 +50,14 @@ class CWFPGA(object):
     """
 
     def __init__(self, bitstream, force_programming, firmware, pll_frequency,
-                 baudrate, output_len, protocol):
+                 baudrate, output_len, protocol, usb_serial, husky_serial):
         self.bitstream = bitstream
         self.firmware = firmware
         self.pll_frequency = pll_frequency
         self.baudrate = baudrate
         self.output_len = output_len
+        self.usb_serial = usb_serial
+        self.husky_serial = husky_serial
 
         # Extract target board type from bitstream name.
         m = re.search('cw305|cw310', bitstream)
@@ -65,7 +67,7 @@ class CWFPGA(object):
             else:
                 assert m.group() == 'cw310'
                 self.fpga_type = cw.capture.targets.CW310()
-            programmer = SpiProgrammer(self.fpga_type)
+            programmer = SpiProgrammer(self.fpga_type, self.usb_serial)
         else:
             raise ValueError(
                 'Could not infer target board type from bistream name')
@@ -75,10 +77,10 @@ class CWFPGA(object):
         # Initialize ChipWhisperer scope. This is needed to program the binary.
         # Note that the actual scope config for capturing traces is later
         # initialized.
-        self.scope = cw.scope()
+        self.scope = cw.scope(sn=self.husky_serial)
         # Sometimes CW-Husky blocks USB communication after power cycling
         # Initializing the scope twice seems to solve the problem.
-        self.scope = cw.scope()
+        self.scope = cw.scope(sn=self.husky_serial)
 
         self.fpga = self.initialize_fpga(self.fpga_type, bitstream,
                                          force_programming, pll_frequency)
@@ -109,7 +111,7 @@ class CWFPGA(object):
 
         with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
             # Connect to the FPGA and program it.
-            fpga.con(bsfile=bitstream, force=force_programming, slurp=False)
+            fpga.con(bsfile=bitstream, force=force_programming, slurp=False, sn=self.usb_serial)
             if not programmed:
                 # TODO: Update this message when we have this in the CLI.
                 stack_top = inspect.stack()[0]
@@ -174,7 +176,7 @@ class CWFPGA(object):
 
     def program_target(self, fw, pll_frequency=PLL_FREQUENCY_DEFAULT):
         """Loads firmware image """
-        programmer1 = SpiProgrammer(self.fpga)
+        programmer1 = SpiProgrammer(self.fpga, self.usb_serial)
         # To fully capture the long OTBN applications,
         # we may need to use pll_frequencies other than 100 MHz.
         # As the programming works at 100MHz, we set pll_frequency to 100MHz
@@ -197,9 +199,9 @@ class CWFPGA(object):
         if self.fpga.INITB_state() is not True:
             print("Reprogram the FPGA.")
             # Reprogram the bitstream.
-            programmer = SpiProgrammer(self.fpga_type)
+            programmer = SpiProgrammer(self.fpga_type, self.usb_serial)
 
-            self.scope = cw.scope()
+            self.scope = cw.scope(sn=self.husky_serial)
 
             self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream,
                                              True, self.pll_frequency)

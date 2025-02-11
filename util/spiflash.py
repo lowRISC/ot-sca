@@ -75,14 +75,15 @@ class SpiProgrammer:
     PAYLOAD_SIZE = 256
     MAX_BUSY_ITER_CNT = 500
 
-    def __init__(self, fpga):
+    def __init__(self, fpga, sn):
         """Inits a SpiProgrammer with a CW310/305.
 
         Args:
           fpga: CW310/305 to be programmed, ``chipwhisperer.capture.targets.CW310/305``.
+          sn: The USB serial number of the FPGA board.
         """
         self.pins = self.PIN_MAPPINGS[id(type(fpga))]
-        fpga.con()
+        fpga.con(sn=sn)
         self.io = fpga.gpio_mode()
         # Set strap pins as outputs
         for pin, mapped_to in self.pins._asdict().items():

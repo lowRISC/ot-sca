@@ -27,8 +27,9 @@ class TargetConfig:
     baudrate: Optional[int] = None
     port: Optional[str] = None
     read_timeout: Optional[int] = 1
-    usb_serial: Optional[str] = None
     interface: Optional[str] = "hyper310"
+    usb_serial: Optional[str] = None
+    husky_serial: Optional[str] = None
 
 
 class Target:
@@ -56,7 +57,9 @@ class Target:
                 pll_frequency = self.target_cfg.pll_frequency,
                 baudrate = self.target_cfg.baudrate,
                 output_len = self.target_cfg.output_len,
-                protocol = self.target_cfg.protocol
+                protocol = self.target_cfg.protocol,
+                usb_serial = self.target_cfg.usb_serial,
+                husky_serial = self.target_cfg.husky_serial
             )
         elif self.target_cfg.target_type == "chip":
             target = Chip(firmware = self.target_cfg.fw_bin,

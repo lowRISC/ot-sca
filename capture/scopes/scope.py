@@ -28,6 +28,7 @@ class ScopeConfig:
     scope_gain: Optional[float] = 1
     pll_frequency: Optional[int] = 1
     sampling_rate: Optional[int] = 0
+    scope_sn: Optional[str] = None
 
 
 class Scope:
@@ -56,7 +57,8 @@ class Scope:
                           num_segments = self.scope_cfg.num_segments,
                           offset_samples = self.scope_cfg.offset_samples,
                           sampling_rate = self.scope_cfg.sampling_rate,
-                          pll_frequency = self.scope_cfg.pll_frequency
+                          pll_frequency = self.scope_cfg.pll_frequency,
+                          scope_sn = self.scope_cfg.scope_sn
                           )
             scope.initialize_scope()
             scope.configure_batch_mode()

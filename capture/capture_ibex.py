@@ -91,7 +91,8 @@ def setup(cfg: dict, project: Path):
         port = cfg["target"].get("port"),
         output_len = cfg["target"].get("output_len_bytes"),
         usb_serial = cfg["target"].get("usb_serial"),
-        interface = cfg["target"].get("interface")
+        interface = cfg["target"].get("interface"),
+        husky_serial = cfg["husky"].get("usb_serial")
     )
     target = Target(target_cfg)
 
@@ -126,6 +127,7 @@ def setup(cfg: dict, project: Path):
         sparsing = cfg[scope_type].get("sparsing"),
         scope_gain = cfg[scope_type].get("scope_gain"),
         pll_frequency = cfg["target"]["pll_frequency"],
+        scope_sn = cfg[scope_type].get("usb_serial"),
     )
     scope = Scope(scope_cfg)
 

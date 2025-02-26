@@ -174,6 +174,7 @@ class OTAES:
             self.target.wait_ack()
         else:
             # AesSca command.
+            time.sleep(0.02)
             self._ujson_aes_sca_cmd()
             # FvsrKeyBatchEncrypt command.
             self.target.write(json.dumps("FvsrKeyBatchEncrypt").encode("ascii"))

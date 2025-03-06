@@ -366,8 +366,7 @@ def capture(scope: Scope, cfg: dict, capture_cfg: CaptureConfig,
             # Trigger encryption.
             if capture_cfg.batch_mode:
                 # Batch mode. Is always sha3_fvsr_data
-                ot_sha3.absorb_batch(
-                    capture_cfg.num_segments.to_bytes(4, "little"))
+                ot_sha3.absorb_batch(capture_cfg.num_segments)
             else:
                 # Non batch mode. either random or fvsr
                 if capture_cfg.capture_mode == "sha3_fvsr_data":

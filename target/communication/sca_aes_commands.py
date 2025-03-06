@@ -108,7 +108,7 @@ class OTAES:
             self.target.write(json.dumps("FvsrKeyStartBatchGenerate").encode("ascii"))
             # Command.
             time.sleep(0.01)
-            cmd = {"data": [command]}
+            cmd = {"cmd": command}
             self.target.write(json.dumps(cmd).encode("ascii"))
 
     def write_fvsr_batch_generate(self, num_segments):
@@ -117,7 +117,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="g", data=num_segments)
+            self.target.write(cmd="g", data=num_segments.to_bytes(4, "little"))
         else:
             # AesSca command.
             self._ujson_aes_sca_cmd()
@@ -125,7 +125,7 @@ class OTAES:
             self.target.write(json.dumps("FvsrKeyBatchGenerate").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
-            num_encryption_data = {"data": [x for x in num_segments]}
+            num_encryption_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def batch_alternative_encrypt(self, num_segments):
@@ -134,7 +134,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="a", data=num_segments)
+            self.target.write(cmd="a", data=num_segments.to_bytes(4, "little"))
             self.target.wait_ack()
         else:
             # AesSca command.
@@ -143,7 +143,7 @@ class OTAES:
             self.target.write(json.dumps("BatchAlternativeEncrypt").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
-            num_encryption_data = {"data": [x for x in num_segments]}
+            num_encryption_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def batch_encrypt(self, num_segments):
@@ -152,7 +152,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="a", data=num_segments)
+            self.target.write(cmd="a", data=num_segments.to_bytes(4, "little"))
             self.target.wait_ack()
         else:
             # AesSca command.
@@ -161,7 +161,7 @@ class OTAES:
             self.target.write(json.dumps("BatchEncrypt").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
-            num_encryption_data = {"data": [x for x in num_segments]}
+            num_encryption_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def fvsr_key_batch_encrypt(self, num_segments):
@@ -170,7 +170,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="e", data=num_segments)
+            self.target.write(cmd="e", data=num_segments.to_bytes(4, "little"))
             self.target.wait_ack()
         else:
             # AesSca command.
@@ -179,7 +179,7 @@ class OTAES:
             self.target.write(json.dumps("FvsrKeyBatchEncrypt").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
-            num_encryption_data = {"data": [x for x in num_segments]}
+            num_encryption_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def fvsr_data_batch_encrypt(self, num_segments):
@@ -188,7 +188,7 @@ class OTAES:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd = "h", data = num_segments)
+            self.target.write(cmd = "h", data = num_segments.to_bytes(4, "little"))
             self.target.wait_ack()
         else:
             # AesSca command.
@@ -197,7 +197,7 @@ class OTAES:
             self.target.write(json.dumps("FvsrDataBatchEncrypt").encode("ascii"))
             # Number of encryptions.
             time.sleep(0.01)
-            num_encryption_data = {"data": [x for x in num_segments]}
+            num_encryption_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_encryption_data).encode("ascii"))
 
     def batch_plaintext_set(self, text, text_length: Optional[int] = 16):

@@ -99,7 +99,7 @@ class OTKMAC:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="b", data=num_segments)
+            self.target.write(cmd="b", data=num_segments.to_bytes(4, "little"))
         else:
             # KmacSca command.
             self._ujson_kmac_sca_cmd()
@@ -107,7 +107,7 @@ class OTKMAC:
             self.target.write(json.dumps("Batch").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            num_segments_data = {"data": [x for x in num_segments]}
+            num_segments_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
 
     def absorb(self, text, text_length: Optional[int] = 16):

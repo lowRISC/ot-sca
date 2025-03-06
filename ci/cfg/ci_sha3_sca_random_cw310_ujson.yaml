@@ -1,9 +1,9 @@
 target:
   target_type: cw310
-  fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac_dom.bit
+  fpga_bitstream: ../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_kmac.bit
   force_program_bitstream: False
   # fw_bin: ../objs/sha3_serial_fpga_cw310.bin
-  fw_bin: ../objs/sca_ujson_fpga_cw310.bin
+  fw_bin: ../objs/sca_kmac_ujson_fpga_cw310.bin
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200

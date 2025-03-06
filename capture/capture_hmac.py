@@ -186,9 +186,11 @@ def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
         capture_cfg: The capture config.
         ot_hmac: The communication interface to the HMAC SCA application.
         ot_prng: The communication interface to the PRNG SCA application.
+    Returns:
+        device_id: The ID of the target device.
     """
     # Initialize HMAC on the target.
-    ot_hmac.init()
+    device_id = ot_hmac.init()
 
     # Seed the PRNG used for generating keys and plaintexts in batch mode.
     if capture_cfg.batch_mode:
@@ -197,6 +199,8 @@ def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
 
         # Seed the target's PRNG.
         ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+
+    return device_id
 
 
 def generate_ref_crypto(num_segments, mode, batch, key_fixed, mask_fixed,
@@ -427,7 +431,7 @@ def main(argv=None):
     ot_hmac, ot_prng = establish_communication(target, capture_cfg)
 
     # Configure cipher.
-    configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng)
+    device_id = configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng)
 
     # Capture traces.
     capture(scope, ot_hmac, capture_cfg, project, target)
@@ -437,6 +441,7 @@ def main(argv=None):
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     metadata["cfg"] = cfg
     metadata["num_samples"] = scope.scope_cfg.num_samples

@@ -7,6 +7,7 @@ Communication with OpenTitan happens over the uJSON command interface.
 """
 import json
 import time
+from typing import Optional
 
 
 class OTHMAC:
@@ -24,11 +25,15 @@ class OTHMAC:
 
     def init(self):
         """ Initializes HMAC on the target.
+        Returns:
+            The device ID of the device.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Read back device ID from device.
+        return self.read_response(max_tries=30)
 
     def single(self, msg: list[int], key: list[int], mask: list[int]):
         """ Start a single HMAC operation using the given message and key.
@@ -92,7 +97,6 @@ class OTHMAC:
         """
         while True:
             read_line = str(self.target.readline())
-            print(read_line)
             if "RESP_OK" in read_line:
                 json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
                 try:
@@ -100,3 +104,19 @@ class OTHMAC:
                     return tag
                 except Exception:
                     pass  # noqa: E302
+
+    def read_response(self, max_tries: Optional[int] = 1) -> str:
+        """ Read response from AES SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""

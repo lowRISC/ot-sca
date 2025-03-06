@@ -1,17 +1,15 @@
 target:
   target_type: cw310
-  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: False
-  fw_bin: "../objs/aes_serial_fpga_cw310.bin"
-  # fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1_aes.bit"
+  force_program_bitstream: True
+  fw_bin: "../objs/sca_aes_ujson_fpga_cw310.bin"
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
-  target_clk_mult: 0.24
-  target_freq: 24000000
+  target_clk_mult: 0.10
+  target_freq: 10000000
   baudrate: 115200
   output_len_bytes: 16
-  protocol: "simpleserial"
-  # protocol: "ujson"
-  # port: "/dev/ttyACM4"
+  protocol: "ujson"
+  port: "/dev/opentitan/cw310_1_tty_03"
   # Trigger source.
   # hw: Precise, hardware-generated trigger - FPGA only.
   # sw: Fully software-controlled trigger.
@@ -44,12 +42,12 @@ capture:
   trace_threshold: 10000
   # trace_db: cw
 test:
-  which_test: aes_random_batch
+  #which_test: aes_random_batch
   # which_test: aes_random
   # which_test: aes_fvsr_key
   # which_test: aes_fvsr_key_batch
   # which_test: aes_fvsr_data
-  # which_test: aes_fvsr_data_batch
+  which_test: aes_fvsr_data_batch
   key_len_bytes: 16
   text_len_bytes: 16
   # These initial values are used only for random capture but not fixed-vs-random.

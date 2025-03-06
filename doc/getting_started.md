@@ -286,43 +286,7 @@ top, not this `ot-sca` repo.
 
 #### Earl Grey for CW310
 
-To build the binaries for performing SCA on the full Earl Grey top level of
-OpenTitan using the CW310, follow these steps:
-
-1. Go to the root directory of the OpenTitan repository.
-1. Build the regular binaries with
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/...
-    ```
-1. Then, the bitstream generation can be started by running
-    ```console
-    $ . /tools/xilinx/Vivado/2020.2/settings64.sh
-    $ cd $REPO_TOP
-    $ fusesoc --cores-root . run --flag=fileset_top --target=synth lowrisc:systems:chip_earlgrey_cw310
-    ```
-   The generated bitstream can be found in
-    ```
-    build/lowrisc_systems_earlgrey_cw310_0.1/synth-vivado/lowrisc_systems_chip_earlgrey_cw310_0.1.bit
-    ```
-   and will be loaded to the FPGA using the ChipWhisperer Python API.
-
-1. To generate the OpenTitan application binary (simpleserial interface), e.g.,
-   for recording AES power traces on the CW310, run
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/sca:aes_serial
-    ```
-   The path to the generated binary is:
-   ```
-   $REPO_TOP/bazel-bin/sw/device/sca/
-   ```
-   To generate the OpenTitan application binary for uJSON that includes all SCA
-   targets, run
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/tests/crypto/cryptotest/firmware:firmware
-    ```
+To build FPGA bitstreams and penetration testing framework binaries for CW310, please follow this [guide](./building_fpga_bitstreams.md).
 
 #### English Breakfast for CW305
 

@@ -67,7 +67,7 @@ class OTHMAC:
         self.target.write(json.dumps(key_data).encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.05)
-        num_it_data = {"num_iterations": num_segments}
+        num_it_data = {"num_enc": num_segments}
         self.target.write(json.dumps(num_it_data).encode("ascii"))
 
     def random_batch(self, num_segments: int):
@@ -81,7 +81,7 @@ class OTHMAC:
         self.target.write(json.dumps("BatchRandom").encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.01)
-        num_it_data = {"num_iterations": num_segments}
+        num_it_data = {"num_enc": num_segments}
         self.target.write(json.dumps(num_it_data).encode("ascii"))
 
     def read_tag(self):
@@ -92,6 +92,7 @@ class OTHMAC:
         """
         while True:
             read_line = str(self.target.readline())
+            print(read_line)
             if "RESP_OK" in read_line:
                 json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
                 try:

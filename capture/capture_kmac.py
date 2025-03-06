@@ -353,7 +353,7 @@ def capture(scope: Scope, ot_kmac: OTKMAC, capture_cfg: CaptureConfig,
             if capture_cfg.batch_mode:
                 # Batch mode. Is always kmac_fvsr_key
                 ot_kmac.absorb_batch(
-                    capture_cfg.num_segments.to_bytes(4, "little"))
+                    capture_cfg.num_segments)
             else:
                 # Non batch mode. either random or fvsr
                 if capture_cfg.capture_mode == "kmac_fvsr_key":

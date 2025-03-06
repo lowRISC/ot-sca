@@ -309,7 +309,7 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
     if capture_cfg.batch_mode:
         if capture_cfg.capture_mode == "aes_fvsr_key":
             ot_aes.start_fvsr_batch_generate(1)
-            ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments.to_bytes(4, "little"))
+            ot_aes.write_fvsr_batch_generate(capture_cfg.num_segments)
         elif capture_cfg.capture_mode == "aes_fvsr_data":
             ot_aes.start_fvsr_batch_generate(2)
         elif capture_cfg.capture_mode == "aes_random":
@@ -337,15 +337,15 @@ def capture(scope: Scope, ot_aes: OTAES, capture_cfg: CaptureConfig,
                 if capture_cfg.capture_mode == "aes_random":
                     # Fixed key, random plaintexts.
                     ot_aes.batch_alternative_encrypt(
-                        capture_cfg.num_segments.to_bytes(4, "little"))
+                        capture_cfg.num_segments)
                 elif capture_cfg.capture_mode == "aes_fvsr_key":
                     # Fixed vs random key test.
                     ot_aes.fvsr_key_batch_encrypt(
-                        capture_cfg.num_segments.to_bytes(4, "little"))
+                        capture_cfg.num_segments)
                 else:
                     # Fixed vs random data test.
                     ot_aes.fvsr_data_batch_encrypt(
-                        capture_cfg.num_segments.to_bytes(4, "little"))
+                        capture_cfg.num_segments)
             else:
                 # Non batch mode.
                 if capture_cfg.capture_mode == "aes_fvsr_key" or \

@@ -71,7 +71,7 @@ class OTSHA3:
             self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
-            # Num_segments payload.
+            # masks_off payload.
             time.sleep(0.01)
             mask = {"masks_off": 1}
             self.target.write(json.dumps(mask).encode("ascii"))
@@ -89,7 +89,7 @@ class OTSHA3:
             self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
-            # Num_segments payload.
+            # masks_off payload.
             time.sleep(0.01)
             mask = {"masks_off": 0}
             self.target.write(json.dumps(mask).encode("ascii"))
@@ -120,7 +120,7 @@ class OTSHA3:
             num_segments: Number of hashings to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="b", data=num_segments)
+            self.target.write(cmd="b", data=num_segments.to_bytes(4, "little"))
             ack_ret = self.target.wait_ack(5000)
             if ack_ret is None:
                 raise Exception("Batch mode acknowledge error: Device and host not in sync")
@@ -131,7 +131,7 @@ class OTSHA3:
             self.target.write(json.dumps("Batch").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            num_segments_data = {"data": [x for x in num_segments]}
+            num_segments_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
             # Wait for ack.
             self._ujson_sha3_sca_ack()

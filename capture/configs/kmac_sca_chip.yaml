@@ -47,3 +47,9 @@ test:
   lfsr_seed: 0xdeadbeef
   # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
   batch_prng_seed: 0
+  # When True, the instruction cache is disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  icache_disable: False
+  # When True, the dummy instructions are disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  dummy_instr_disable: False

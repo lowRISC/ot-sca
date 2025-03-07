@@ -24,10 +24,16 @@ class OTSHA3:
         time.sleep(0.01)
         self.target.write(json.dumps("Sha3Sca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int):
+    def init(self, fpga_mode_bit: int, icache_disable: bool, dummy_instr_disable: bool):
         """ Initializes SHA3 on the target.
         Args:
-            fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
+            fpga_mode_bit: Indicates whether FPGA specific SHA3 test is started.
+            icache_disable: If true, disable the iCache. If false, use default config
+                            set in ROM.
+            dummy_instr_disable: If true, disable the dummy instructions. If false,
+                                 use default config set in ROM.
+        Returns:
+            The device ID of the device.
         """
         if not self.simple_serial:
             # Sha3Sca command.
@@ -38,6 +44,10 @@ class OTSHA3:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
+            # Disable iCache / dummy instructions.
+            time.sleep(0.01)
+            data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+            self.target.write(json.dumps(data).encode("ascii"))
             # Read back device ID from device.
             return self.read_response(max_tries=30)
 

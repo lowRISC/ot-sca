@@ -23,3 +23,9 @@ capture:
   trace_threshold: 10000
 test:
   which_test: ibex_sca_register_file_read_random
+  # When True, the instruction cache is disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  icache_disable: False
+  # When True, the dummy instructions are disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  dummy_instr_disable: False

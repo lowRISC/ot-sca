@@ -42,3 +42,9 @@ test:
   # related to the FI, ignoring is by default set to true. A manual analysis
   # still can be performed as the alerts are stored in the database.
   ignore_alerts: True
+  # When True, the instruction cache is disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  icache_disable: False
+  # When True, the dummy instructions are disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  dummy_instr_disable: False

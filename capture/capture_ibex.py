@@ -213,10 +213,7 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
         capture_cfg: The configuration of the capture.
         project: The SCA project.
         target: The OpenTitan target.
-    Returns:
-        device_id: The ID of the target device.
     """
-    device_id = ot_ibex.init()
     # Optimization for CW trace library.
     num_segments_storage = 1
 
@@ -302,7 +299,6 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
             pbar.update(capture_cfg.num_segments)
-    return device_id
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
@@ -359,8 +355,11 @@ def main(argv=None):
     # Configure SW trigger.
     ot_trig.select_trigger(1)
 
+    # Init the pentest framework and read the device ID.
+    device_id = ot_ibex.init(cfg["test"]["icache_disable"],
+                             cfg["test"]["dummy_instr_disable"])
     # Capture traces.
-    device_id = capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
+    capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)

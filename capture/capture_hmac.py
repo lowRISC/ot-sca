@@ -190,7 +190,8 @@ def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
         device_id: The ID of the target device.
     """
     # Initialize HMAC on the target.
-    device_id = ot_hmac.init()
+    device_id = ot_hmac.init(cfg["test"]["icache_disable"],
+                             cfg["test"]["dummy_instr_disable"])
 
     # Seed the PRNG used for generating keys and plaintexts in batch mode.
     if capture_cfg.batch_mode:

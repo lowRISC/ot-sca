@@ -19,11 +19,15 @@ class OTFIRng:
         self.target.write(json.dumps("RngFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, test: str) -> None:
+    def init(self, test: str, icache_disable: bool, dummy_instr_disable: bool) -> list:
         """ Initialize the RNG FI code on the chip.
 
         Args:
             test: The selected test.
+            icache_disable: If true, disable the iCache. If false, use default config
+                            set in ROM.
+            dummy_instr_disable: If true, disable the dummy instructions. If false,
+                                 use default config set in ROM.
         Returns:
             The device ID of the device.
         """
@@ -35,6 +39,10 @@ class OTFIRng:
             self.target.write(json.dumps("CsrngInit").encode("ascii"))
         else:
             self.target.write(json.dumps("EdnInit").encode("ascii"))
+        # Disable iCache / dummy instructions.
+        time.sleep(0.01)
+        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+        self.target.write(json.dumps(data).encode("ascii"))
         # Read back device ID from device.
         return self.read_response(max_tries=30)
 

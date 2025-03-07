@@ -23,8 +23,13 @@ class OTHMAC:
         self.target.write(json.dumps("HmacSca").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self):
+    def init(self, icache_disable: bool, dummy_instr_disable: bool):
         """ Initializes HMAC on the target.
+        Args:
+            icache_disable: If true, disable the iCache. If false, use default config
+                            set in ROM.
+            dummy_instr_disable: If true, disable the dummy instructions. If false,
+                                 use default config set in ROM.
         Returns:
             The device ID of the device.
         """
@@ -32,6 +37,10 @@ class OTHMAC:
         self._ujson_hmac_sca_cmd()
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
+        # Disable iCache / dummy instructions.
+        time.sleep(0.01)
+        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+        self.target.write(json.dumps(data).encode("ascii"))
         # Read back device ID from device.
         return self.read_response(max_tries=30)
 

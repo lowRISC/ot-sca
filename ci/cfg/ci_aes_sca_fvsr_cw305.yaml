@@ -46,3 +46,9 @@ test:
   # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
   # To switch off the masking, 0 must be used as LFSR seed.
   lfsr_seed: 0xdeadbeef
+  # When True, the instruction cache is disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  icache_disable: False
+  # When True, the dummy instructions are disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  dummy_instr_disable: False

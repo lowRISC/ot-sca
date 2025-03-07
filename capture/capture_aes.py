@@ -199,7 +199,8 @@ def configure_cipher(cfg, capture_cfg, ot_aes, ot_prng):
     if "cw" in cfg["target"]["target_type"]:
         fpga_mode_bit = 1
     # Initialize AES on the target.
-    device_id = ot_aes.init(fpga_mode_bit)
+    device_id = ot_aes.init(fpga_mode_bit, cfg["test"]["icache_disable"],
+                            cfg["test"]["dummy_instr_disable"])
 
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking and additionally

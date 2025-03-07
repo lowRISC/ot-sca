@@ -104,7 +104,9 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         device_id: The ID of the target device.
     """
     # Configure the RNG FI code on the target.
-    device_id = ot_communication.init(cfg["test"]["which_test"])
+    device_id = ot_communication.init(cfg["test"]["which_test"],
+                                      cfg["test"]["icache_disable"],
+                                      cfg["test"]["dummy_instr_disable"])
     # Store results in array for a quick access.
     fi_results = []
     # Start the parameter sweep.
@@ -136,7 +138,9 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Re-establish UART connection.
                 ot_communication = OTFIRng(target)
                 # Configure the RNG FI code on the target.
-                ot_communication.init(cfg["test"]["which_test"])
+                ot_communication.init(cfg["test"]["which_test"],
+                                      cfg["test"]["icache_disable"],
+                                      cfg["test"]["dummy_instr_disable"])
                 # Reset FIGear if necessary.
                 fi_gear.reset()
             else:

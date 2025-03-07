@@ -104,7 +104,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         device_id: The ID of the target device.
     """
     # Configure the OTBN FI code on the target.
-    device_id = ot_communication.init()
+    device_id = ot_communication.init(cfg["test"]["icache_disable"],
+                                      cfg["test"]["dummy_instr_disable"])
     # Setup key manager if needed by test.
     ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Store results in array for a quick access.
@@ -148,7 +149,8 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Re-establish UART connection.
                 ot_communication = OTFIOtbn(target)
                 # Configure the OTBN FI code on the target.
-                ot_communication.init()
+                ot_communication.init(cfg["test"]["icache_disable"],
+                                      cfg["test"]["dummy_instr_disable"])
                 # Setup key manager if needed by test.
                 ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Reset FIGear if necessary.

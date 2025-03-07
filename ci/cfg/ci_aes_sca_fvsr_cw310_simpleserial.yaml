@@ -50,3 +50,9 @@ test:
   # 32-bit seed for masking on device. To switch off the masking, use 0 as LFSR seed.
   lfsr_seed: 0x00000000
   # lfsr_seed: 0xdeadbeef
+  # When True, the instruction cache is disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  icache_disable: False
+  # When True, the dummy instructions are disabled. If False, use the default config
+  # (either on or off) set in the ROM.
+  dummy_instr_disable: False

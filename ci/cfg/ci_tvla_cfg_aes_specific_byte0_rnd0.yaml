@@ -1,4 +1,4 @@
-project_file: projects/aes_sca_fvsr_cw310
+project_file: projects/aes_sca_fvsr_cw310_ujson
 trace_file: null
 trace_start: null
 trace_end: null

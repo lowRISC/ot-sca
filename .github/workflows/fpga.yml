@@ -28,16 +28,16 @@ jobs:
           python3 -m pip install --user -r python-requirements.txt
           mkdir -p ci/projects
 
-      - name: Capture AES FVSR traces (simpleserial)
+      - name: Capture AES FVSR traces (ujson)
         working-directory: ci
         run: |
-          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_simpleserial.yaml -p projects/aes_sca_fvsr_cw310
+          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
 
-      - name: Upload AES FVSR traces (simpleserial)
+      - name: Upload AES FVSR traces (ujson)
         uses: actions/upload-artifact@v4
         with:
-          name: traces_aes_fvsr
-          path: ./ci/projects/aes_sca_fvsr_cw310.html
+          name: traces_aes_fvsr_ujson
+          path: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
 
       - name: Perform TVLA on AES FVSR traces
         working-directory: ci
@@ -50,33 +50,6 @@ jobs:
         with:
           name: tvla_figure
           path: ./ci/tmp/figures
-
-      - name: Capture AES Random traces (simpleserial)
-        working-directory: ci
-        run: |
-          ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_simpleserial.yaml -p projects/aes_sca_random_cw310
-
-      - name: Upload AES Random traces (simpleserial)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_aes_random_key
-          path: ./ci/projects/aes_sca_random_cw310.html
-
-      - name: Compare AES Random traces against golden trace
-        working-directory: ci
-        run: |
-          ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
-
-      - name: Capture AES FVSR traces (ujson)
-        working-directory: ci
-        run: |
-          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
-
-      - name: Upload AES FVSR traces (ujson)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_aes_fvsr_ujson
-          path: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
 
       - name: Capture AES Random traces (ujson)
         working-directory: ci
@@ -104,17 +77,6 @@ jobs:
           python3 -m pip install --user -r python-requirements.txt
           mkdir -p ci/projects
 
-      - name: Capture SHA3 FVSR traces (simpleserial)
-        working-directory: ci
-        run: |
-          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_simpleserial.yaml -p projects/sha3_sca_fvsr_cw310_simpleserial
-
-      - name: Upload SHA3 FVSR traces (simpleserial)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_sha3_fvsr_cw310_simpleserial
-          path: ./ci/projects/sha3_sca_fvsr_cw310_simpleserial.html
-
       - name: Capture SHA3 FVSR traces (uJSON)
         working-directory: ci
         run: |
@@ -125,17 +87,6 @@ jobs:
         with:
           name: traces_sha3_fvsr_cw310_ujson
           path: ./ci/projects/sha3_sca_fvsr_cw310_ujson.html
-
-      - name: Capture SHA3 Random traces (simpleserial)
-        working-directory: ci
-        run: |
-          ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_simpleserial.yaml -p projects/sha3_sca_random_cw310_simpleserial
-
-      - name: Upload SHA3 Random traces (simpleserial)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_sha3_random_cw310_simpleserial
-          path: ./ci/projects/sha3_sca_random_cw310_simpleserial.html
 
       - name: Capture SHA3 Random traces (uJSON)
         working-directory: ci
@@ -212,17 +163,6 @@ jobs:
           python3 -m pip install --user -r python-requirements.txt
           mkdir -p ci/projects
 
-      - name: Capture KMAC FVSR traces (simpleserial)
-        working-directory: ci
-        run: |
-          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_simpleserial.yaml -p projects/kmac_sca_fvsr_cw310_simpleserial
-
-      - name: Upload KMAC FVSR traces (simpleserial)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_kmac_fvsr_cw310_simpleserial
-          path: ./ci/projects/kmac_sca_fvsr_cw310_simpleserial.html
-
       - name: Capture KMAC FVSR traces (uJSON)
         working-directory: ci
         run: |
@@ -233,17 +173,6 @@ jobs:
         with:
           name: traces_kmac_fvsr_cw310_ujson
           path: ./ci/projects/kmac_sca_fvsr_cw310_ujson.html
-
-      - name: Capture KMAC Random traces (simpleserial)
-        working-directory: ci
-        run: |
-          ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_simpleserial.yaml -p projects/kmac_sca_random_cw310_simpleserial
-
-      - name: Upload KMAC Random traces (simpleserial)
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_kmac_random_cw310_simpleserial
-          path: ./ci/projects/kmac_sca_random_cw310_simpleserial.html
 
       - name: Capture KMAC Random traces (uJSON)
         working-directory: ci

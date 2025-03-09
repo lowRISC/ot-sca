@@ -26,12 +26,12 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_simpleserial.yaml -p projects/aes_sca_fvsr_cw310
+      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
       popd
-    displayName: "Capture AES FVSR traces (simpleserial)"
-  - publish: ./ci/projects/aes_sca_fvsr_cw310.html
-    artifact: traces_aes_fvsr
-    displayName: "Upload AES FVSR traces (simpleserial)"
+    displayName: "Capture AES FVSR traces (ujson)"
+  - publish: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
+    artifact: traces_aes_fvsr_ujson
+    displayName: "Upload AES FVSR traces (ujson)"
   - bash: |
       set -e
       pushd ci
@@ -42,32 +42,6 @@ jobs:
   - publish: ./ci/tmp/figures
     artifact: tvla_figure
     displayName: "Upload figure of AES TVLA."  
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw310_simpleserial.yaml -p projects/aes_sca_random_cw310
-      popd
-    displayName: "Capture AES Random traces (simpleserial)"
-  - publish: ./ci/projects/aes_sca_random_cw310.html
-    artifact: traces_aes_random_key
-    displayName: "Upload AES Random traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      ./ci_trace_check/ci_compare_aes_traces.py -f ./projects/aes_sca_random_cw310 -g ./ci_trace_check/golden_traces/aes_sca_random_golden_cw310 -c 0.8
-      popd
-    displayName: "Compare AES Random traces against golden trace"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw310_ujson.yaml -p projects/aes_sca_fvsr_cw310_ujson
-      popd
-    displayName: "Capture AES FVSR traces (ujson)"
-  - publish: ./ci/projects/aes_sca_fvsr_cw310_ujson.html
-    artifact: traces_aes_fvsr_ujson
-    displayName: "Upload AES FVSR traces (ujson)"
   - bash: |
       set -e
       pushd ci
@@ -100,32 +74,12 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_simpleserial.yaml -p projects/sha3_sca_fvsr_cw310_simpleserial
-      popd
-    displayName: "Capture SHA3 FVSR traces (simpleserial)"
-  - publish: ./ci/projects/sha3_sca_fvsr_cw310_simpleserial.html
-    artifact: traces_sha3_fvsr_cw310_simpleserial
-    displayName: "Upload SHA3 FVSR traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
       ../capture/capture_sha3.py -c cfg/ci_sha3_sca_fvsr_cw310_ujson.yaml -p projects/sha3_sca_fvsr_cw310_ujson
       popd
     displayName: "Capture SHA3 FVSR traces (uJSON)"
   - publish: ./ci/projects/sha3_sca_fvsr_cw310_ujson.html
     artifact: traces_sha3_fvsr_cw310_ujson
     displayName: "Upload SHA3 FVSR traces (uJSON)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_sha3.py -c cfg/ci_sha3_sca_random_cw310_simpleserial.yaml -p projects/sha3_sca_random_cw310_simpleserial
-      popd
-    displayName: "Capture SHA3 Random traces (simpleserial)"
-  - publish: ./ci/projects/sha3_sca_random_cw310_simpleserial.html
-    artifact: traces_sha3_random_cw310_simpleserial
-    displayName: "Upload SHA3 Random traces (simpleserial)"
   - bash: |
       set -e
       pushd ci
@@ -206,32 +160,12 @@ jobs:
       set -e
       pushd ci
       mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_simpleserial.yaml -p projects/kmac_sca_fvsr_cw310_simpleserial
-      popd
-    displayName: "Capture KMAC FVSR traces (simpleserial)"
-  - publish: ./ci/projects/kmac_sca_fvsr_cw310_simpleserial.html
-    artifact: traces_kmac_fvsr_cw310_simpleserial
-    displayName: "Upload KMAC FVSR traces (simpleserial)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
       ../capture/capture_kmac.py -c cfg/ci_kmac_sca_fvsr_cw310_ujson.yaml -p projects/kmac_sca_fvsr_cw310_ujson
       popd
     displayName: "Capture KMAC FVSR traces (uJSON)"
   - publish: ./ci/projects/kmac_sca_fvsr_cw310_ujson.html
     artifact: traces_kmac_fvsr_cw310_ujson
     displayName: "Upload KMAC FVSR traces (uJSON)"
-  - bash: |
-      set -e
-      pushd ci
-      mkdir -p projects
-      ../capture/capture_kmac.py -c cfg/ci_kmac_sca_random_cw310_simpleserial.yaml -p projects/kmac_sca_random_cw310_simpleserial
-      popd
-    displayName: "Capture KMAC Random traces (simpleserial)"
-  - publish: ./ci/projects/kmac_sca_random_cw310_simpleserial.html
-    artifact: traces_kmac_random_cw310_simpleserial
-    displayName: "Upload KMAC Random traces (simpleserial)"
   - bash: |
       set -e
       pushd ci

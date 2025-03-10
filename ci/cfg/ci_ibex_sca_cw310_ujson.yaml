@@ -1,7 +1,7 @@
 target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: False
+  force_program_bitstream: True
   fw_bin: ../objs/sca_ujson_fpga_cw310.bin
   target_clk_mult: 0.24
   target_freq: 24000000

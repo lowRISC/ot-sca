@@ -1,6 +1,6 @@
 device:
   fpga_bitstream: ../cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
-  force_program_bitstream: False
+  force_program_bitstream: True
   fw_bin: ../cw/objs/otbn_vertical_serial_fpga_cw310.bin
   # The clock frequency of the target block is equal to
   # pll_frequency * target_clk_mult. pll_frequency is controllable via

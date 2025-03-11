@@ -98,6 +98,7 @@ class FIGear:
             self.gear = ChipShouterEMFI(
                 chipshover_port = cfg["fisetup"]["chipshover_port"],
                 chipshouter_port = cfg["fisetup"]["chipshouter_port"],
+                husky_sn = cfg["fisetup"].get("husky_sn"),
                 x_position_min = cfg["fisetup"]["x_position_min"],
                 x_position_max = cfg["fisetup"]["x_position_max"],
                 x_position_step = cfg["fisetup"]["x_position_step"],

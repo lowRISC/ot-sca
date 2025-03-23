@@ -55,6 +55,8 @@ class ChipShouterEMFI:
         # Current x & y position the XYZ table is programmed to.
         self.pos_y = self.y_position_min
         self.pos_x = self.x_position_min
+        # When in deterministic mode, increment or decrement the Y position.
+        self.increment = True
 
         # Current FI parameter iteration.
         self.curr_iteration = 0
@@ -196,11 +198,16 @@ class ChipShouterEMFI:
         elif self.parameter_generation == "deterministic":
             if self.curr_iteration == self.num_iterations:
                 self.curr_iteration = 0
-                if self.curr_y_position < self.y_position_max:
+                if self.curr_y_position >= self.y_position_max:
+                    self.increment = False
+                    self.curr_x_position += self.x_position_step
+                elif self.curr_y_position <= self.y_position_min:
+                    self.increment = True
+
+                if self.increment:
                     self.curr_y_position += self.y_position_step
                 else:
-                    self.curr_y_position = self.y_position_min
-                    self.curr_x_position += self.x_position_step
+                    self.curr_y_position -= self.y_position_step
 
             parameters["x_pos"] = self.curr_x_position
             parameters["y_pos"] = self.curr_y_position

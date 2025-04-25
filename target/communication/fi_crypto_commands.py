@@ -162,6 +162,82 @@ class OTFICrypto:
                 "static_trigger": True, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
+    def crypto_sha256_start(self) -> None:
+        """ Starts the crypto.fi.sha256_start test with a hardcoded msg of 0.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Sha256 command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Sha256").encode("ascii"))
+        # Data payload.
+        time.sleep(0.01)
+        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        self.target.write(json.dumps(data).encode("ascii"))
+        time.sleep(0.01)
+        # Trigger payload.
+        time.sleep(0.01)
+        mode = {"start_trigger": True, "msg_trigger": False, "process_trigger": False,
+                "finish_trigger": False}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
+    def crypto_sha256_msg(self) -> None:
+        """ Starts the crypto.fi.sha256_msg test with a hardcoded msg of 0.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Sha256 command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Sha256").encode("ascii"))
+        # Data payload.
+        time.sleep(0.01)
+        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        self.target.write(json.dumps(data).encode("ascii"))
+        time.sleep(0.01)
+        # Trigger payload.
+        time.sleep(0.01)
+        mode = {"start_trigger": False, "msg_trigger": True, "process_trigger": False,
+                "finish_trigger": False}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
+    def crypto_sha256_process(self) -> None:
+        """ Starts the crypto.fi.sha256_process test with a hardcoded msg of 0.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Sha256 command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Sha256").encode("ascii"))
+        # Data payload.
+        time.sleep(0.01)
+        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        self.target.write(json.dumps(data).encode("ascii"))
+        time.sleep(0.01)
+        # Trigger payload.
+        time.sleep(0.01)
+        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": True,
+                "finish_trigger": False}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
+    def crypto_sha256_finish(self) -> None:
+        """ Starts the crypto.fi.sha256_finish test with a hardcoded msg of 0.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Sha256 command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Sha256").encode("ascii"))
+        # Data payload.
+        time.sleep(0.01)
+        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        self.target.write(json.dumps(data).encode("ascii"))
+        time.sleep(0.01)
+        # Trigger payload.
+        time.sleep(0.01)
+        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": False,
+                "finish_trigger": True}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.
 

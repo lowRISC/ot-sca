@@ -33,32 +33,31 @@ class OTHMAC:
         data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": jittery_clock, "enable_sram_readback": False}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def test(self, key: list[int], mask: list[int], num_segments: int):
+    def test(self, key: list[int], num_segments: int):
          # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # Single command.
         self.target.write(json.dumps("Test").encode("ascii"))
-        # Key and mask payload.
+        # Key payload.
         time.sleep(0.01)
-        key_data = {"key": key, "mask": mask}
+        key_data = {"key": key}
         self.target.write(json.dumps(key_data).encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.05)
         num_it_data = {"num_iterations": num_segments}
         self.target.write(json.dumps(num_it_data).encode("ascii"))
 
-    def single(self, msg: list[int], key: list[int], mask: list[int]):
+    def single(self, msg: list[int], key: list[int]):
         """ Start a single HMAC operation using the given message and key.
         Args:
             msg: The list containing the message.
             key: The key containing the message.
-            mask: The mask used for blinding the key.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # Single command.
         self.target.write(json.dumps("Single").encode("ascii"))
-        # Key and mask payload.
+        # Key payload.
         time.sleep(0.01)
         key_data = {"key": key}
         self.target.write(json.dumps(key_data).encode("ascii"))
@@ -67,20 +66,19 @@ class OTHMAC:
         msg_data = {"message": msg}
         self.target.write(json.dumps(msg_data).encode("ascii"))
 
-    def fvsr_batch(self, key: list[int], mask: list[int], num_segments: int):
+    def fvsr_batch(self, key: list[int], num_segments: int):
         """ Start num_segments HMAC operation in FvsR batch mode.
         Args:
             key: The key containing the message.
-            mask: The mask used for blinding the key.
             num_segments: The number of iterations.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # BatchFvsr command.
         self.target.write(json.dumps("BatchFvsr").encode("ascii"))
-        # Key and mask payload.
+        # Key payload.
         time.sleep(0.01)
-        key_data = {"key": key, "mask": mask}
+        key_data = {"key": key}
         self.target.write(json.dumps(key_data).encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.05)

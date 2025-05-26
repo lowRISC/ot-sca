@@ -54,10 +54,17 @@ class OTFIOtp:
         time.sleep(0.01)
         self.target.write(json.dumps("LifeCycle").encode("ascii"))
 
-    def init(self) -> None:
+    def init(self) -> list:
         """ Initialize the Otp FI code on the chip.
         Args:
             cfg: Config dict containing the selected test.
+            
+        Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         # OtpFi command.
         self._ujson_otp_fi_cmd()
@@ -66,6 +73,12 @@ class OTFIOtp:
         self.target.write(json.dumps("Init").encode("ascii"))
         parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
         self.target.write(json.dumps(parameters).encode("ascii"))
+        device_id = self.read_response()
+        owner_page = self.read_response()
+        boot_log = self.read_response()
+        boot_measurements = self.read_response()
+        version = self.read_response()
+        return device_id, owner_page, boot_log, boot_measurements, version
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

@@ -24,13 +24,20 @@ class OTOTBN:
         time.sleep(0.01)
         self.target.write(json.dumps("OtbnSca").encode("ascii"))
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool):
+    def init(self, icache_disable: bool, dummy_instr_disable: bool) -> list:
         """ Initializes OTBN on the target.
         Args:
             icache_disable: If true, disable the iCache. If false, use default config
                             set in ROM.
             dummy_instr_disable: If true, disable the dummy instructions. If false,
                                  use default config set in ROM.
+                                 
+        Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         if not self.simple_serial:
             # OtbnSca command.
@@ -39,6 +46,12 @@ class OTOTBN:
             self.target.write(json.dumps("Init").encode("ascii"))
             parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
             self.target.write(json.dumps(parameters).encode("ascii"))
+            device_id = self.read_response()
+            owner_page = self.read_response()
+            boot_log = self.read_response()
+            boot_measurements = self.read_response()
+            version = self.read_response()
+            return device_id, owner_page, boot_log, boot_measurements, version
 
     def init_keymgr(self):
         """ Initializes the key manager for OTBN on the target.

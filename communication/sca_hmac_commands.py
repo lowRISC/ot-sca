@@ -22,8 +22,15 @@ class OTHMAC:
         self.target.write(json.dumps("HmacSca").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, jittery_clock):
+    def init(self, jittery_clock) -> list:
         """ Initializes HMAC on the target.
+
+        Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
@@ -32,6 +39,12 @@ class OTHMAC:
         time.sleep(0.01)
         data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": jittery_clock, "enable_sram_readback": False}
         self.target.write(json.dumps(data).encode("ascii"))
+        device_id = self.read_response()
+        owner_page = self.read_response()
+        boot_log = self.read_response()
+        boot_measurements = self.read_response()
+        version = self.read_response()
+        return device_id, owner_page, boot_log, boot_measurements, version
 
     def test(self, key: list[int], num_segments: int):
          # HmacSca command.

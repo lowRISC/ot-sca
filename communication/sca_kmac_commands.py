@@ -24,10 +24,17 @@ class OTKMAC:
         time.sleep(0.01)
         self.target.write(json.dumps("KmacSca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int, jittery_clock):
+    def init(self, fpga_mode_bit: int, jittery_clock) -> list:
         """ Initializes KMAC on the target.
         Args:
             fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
+
+         Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         if not self.simple_serial:
             # KmacSca command.
@@ -40,6 +47,12 @@ class OTKMAC:
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
             parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
             self.target.write(json.dumps(parameters).encode("ascii"))
+            device_id = self.read_response()
+            owner_page = self.read_response()
+            boot_log = self.read_response()
+            boot_measurements = self.read_response()
+            version = self.read_response()
+            return device_id, owner_page, boot_log, boot_measurements, version
 
     def write_key(self, key: list[int]):
         """ Write the key to KMAC.

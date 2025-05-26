@@ -39,8 +39,15 @@ class OTIbex:
                 read_counter += 1
         raise Exception("Acknowledge error: Device and host not in sync")
 
-    def init(self):
+    def init(self) -> list:
         """ Initializes the Ibex SCA tests on the target.
+
+         Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         # IbexSca command.
         self._ujson_ibex_sca_cmd()
@@ -49,6 +56,12 @@ class OTIbex:
         self.target.write(json.dumps("Init").encode("ascii"))
         parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
         self.target.write(json.dumps(parameters).encode("ascii"))
+        device_id = self.read_response()
+        owner_page = self.read_response()
+        boot_log = self.read_response()
+        boot_measurements = self.read_response()
+        version = self.read_response()
+        return device_id, owner_page, boot_log, boot_measurements, version
 
     def ibex_sca_register_file_read_batch_random(self, num_segments: int):
         """ Start ibex.sca.register_file_read_batch_random test.

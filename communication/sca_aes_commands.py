@@ -24,10 +24,17 @@ class OTAES:
         time.sleep(0.01)
         self.target.write(json.dumps("AesSca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int):
+    def init(self, fpga_mode_bit: int) -> list:
         """ Initializes AES on the target.
         Args:
             fpga_mode_bit: Indicates whether FPGA specific AES test is started.
+            
+        Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         if not self.simple_serial:
             # AesSca command.
@@ -40,6 +47,12 @@ class OTAES:
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
             data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
             self.target.write(json.dumps(data).encode("ascii"))
+            device_id = self.read_response()
+            owner_page = self.read_response()
+            boot_log = self.read_response()
+            boot_measurements = self.read_response()
+            version = self.read_response()
+            return device_id, owner_page, boot_log, boot_measurements, version
 
     def key_set(self, key, key_length = 16):
         """ Write key to AES.

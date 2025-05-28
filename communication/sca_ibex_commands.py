@@ -353,6 +353,22 @@ class OTIbex:
         data = {"data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
+    def ibex_sca_combi_operations_batch_fvsr(self, num_iterations: int, trigger:int, fixed_data1: int, fixed_data2: int):
+        """ Start ibex.sca.combi_operations_batch test.
+        Args:
+            num_iterations: The number of iterations the test is repeated.
+            fixed_data1: The first fixed value.
+            fixed_data2: The second fixed value.
+        """
+        # IbexSca command.
+        self._ujson_ibex_sca_cmd()
+        # CombiOperationsBatchFvsr command.
+        self.target.write(json.dumps("CombiOperationsBatchFvsr").encode("ascii"))
+        # Input payload.
+        time.sleep(0.01)
+        data = {"num_iterations": num_iterations, "trigger": trigger, "fixed_data1": fixed_data1, "fixed_data2": fixed_data2}
+        self.target.write(json.dumps(data).encode("ascii"))
+
     def start_test(self, testname: str, arg1 = None, arg2 = None) -> None:
         """ Start the selected test.
 

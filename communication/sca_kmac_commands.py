@@ -24,7 +24,7 @@ class OTKMAC:
         time.sleep(0.01)
         self.target.write(json.dumps("KmacSca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int, jittery_clock) -> list:
+    def init(self, fpga_mode_bit: int) -> list:
         """ Initializes KMAC on the target.
         Args:
             fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
@@ -45,7 +45,7 @@ class OTKMAC:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
-            parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
+            parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
             self.target.write(json.dumps(parameters).encode("ascii"))
             device_id = self.read_response()
             owner_page = self.read_response()
@@ -177,5 +177,26 @@ class OTKMAC:
             read_line = str(self.target.readline())
             if "RESP_OK" in read_line:
                 return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""
+
+    def read_digest(self, max_tries: Optional[int] = 1) -> str:
+        """ Read response from Ibex SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                try:
+                    tag = json.loads(json_string)["batch_digest"]
+                    return tag
+                except Exception:
+                    pass  # noqa: E302
             it += 1
         return ""

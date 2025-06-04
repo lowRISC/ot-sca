@@ -32,7 +32,7 @@ class OTFICrypto:
         self._ujson_crypto_cmd()
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
-        data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
+        data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
         self.target.write(json.dumps(data).encode("ascii"))
         device_id = self.read_response()
         owner_page = self.read_response()

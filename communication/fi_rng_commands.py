@@ -40,7 +40,7 @@ class OTFIRng:
             self.target.write(json.dumps("CsrngInit").encode("ascii"))
         else:
             self.target.write(json.dumps("EdnInit").encode("ascii"))
-        parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": False, "enable_sram_readback": False}
+        parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
         self.target.write(json.dumps(parameters).encode("ascii"))
         device_id = self.read_response()
         owner_page = self.read_response()
@@ -49,7 +49,7 @@ class OTFIRng:
         version = self.read_response()
         return device_id, owner_page, boot_log, boot_measurements, version
 
-    def rng_csrng_bias(self) -> None:
+    def rng_csrng_bias(self, trigger: int) -> None:
         """ Starts the rng_csrng_bias test.
         """
         # RngFi command.
@@ -58,6 +58,19 @@ class OTFIRng:
         # CsrngBias command.
         time.sleep(0.05)
         self.target.write(json.dumps("CsrngBias").encode("ascii"))
+        if trigger == 0:
+            mode = {"start_trigger": True, "valid_trigger": False,
+                "read_trigger": False, "all_trigger": False}
+        elif trigger == 1:
+            mode = {"start_trigger": False, "valid_trigger": True,
+                "read_trigger": False, "all_trigger": False}
+        elif trigger == 2:
+            mode = {"start_trigger": False, "valid_trigger": False,
+                "read_trigger": True, "all_trigger": False}
+        elif trigger == 3:
+            mode = {"start_trigger": False, "valid_trigger": False,
+                "read_trigger": False, "all_trigger": True}
+        self.target.write(json.dumps(mode).encode("ascii"))
 
     def rng_edn_resp_ack(self) -> None:
         """ Starts the rng_edn_resp_ack test.

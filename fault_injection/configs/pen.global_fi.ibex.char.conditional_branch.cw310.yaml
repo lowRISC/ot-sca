@@ -58,3 +58,7 @@ test:
   # When True, the dummy instructions are disabled. If False, use the default config
   # (either on or off) set in the ROM.
   dummy_instr_disable: False
+  # When True, enable the jittery clock.
+  jittery_clock_enable: False
+  # When True, enable the SRAM readback feature.
+  sram_readback_enable: False

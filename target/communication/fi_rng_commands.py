@@ -19,32 +19,41 @@ class OTFIRng:
         self.target.write(json.dumps("RngFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, test: str, icache_disable: bool, dummy_instr_disable: bool) -> list:
+    def init(self, icache_disable: bool, dummy_instr_disable: bool,
+             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
         """ Initialize the RNG FI code on the chip.
-
         Args:
-            test: The selected test.
             icache_disable: If true, disable the iCache. If false, use default config
                             set in ROM.
             dummy_instr_disable: If true, disable the dummy instructions. If false,
                                  use default config set in ROM.
+            enable_jittery_clock: If true, enable the jittery clock.
+            enable_sram_readback: If true, enable the SRAM readback feature.
         Returns:
-            The device ID of the device.
+            The device ID and countermeasure config of the device.
         """
         # RngFi command.
         self._ujson_rng_cmd()
         # Init command.
         time.sleep(0.01)
-        if "csrng" in test:
-            self.target.write(json.dumps("CsrngInit").encode("ascii"))
-        else:
-            self.target.write(json.dumps("EdnInit").encode("ascii"))
-        # Disable iCache / dummy instructions.
+        self.target.write(json.dumps("Init").encode("ascii"))
+        # Configure device and countermeasures.
         time.sleep(0.01)
-        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable,
+                "enable_jittery_clock": enable_jittery_clock,
+                "enable_sram_readback": enable_sram_readback}
         self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID from device.
-        return self.read_response(max_tries=30)
+        # Read back device ID and countermeasure configuration from device.
+        device_config = self.read_response(max_tries=30)
+        # Read flash owner page.
+        device_config += self.read_response(max_tries=30)
+        # Read boot log.
+        device_config += self.read_response(max_tries=30)
+        # Read boot measurements.
+        device_config += self.read_response(max_tries=30)
+        # Read pentest framework version.
+        device_config += self.read_response(max_tries=30)
+        return device_config
 
     def rng_csrng_bias(self) -> None:
         """ Starts the rng_csrng_bias test.

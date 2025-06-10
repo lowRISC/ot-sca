@@ -35,7 +35,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "otbn_char_mem"
-  expected_result: '{"res":0,"imem_data":[0,0,0,0,0,0,0,0],"imem_addr":[0,0,0,0,0,0,0,0],"dmem_data":[0,0,0,0,0,0,0,0],"dmem_addr":[0,0,0,0,0,0,0,0],"err_otbn":0,"err_ibx":0,"alerts":[0,0,0]}'
+  expected_result: '{"res":0,"imem_data":[0,0,0,0,0,0,0,0],"imem_addr":[0,0,0,0,0,0,0,0],"dmem_data":[0,0,0,0,0,0,0,0],"dmem_addr":[0,0,0,0,0,0,0,0],"err_otbn":0,"err_ibx":0,"ast_alerts":[0,0]}'
   config: {"byte_offset": 0, "num_words": 4, "imem": False, "dmem": True}
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not

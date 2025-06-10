@@ -35,6 +35,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "otbn_char_bn_wsrr"
+  expected_result: '{"res":0,"insn_cnt":1089,"err_otbn":0,"err_ibx":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

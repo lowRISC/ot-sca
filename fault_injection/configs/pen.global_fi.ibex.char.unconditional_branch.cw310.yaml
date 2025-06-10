@@ -1,8 +1,8 @@
 target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: False
-  fw_bin: "../objs/fi_ujson_fpga_cw310.bin"
+  force_program_bitstream: True
+  fw_bin: "../objs/fi_ibex_ujson_fpga_cw310.bin"
   output_len_bytes: 16
   target_clk_mult: 0.24
   target_freq: 24000000
@@ -36,7 +36,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_unconditional_branch"
-  expected_result: '{"result":30,"err_status":0,"alerts":0}'
+  expected_result: '{"result":30,"err_status":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis
@@ -48,3 +48,7 @@ test:
   # When True, the dummy instructions are disabled. If False, use the default config
   # (either on or off) set in the ROM.
   dummy_instr_disable: False
+  # When True, enable the jittery clock.
+  jittery_clock_enable: False
+  # When True, enable the SRAM readback feature.
+  sram_readback_enable: False

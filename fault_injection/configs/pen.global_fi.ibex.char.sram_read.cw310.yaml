@@ -1,8 +1,8 @@
 target:
   target_type: cw310
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
-  force_program_bitstream: False
-  fw_bin: "../objs/fi_ujson_fpga_cw310.bin"
+  force_program_bitstream: True
+  fw_bin: "../objs/fi_ibex_ujson_fpga_cw310.bin"
   output_len_bytes: 16
   target_clk_mult: 0.24
   target_freq: 24000000
@@ -36,7 +36,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "ibex_char_sram_read"
-  expected_result: '{"err_status":0,"addresses":[0,0,0,0,0,0,0,0],"data":[0,0,0,0,0,0,0,0],"alerts":[0,0,0]}'
+  expected_result: '{"err_status":0,"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false],"data":[0,0,0,0,0,0,0,0,0,0,0,0,0],"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

@@ -35,7 +35,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "otbn_char_bn_sel"
-  expected_result: '{"big_num":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"insn_cnt":1014,"err_otbn":0,"err_ibx":0,"alerts":[0,0,0]}'
+  expected_result: '{"big_num":[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"insn_cnt":1014,"err_otbn":0,"err_ibx":0,"ast_alerts":[0,0]}'
   input: {"big_num": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not

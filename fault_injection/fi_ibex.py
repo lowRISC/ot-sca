@@ -145,6 +145,14 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Reset FIGear if necessary.
                 fi_gear.reset()
             else:
+                # Remove the register file dump from the evaluation as it could
+                # be different between different runs. As the register file dump
+                # is stored into the database, further manual evaluation can be
+                # still conducted.
+                resp_json = json.loads(response_compare)
+                if "registers" in resp_json:
+                    del resp_json["registers"]
+                    response_compare = json.dumps(resp_json, separators=(',', ':'))
                 # If the test decides to ignore alerts triggered by the alert
                 # handler, remove it from the received and expected response.
                 # In the database, the received alert is still available for

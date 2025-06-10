@@ -35,7 +35,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "otbn_char_hardware_reg_op_loop"
-  expected_result: '{"loop_counter":10000,"err_status":0,"alerts":0}'
+  expected_result: '{"loop_counter":10000,"err_otbn":0,"err_ibx":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

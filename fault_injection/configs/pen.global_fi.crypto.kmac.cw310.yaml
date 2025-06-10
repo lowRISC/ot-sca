@@ -39,7 +39,7 @@ test:
   which_test: "crypto_kmac_absorb"
   # which_test: "crypto_kmac_squeeze"
   # which_test: "crypto_kmac_static"
-  expected_result: '{"digest":[184,34,91,108,231,47,251,27],"digest_2nd":[142,188,186,201,216,47,203,192],"alerts":[0,0,0],"err_status":0}'
+  expected_result: '{"digest":[184,34,91,108,231,47,251,27],"digest_2nd":[142,188,186,201,216,47,203,192],"err_status":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

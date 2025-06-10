@@ -36,7 +36,7 @@ fiproject:
   plot_y_axis_legend: "[cycles]"
 test:
   which_test: "crypto_shadow_reg_access"
-  expected_result: '{"result":[101716736,0,0],"alerts":[0,0,0],"err_status":0}'
+  expected_result: '{"result":[68162304,0,0],"err_status":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

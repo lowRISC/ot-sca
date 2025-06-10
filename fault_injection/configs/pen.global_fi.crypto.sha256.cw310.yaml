@@ -39,7 +39,7 @@ test:
   # which_test: "crypto_sha256_msg"
   # which_test: "crypto_sha256_process"
   # which_test: "crypto_sha256_finish"
-  expected_result: '{"tag":[686569403,627255979,3962665531,1869430007,3580678696,2543765621,4151418325,927402239],"alerts":[0,0,0],"err_status":0}'
+  expected_result: '{"tag":[686569403,627255979,3962665531,1869430007,3580678696,2543765621,4151418325,927402239],"err_status":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

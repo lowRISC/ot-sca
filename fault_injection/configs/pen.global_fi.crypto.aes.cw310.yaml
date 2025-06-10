@@ -39,7 +39,7 @@ test:
   # which_test: "crypto_aes_plaintext"
   which_test: "crypto_aes_encrypt"
   # which_test: "crypto_fi_aes_ciphertext"
-  expected_result: '{"ciphertext":[141,145,88,155,234,129,16,92,221,12,69,21,69,208,99,12],"alerts":0,"err_status":0}'
+  expected_result: '{"ciphertext":[141,145,88,155,234,129,16,92,221,12,69,21,69,208,99,12],"err_status":0,"ast_alerts":[0,0]}'
   # Set to true if the test should ignore alerts returned by the test. As the
   # alert handler on the device could sometime fire alerts that are not
   # related to the FI, ignoring is by default set to true. A manual analysis

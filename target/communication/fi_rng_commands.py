@@ -19,14 +19,12 @@ class OTFIRng:
         self.target.write(json.dumps("RngFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool,
+    def init(self, enable_icache: bool, enable_dummy_instr: bool,
              enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
         """ Initialize the RNG FI code on the chip.
         Args:
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
+            enable_icache: If true, enable the iCache.
+            enable_dummy_instr:  If true, enable the dummy instructions.
             enable_jittery_clock: If true, enable the jittery clock.
             enable_sram_readback: If true, enable the SRAM readback feature.
         Returns:
@@ -39,7 +37,7 @@ class OTFIRng:
         self.target.write(json.dumps("Init").encode("ascii"))
         # Configure device and countermeasures.
         time.sleep(0.01)
-        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable,
+        data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
                 "enable_jittery_clock": enable_jittery_clock,
                 "enable_sram_readback": enable_sram_readback}
         self.target.write(json.dumps(data).encode("ascii"))

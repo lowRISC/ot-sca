@@ -203,8 +203,11 @@ def configure_cipher(cfg, capture_cfg, ot_kmac, ot_prng):
     if "cw" in cfg["target"]["target_type"]:
         fpga_mode_bit = 1
     # Initialize KMAC on the target.
-    device_id = ot_kmac.init(fpga_mode_bit, cfg["test"]["icache_disable"],
-                             cfg["test"]["dummy_instr_disable"])
+    device_id = ot_kmac.init(fpga_mode_bit,
+                             cfg["test"]["enable_icache"],
+                             cfg["test"]["enable_dummy_instr"],
+                             cfg["test"]["jittery_clock_enable"],
+                             cfg["test"]["sram_readback_enable"])
 
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking.

@@ -3,12 +3,13 @@ target:
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: True
   fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
+  # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
-  output_len_bytes: 16
+  output_len_bytes: 32
   protocol: "ujson"
-  port: "/dev/opentitan/cw310_1_tty_03"
+  port: "/dev/ttyACM_CW310_1"
 husky:
   sampling_rate: 200000000
   num_segments: 20
@@ -24,9 +25,6 @@ capture:
   trace_threshold: 10000
   # trace_db: cw
 test:
-  # which_test: hmac_batch_random
-  # which_test: hmac_batch_fvsr
-  # which_test: hmac_random
   which_test: hmac_fvsr
   key_len_bytes: 32
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E,

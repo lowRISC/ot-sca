@@ -34,13 +34,16 @@ test:
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E,
               0x22, 0xB2, 0x5C, 0xDD, 0xF9, 0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12,
               0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
-  mask_fixed: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-               0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
   msg_len_bytes: 16
   text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
-  # seed for PRNG to generate sequence of messages, masks, and keys; Python random
+  # seed for PRNG to generate sequence of messages, and keys; Python random
   # class on host, Mersenne twister implementation on OT SW.
   batch_prng_seed: 0
+  # Trigger configuration.
+  start_trigger: False
+  msg_trigger: False
+  process_trigger: True
+  finish_trigger: False
   # When True, the instruction cache is enabled.
   enable_icache: True
   # When True, the dummy instructions are enabled.

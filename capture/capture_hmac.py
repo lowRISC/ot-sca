@@ -67,11 +67,14 @@ class CaptureConfig:
     num_traces: int
     num_segments: int
     output_len: int
-    mask_fixed: list[int]
     key_fixed: list[int]
     key_len_bytes: int
     msg_len_bytes: int
     protocol: str
+    start_trigger: bool
+    msg_trigger: bool
+    process_trigger: bool
+    finish_trigger: bool
     port: Optional[str] = "None"
 
 
@@ -206,8 +209,7 @@ def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
     return device_id
 
 
-def generate_ref_crypto(num_segments, mode, batch, key_fixed, mask_fixed,
-                        key_length, msg_length):
+def generate_ref_crypto(num_segments, mode, batch, key_fixed, key_length, msg_length):
     """ Generate cipher material for the encryption.
 
     This function derives the next key as well as the plaintext for the next
@@ -218,46 +220,36 @@ def generate_ref_crypto(num_segments, mode, batch, key_fixed, mask_fixed,
         mode: The mode of the capture.
         batch: Batch or non-batch mode.
         key_fixed: The fixed key for FVSR.
-        mask_fixed: The fixed mask for FVSR.
         key_length: The length of the key.
         msg_length: The length of the message.
 
     Returns:
         msg: The next message.
         key: The next key.
-        mask: The next mask.
         tag: The next tag.
     """
     # First sample is always fixed.
     sample_fixed = True
     # Arrays for storing num_segments crypto material.
     key_array = []
-    mask_array = []
     msg_array = []
     for it in range(0, num_segments):
         if mode == "hmac_random":
-            # Generate random message and key/mask.
+            # Generate random message and key.
             key = []
             for i in range(0, key_length):
                 key.append(random.randint(0, 255))
-            mask = []
-            for i in range(0, key_length):
-                mask.append(random.randint(0, 255))
             msg = []
             for i in range(0, msg_length):
                 msg.append(random.randint(0, 255))
         else:
-            # Generate FvsR key/mask and message.
+            # Generate FvsR key and message.
             if sample_fixed:
                 key = key_fixed
-                mask = mask_fixed
             else:
                 key = []
                 for i in range(0, key_length):
                     key.append(random.randint(0, 255))
-                mask = []
-                for i in range(0, key_length):
-                    mask.append(random.randint(0, 255))
             msg = []
             for i in range(0, msg_length):
                 msg.append(random.randint(0, 255))
@@ -270,10 +262,9 @@ def generate_ref_crypto(num_segments, mode, batch, key_fixed, mask_fixed,
         tag = bytearray(mac_fixed.digest())
         # Append generated material to arrays.
         key_array.append(key)
-        mask_array.append(mask)
         msg_array.append(msg)
 
-    return msg_array, key_array, mask_array, tag
+    return msg_array, key_array, tag
 
 
 def check_ciphertext(ot_hmac, expected_last_ciphertext):
@@ -300,9 +291,9 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
     """ Capture power consumption during HMAC Tag computation.
 
     Supports four different capture types:
-    * hmac_batch_random: Random key, mask, and message in batch mode.
+    * hmac_batch_random: Random key and message in batch mode.
     * hmac_batch_fvsr: Fixed key, random plaintext in batch mode
-    * hmac_random: Random key, mask, and message.
+    * hmac_random: Random key and message.
     * hmac_fvsr: Fixed key, random plaintext.
 
     Args:
@@ -312,9 +303,8 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
         project: The SCA project.
         target: The OpenTitan target.
     """
-    # Load fixed key and mask.
+    # Load fixed key.
     key_fixed = capture_cfg.key_fixed
-    mask_fixed = capture_cfg.mask_fixed
 
     # Optimization for CW trace library.
     num_segments_storage = 1
@@ -329,23 +319,26 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
             scope.arm()
 
             # Generate data for the HMAC test.
-            msg, key, mask, tag_expected = generate_ref_crypto(
+            msg, key, tag_expected = generate_ref_crypto(
                 num_segments = capture_cfg.num_segments,
                 mode = capture_cfg.capture_mode,
                 batch = capture_cfg.batch_mode,
                 key_fixed = key_fixed,
-                mask_fixed = mask_fixed,
                 key_length = capture_cfg.key_len_bytes,
                 msg_length = capture_cfg.msg_len_bytes)
 
             if capture_cfg.batch_mode:
                 if capture_cfg.capture_mode == "hmac_fvsr":
-                    ot_hmac.fvsr_batch(key_fixed, mask_fixed,
-                                       capture_cfg.num_segments)
+                    ot_hmac.fvsr_batch(key_fixed, capture_cfg.num_segments,
+                                       capture_cfg.start_trigger, capture_cfg.msg_trigger,
+                                       capture_cfg.process_trigger, capture_cfg.finish_trigger)
                 else:
-                    ot_hmac.random_batch(capture_cfg.num_segments)
+                    ot_hmac.random_batch(capture_cfg.num_segments, capture_cfg.start_trigger,
+                                         capture_cfg.msg_trigger, capture_cfg.process_trigger,
+                                         capture_cfg.finish_trigger)
             else:
-                ot_hmac.single(msg[0], key[0], mask[0])
+                ot_hmac.single(msg[0], key[0], capture_cfg.start_trigger, capture_cfg.msg_trigger,
+                               capture_cfg.process_trigger, capture_cfg.finish_trigger)
 
             # Capture traces.
             waves = scope.capture_and_transfer_waves(target)
@@ -361,7 +354,7 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
                 # Store trace into database.
                 project.append_trace(wave = waves[i, :],
                                      plaintext = bytearray(msg[i]),
-                                     ciphertext = bytearray(mask[i]),
+                                     ciphertext = bytearray(tag_expected[i]),
                                      key = bytearray(key[i]))
 
             # Memory allocation optimization for CW trace library.
@@ -423,9 +416,12 @@ def main(argv=None):
                                 num_segments = scope.scope_cfg.num_segments,
                                 output_len = cfg["target"]["output_len_bytes"],
                                 key_fixed = cfg["test"]["key_fixed"],
-                                mask_fixed = cfg["test"]["mask_fixed"],
                                 key_len_bytes = cfg["test"]["key_len_bytes"],
                                 msg_len_bytes = cfg["test"]["msg_len_bytes"],
+                                start_trigger = cfg["test"]["start_trigger"],
+                                msg_trigger = cfg["test"]["msg_trigger"],
+                                process_trigger = cfg["test"]["process_trigger"],
+                                finish_trigger = cfg["test"]["finish_trigger"],
                                 protocol = cfg["target"]["protocol"],
                                 port = cfg["target"].get("port"))
     logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")

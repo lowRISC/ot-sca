@@ -23,9 +23,11 @@ capture:
   trace_threshold: 10000
 test:
   which_test: ibex_sca_register_file_read_random
-  # When True, the instruction cache is disabled. If False, use the default config
-  # (either on or off) set in the ROM.
-  icache_disable: False
-  # When True, the dummy instructions are disabled. If False, use the default config
-  # (either on or off) set in the ROM.
-  dummy_instr_disable: False
+  # When True, the instruction cache is enabled.
+  enable_icache: True
+  # When True, the dummy instructions are enabled.
+  enable_dummy_instr: False
+  # When True, enable the jittery clock.
+  jittery_clock_enable: False
+  # When True, enable the SRAM readback feature.
+  sram_readback_enable: False

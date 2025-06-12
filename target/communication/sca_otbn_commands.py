@@ -24,27 +24,39 @@ class OTOTBN:
         time.sleep(0.01)
         self.target.write(json.dumps("OtbnSca").encode("ascii"))
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool):
+    def init(self, enable_icache: bool, enable_dummy_instr: bool,
+             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
         """ Initializes OTBN on the target.
         Args:
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
+            enable_icache: If true, enable the iCache.
+            enable_dummy_instr: If true, enable the dummy instructions.
+            enable_jittery_clock: If true, enable the jittery clock.
+            enable_sram_readback: If true, enable the SRAM readback feature.
         Returns:
-            The device ID of the device.
+            The device ID and countermeasure config of the device.
         """
         if not self.simple_serial:
             # OtbnSca command.
             self._ujson_otbn_sca_cmd()
             # Init the OTBN core.
             self.target.write(json.dumps("Init").encode("ascii"))
-            # Disable iCache / dummy instructions.
+            # Configure device and countermeasures.
             time.sleep(0.01)
-            data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+            data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
+                    "enable_jittery_clock": enable_jittery_clock,
+                    "enable_sram_readback": enable_sram_readback}
             self.target.write(json.dumps(data).encode("ascii"))
-            # Read back device ID from device.
-            return self.read_response(max_tries=30)
+            # Read back device ID and countermeasure configuration from device.
+            device_config = self.read_response(max_tries=30)
+            # Read flash owner page.
+            device_config += self.read_response(max_tries=30)
+            # Read boot log.
+            device_config += self.read_response(max_tries=30)
+            # Read boot measurements.
+            device_config += self.read_response(max_tries=30)
+            # Read pentest framework version.
+            device_config += self.read_response(max_tries=30)
+            return device_config
 
     def init_keymgr(self):
         """ Initializes the key manager for OTBN on the target.

@@ -44,7 +44,7 @@ class OTOTBN:
             self._ujson_otbn_sca_cmd()
             # Init the OTBN core.
             self.target.write(json.dumps("Init").encode("ascii"))
-            parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
+            parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": False, "enable_sram_readback": False}
             self.target.write(json.dumps(parameters).encode("ascii"))
             device_id = self.read_response()
             owner_page = self.read_response()

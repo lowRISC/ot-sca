@@ -32,14 +32,20 @@ class OTFICrypto:
         self._ujson_crypto_cmd()
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
-        data = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
-        self.target.write(json.dumps(data).encode("ascii"))
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": False, "enable_sram_readback": False}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        parameters = {"alert_classes":[2,2,2,2,0,0,2,2,2,2,0,0,0,0,0,1,0,0,0,2,2,2,0,0,0,1,0,2,2,2,2,0,1,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,0,0,0,0,1,0,1], "accumulation_threshold": 2, "signals": [4294967295, 0, 2, 3], "duration_cycles": [0, 2400000,48,48], "ping_timeout": 1200}
+        self.target.write(json.dumps(parameters).encode("ascii"))
         device_id = self.read_response()
+        sensors = self.read_response()
+        alerts = self.read_response()
         owner_page = self.read_response()
         boot_log = self.read_response()
         boot_measurements = self.read_response()
         version = self.read_response()
-        return device_id, owner_page, boot_log, boot_measurements, version
+        return device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version
 
     def crypto_shadow_reg_access(self) -> None:
         """ Starts the crypto.fi.shadow_reg_access test.

@@ -44,7 +44,7 @@ class OTSHA3:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
-            parameters = {"icache_disable": True, "dummy_instr_disable": True, "enable_jittery_clock": True, "enable_sram_readback": True}
+            parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": False, "enable_sram_readback": False}
             self.target.write(json.dumps(parameters).encode("ascii"))
             device_id = self.read_response()
             owner_page = self.read_response()

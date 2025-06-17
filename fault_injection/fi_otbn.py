@@ -101,11 +101,13 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         project: The project to store the results.
         ot_communication: The OpenTitan OTBN FI communication interface.
     Returns:
-        device_id: The ID of the target device.
+        device_cfg: The ID and countermeasure configuration of the target device.
     """
     # Configure the OTBN FI code on the target.
-    device_id = ot_communication.init(cfg["test"]["icache_disable"],
-                                      cfg["test"]["dummy_instr_disable"])
+    device_cfg = ot_communication.init(cfg["test"]["enable_icache"],
+                                       cfg["test"]["enable_dummy_instr"],
+                                       cfg["test"]["jittery_clock_enable"],
+                                       cfg["test"]["sram_readback_enable"])
     # Setup key manager if needed by test.
     ot_communication.init_keymgr(cfg["test"]["which_test"])
     # Store results in array for a quick access.
@@ -149,8 +151,10 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Re-establish UART connection.
                 ot_communication = OTFIOtbn(target)
                 # Configure the OTBN FI code on the target.
-                ot_communication.init(cfg["test"]["icache_disable"],
-                                      cfg["test"]["dummy_instr_disable"])
+                ot_communication.init(cfg["test"]["enable_icache"],
+                                      cfg["test"]["enable_dummy_instr"],
+                                      cfg["test"]["jittery_clock_enable"],
+                                      cfg["test"]["sram_readback_enable"])
                 # Setup key manager if needed by test.
                 ot_communication.init_keymgr(cfg["test"]["which_test"])
                 # Reset FIGear if necessary.
@@ -158,6 +162,13 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Trigger re-write of initial config at next run.
                 config_transmitted = False
             elif "expected_result" in cfg["test"]:
+                # Remove the data output as this field contains random data.
+                # The data is still written into the database for further
+                # evaluation.
+                resp_json = json.loads(response_compare)
+                if "data" in resp_json:
+                    del resp_json["data"]
+                    response_compare = json.dumps(resp_json, separators=(',', ':'))
                 # Most but not all tests (e.g., tests returning random data)
                 # expect a certain response.
                 expected_response = cfg["test"]["expected_result"]
@@ -199,7 +210,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             remaining_iterations -= 1
             pbar.update(1)
     print_fi_statistic(fi_results)
-    return device_id
+    return device_cfg
 
 
 def print_plot(project: FIProject, config: dict, file: Path) -> None:
@@ -239,7 +250,7 @@ def main(argv=None):
     ot_communication = OTFIOtbn(target)
 
     # FI parameter sweep.
-    device_id = fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
+    device_cfg = fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
 
     # Print plot.
     print_plot(project.get_firesults(start=0, end=cfg["fiproject"]["num_plots"]),
@@ -247,7 +258,7 @@ def main(argv=None):
 
     # Save metadata.
     metadata = {}
-    metadata["device_id"] = device_id
+    metadata["device_cfg"] = device_cfg
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     # Store bitstream information.
     metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")

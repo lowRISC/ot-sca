@@ -4,8 +4,8 @@ target:
   force_program_bitstream: True
   fw_bin: "../objs/sca_aes_ujson_fpga_cw310.bin"
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
-  target_clk_mult: 0.24
-  target_freq: 24000000
+  target_clk_mult: 0.10
+  target_freq: 10000000
   baudrate: 115200
   output_len_bytes: 16
   protocol: "ujson"

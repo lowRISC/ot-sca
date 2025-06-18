@@ -185,6 +185,32 @@ jobs:
           name: traces_kmac_random_cw310_ujson
           path: ./ci/projects/kmac_sca_random_cw310_ujson.html
 
+  hmac_sca_capture_cw310:
+    name: Capture HMAC SCA traces (CW310)
+    runs-on: [ubuntu-22.04-fpga, cw310]
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Install python dependencies
+        run: |
+          python3 -m pip install --user -r python-requirements.txt
+          mkdir -p ci/projects
+
+      - name: Capture HMAC FVSR traces (uJSON)
+        working-directory: ci
+        run: |
+          ../capture/capture_hmac.py -c cfg/ci_hmac_sca_fvsr_cw310_ujson.yaml -p projects/hmac_sca_fvsr_cw310_ujson
+
+      - name: Upload HMAC FVSR traces (uJSON)
+        uses: actions/upload-artifact@v4
+        with:
+          name: traces_hmac_fvsr_cw310_ujson
+          path: ./ci/projects/hmac_sca_fvsr_cw310_ujson.html
+
   ibex_sca_capture_cw310:
     name: Capture Ibex SCA traces (CW310)
     runs-on: [ubuntu-22.04-fpga, cw310]

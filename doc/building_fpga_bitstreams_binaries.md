@@ -51,12 +51,12 @@ The following table gives an overview of the different binary configurations:
 
 | Evaluation Goal | Branch Name        | Binary Name                   | Compilation Target                       |
 |-----------------|--------------------|-------------------------------|------------------------------------------|
-| AES SCA         | ot-sca_cw310_aes   | sca_aes_ujson_fpga_cw310.bin  | fpga_pentest_sca_fpga_cw310_test_rom     |
-| KMAC SCA        | ot-sca_cw310_kmac  | sca_kmac_ujson_fpga_cw310.bin | fpga_pentest_sca_fpga_cw310_test_rom     |
-| OTBN SCA        | ot-sca_cw310_otbn  | sca_otbn_ujson_fpga_cw310.bin | fpga_pentest_sca_fpga_cw310_test_rom     |
-| HMAC SCA        | ot-sca_cw310       | sca_ujson_fpga_cw310.bin      | fpga_pentest_sca_fpga_cw310_test_rom     |
-| SHA3 SCA        | ot-sca_cw310_kmac  | sca_kmac_ujson_fpga_cw310.bin | fpga_pentest_sca_fpga_cw310_test_rom     |
-| Ibex SCA        | ot-sca_cw310       | sca_ujson_fpga_cw310.bin      | fpga_pentest_sca_fpga_cw310_test_rom     |
+| AES SCA         | ot-sca_cw310_aes   | sca_aes_ujson_fpga_cw310.bin  | pen_test_sca_fpga_cw310_test_rom         |
+| KMAC SCA        | ot-sca_cw310_kmac  | sca_kmac_ujson_fpga_cw310.bin | pen_test_sca_fpga_cw310_test_rom         |
+| OTBN SCA        | ot-sca_cw310_otbn  | sca_otbn_ujson_fpga_cw310.bin | pen_test_sca_fpga_cw310_test_rom         |
+| HMAC SCA        | ot-sca_cw310       | sca_ujson_fpga_cw310.bin      | pen_test_sca_fpga_cw310_test_rom         |
+| SHA3 SCA        | ot-sca_cw310_kmac  | sca_kmac_ujson_fpga_cw310.bin | pen_test_sca_fpga_cw310_test_rom         |
+| Ibex SCA        | ot-sca_cw310       | sca_ujson_fpga_cw310.bin      | pen_test_sca_fpga_cw310_test_rom         |
 | FI              | ot-sca_cw310       | fi_ujson_fpga_cw310.bin       | fpga_pentest_fi_fpga_cw310_test_rom      |
 | FI OTBN         | ot-sca_cw310       | fi_otbn_ujson_fpga_cw310.bin  | fpga_pentest_fi_otbn_fpga_cw310_test_rom |
 

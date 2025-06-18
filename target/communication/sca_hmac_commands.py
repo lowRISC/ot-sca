@@ -23,71 +23,106 @@ class OTHMAC:
         self.target.write(json.dumps("HmacSca").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool):
+    def init(self, enable_icache: bool, enable_dummy_instr: bool,
+             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
         """ Initializes HMAC on the target.
         Args:
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
+            enable_icache: If true, enable the iCache.
+            enable_dummy_instr: If true, enable the dummy instructions.
+            enable_jittery_clock: If true, enable the jittery clock.
+            enable_sram_readback: If true, enable the SRAM readback feature.
         Returns:
-            The device ID of the device.
+            The device ID and countermeasure config of the device.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
-        # Disable iCache / dummy instructions.
+        # Configure device and countermeasures.
         time.sleep(0.01)
-        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
+        data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
+                "enable_jittery_clock": enable_jittery_clock,
+                "enable_sram_readback": enable_sram_readback}
         self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID from device.
-        return self.read_response(max_tries=30)
+        # Read back device ID and countermeasure configuration from device.
+        device_config = self.read_response(max_tries=30)
+        # Read flash owner page.
+        device_config += self.read_response(max_tries=30)
+        # Read boot log.
+        device_config += self.read_response(max_tries=30)
+        # Read boot measurements.
+        device_config += self.read_response(max_tries=30)
+        # Read pentest framework version.
+        device_config += self.read_response(max_tries=30)
+        return device_config
 
-    def single(self, msg: list[int], key: list[int], mask: list[int]):
+    def single(self, msg: list[int], key: list[int], start_trigger: bool,
+               msg_trigger: bool, process_trigger: bool, finish_trigger: bool):
         """ Start a single HMAC operation using the given message and key.
         Args:
             msg: The list containing the message.
             key: The key containing the message.
-            mask: The mask used for blinding the key.
+            start_trigger: Set trigger during the start phase.
+            msg_trigger: Set trigger during the message pushing phase.
+            process_trigger: Set trigger during the processing phase.
+            finish_trigger: Set trigger during the finish phase.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # Single command.
         self.target.write(json.dumps("Single").encode("ascii"))
-        # Key and mask payload.
+        # Key payload.
         time.sleep(0.01)
-        key_data = {"key": key, "mask": mask}
+        key_data = {"key": key}
         self.target.write(json.dumps(key_data).encode("ascii"))
         # Message payload.
         time.sleep(0.01)
         msg_data = {"message": msg}
         self.target.write(json.dumps(msg_data).encode("ascii"))
+        # Trigger configuration.
+        time.sleep(0.05)
+        trigger_data = {"start_trigger": start_trigger, "msg_trigger": msg_trigger,
+                        "process_trigger": process_trigger, "finish_trigger": finish_trigger}
+        self.target.write(json.dumps(trigger_data).encode("ascii"))
 
-    def fvsr_batch(self, key: list[int], mask: list[int], num_segments: int):
+    def fvsr_batch(self, key: list[int], num_segments: int, start_trigger: bool,
+                   msg_trigger: bool, process_trigger: bool, finish_trigger: bool):
         """ Start num_segments HMAC operation in FvsR batch mode.
         Args:
             key: The key containing the message.
-            mask: The mask used for blinding the key.
             num_segments: The number of iterations.
+            start_trigger: Set trigger during the start phase.
+            msg_trigger: Set trigger during the message pushing phase.
+            process_trigger: Set trigger during the processing phase.
+            finish_trigger: Set trigger during the finish phase.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
         # BatchFvsr command.
         self.target.write(json.dumps("BatchFvsr").encode("ascii"))
-        # Key and mask payload.
+        # Key payload.
         time.sleep(0.01)
-        key_data = {"key": key, "mask": mask}
+        key_data = {"key": key}
         self.target.write(json.dumps(key_data).encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.05)
-        num_it_data = {"num_enc": num_segments}
+        num_it_data = {"num_iterations": num_segments}
         self.target.write(json.dumps(num_it_data).encode("ascii"))
+        # Trigger configuration.
+        time.sleep(0.05)
+        trigger_data = {"start_trigger": start_trigger, "msg_trigger": msg_trigger,
+                        "process_trigger": process_trigger, "finish_trigger": finish_trigger}
+        self.target.write(json.dumps(trigger_data).encode("ascii"))
 
-    def random_batch(self, num_segments: int):
+    def random_batch(self, num_segments: int, start_trigger: bool,
+                     msg_trigger: bool, process_trigger: bool, finish_trigger: bool):
         """ Start num_segments HMAC operations in random batch mode.
         Args:
             num_segments: The number of iterations.
+            start_trigger: Set trigger during the start phase.
+            msg_trigger: Set trigger during the message pushing phase.
+            process_trigger: Set trigger during the processing phase.
+            finish_trigger: Set trigger during the finish phase.
         """
         # HmacSca command.
         self._ujson_hmac_sca_cmd()
@@ -95,8 +130,13 @@ class OTHMAC:
         self.target.write(json.dumps("BatchRandom").encode("ascii"))
         # Number of iterations payload.
         time.sleep(0.01)
-        num_it_data = {"num_enc": num_segments}
+        num_it_data = {"num_iterations": num_segments}
         self.target.write(json.dumps(num_it_data).encode("ascii"))
+        # Trigger configuration.
+        time.sleep(0.05)
+        trigger_data = {"start_trigger": start_trigger, "msg_trigger": msg_trigger,
+                        "process_trigger": process_trigger, "finish_trigger": finish_trigger}
+        self.target.write(json.dumps(trigger_data).encode("ascii"))
 
     def read_tag(self):
         """ Read tag from OpenTitan HMAC.

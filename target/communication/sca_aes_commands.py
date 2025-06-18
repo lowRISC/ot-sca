@@ -23,6 +23,7 @@ class OTAES:
         # does not recognize the commands. Tracked in issue #256.
         time.sleep(0.01)
         self.target.write(json.dumps("AesSca").encode("ascii"))
+        time.sleep(0.01)
 
     def init(self, fpga_mode_bit: int, enable_icache: bool, enable_dummy_instr: bool,
              enable_jittery_clock: bool, enable_sram_readback: bool) -> list:

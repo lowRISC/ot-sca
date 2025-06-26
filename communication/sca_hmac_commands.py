@@ -37,7 +37,7 @@ class OTHMAC:
         # Init command.
         self.target.write(json.dumps("Init").encode("ascii"))
         time.sleep(0.01)
-        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": False, "enable_sram_readback": False}
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
         self.target.write(json.dumps(parameters).encode("ascii"))
         device_id = self.read_response()
         owner_page = self.read_response()

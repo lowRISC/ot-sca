@@ -54,7 +54,7 @@ class OTIbex:
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
-        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": False, "enable_sram_readback": False}
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
         self.target.write(json.dumps(parameters).encode("ascii"))
         device_id = self.read_response()
         owner_page = self.read_response()
@@ -388,7 +388,7 @@ class OTIbex:
         else:
             test_function()
 
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
+    def read_response(self, max_tries: Optional[int] = 10) -> str:
         """ Read response from Ibex SCA framework.
         Args:
             max_tries: Maximum number of attempts to read from UART.

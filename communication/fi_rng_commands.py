@@ -98,6 +98,16 @@ class OTFIRng:
         time.sleep(0.05)
         self.target.write(json.dumps("EdnBias").encode("ascii"))
 
+    def rng_entropy_bias(self) -> None:
+        """ Starts the entropy_src_bias test.
+        """
+        # RngFi command.
+        time.sleep(0.05)
+        self._ujson_rng_cmd()
+        # EntropySrcBias command.
+        time.sleep(0.05)
+        self.target.write(json.dumps("EntropySrcBias").encode("ascii"))
+
     def rng_fw_overwrite(self, init: Optional[bool] = False,
                          disable_health_check: Optional[bool] = False) -> None:
         """ Starts the rng_fw_overwrite test.

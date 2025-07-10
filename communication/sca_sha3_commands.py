@@ -46,6 +46,8 @@ class OTSHA3:
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
             parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
             self.target.write(json.dumps(parameters).encode("ascii"))
+            parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+            self.target.write(json.dumps(parameters).encode("ascii"))
             device_id = self.read_response()
             owner_page = self.read_response()
             boot_log = self.read_response()

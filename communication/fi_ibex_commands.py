@@ -308,6 +308,21 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharCsrRead").encode("ascii"))
 
+    def ibex_char_csr_combi(self, trigger, ref_values) -> None:
+        """ Starts the ibex.fi.char.csr_combi test.
+
+        Args:
+            trigger: Which triggers to raise.
+            ref_values: The values to be written in the CSRs.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharCsrCombi command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharCsrCombi").encode("ascii"))
+        data = {"trigger": trigger, "ref_values": ref_values}
+        self.target.write(json.dumps(data).encode("ascii"))
+
     def ibex_address_translation_config(self) -> None:
         """ Starts the ibex.fi.address_translation_config test.
         """

@@ -125,6 +125,28 @@ class OTKMAC:
             num_segments_data = {"data": [x for x in num_segments]}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
 
+    def absorb_daisy_chain(self, text, key, num_segments):
+        """ Start absorb for daisy chain batch.
+        Args:
+            num_segments: Number of encryptions to perform.
+            text: The input message
+            key: The KMAC128 key
+        """
+        if self.simple_serial:
+            self.target.write(cmd="b", data=num_segments)
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # Batch command.
+            self.target.write(json.dumps("BatchDaisy").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            num_it_data = {"num_enc": num_segments}
+            self.target.write(json.dumps(num_it_data).encode("ascii"))
+            message_data = {"msg": text, "msg_length": 16}
+            self.target.write(json.dumps(message_data).encode("ascii"))
+            key_data = {"key": key, "key_length": 16}
+
     def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan KMAC & start absorb.
         Args:

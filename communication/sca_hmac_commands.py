@@ -161,6 +161,43 @@ class OTHMAC:
             mode = {"start_trigger": False, "msg_trigger": False,
                     "process_trigger": False, "finish_trigger": True}
         self.target.write(json.dumps(mode).encode("ascii"))
+
+    def daisy_chain(self, text: list[int], key: list[int], num_segments: int, trigger: int):
+        """ Start num_segments HMAC operations in daisy chain mode.
+        Args:
+            text: The input message
+            key: The HMAC key
+            num_segments: The number of iterations.
+            trigger: Which trigger to raise.
+        """
+        # HmacSca command.
+        self._ujson_hmac_sca_cmd()
+        # BatchRandom command.
+        self.target.write(json.dumps("BatchDaisy").encode("ascii"))
+        # Number of iterations payload.
+        time.sleep(0.01)
+        key_data = {"key": key}
+        self.target.write(json.dumps(key_data).encode("ascii"))
+        message_data = {"message": text}
+        self.target.write(json.dumps(message_data).encode("ascii"))
+        time.sleep(0.05)
+        num_it_data = {"num_iterations": num_segments}
+        self.target.write(json.dumps(num_it_data).encode("ascii"))
+        # Trigger payload.
+        time.sleep(0.01)
+        if trigger == 0:
+            mode = {"start_trigger": True, "msg_trigger": False,
+                    "process_trigger": False, "finish_trigger": False}
+        elif trigger == 1:
+            mode = {"start_trigger": False, "msg_trigger": True,
+                    "process_trigger": False, "finish_trigger": False}
+        elif trigger == 2:
+            mode = {"start_trigger": False, "msg_trigger": False,
+                    "process_trigger": True, "finish_trigger": False}
+        elif trigger == 3:
+            mode = {"start_trigger": False, "msg_trigger": False,
+                    "process_trigger": False, "finish_trigger": True}
+        self.target.write(json.dumps(mode).encode("ascii"))
         
     def read_response(self, max_tries = 1) -> str:
         """ Read response from AES SCA framework.

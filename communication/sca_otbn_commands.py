@@ -24,36 +24,31 @@ class OTOTBN:
         time.sleep(0.01)
         self.target.write(json.dumps("OtbnSca").encode("ascii"))
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool) -> list:
-        """ Initializes OTBN on the target.
-        Args:
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
-                                 
-        Returns:
+     def init(self) -> list:
+        """ Initializes the Ibex SCA tests on the target.
+
+         Returns:
             Device id
             The owner info page
             The boot log
             The boot measurements
             The testOS version
         """
-        if not self.simple_serial:
-            # OtbnSca command.
-            self._ujson_otbn_sca_cmd()
-            # Init the OTBN core.
-            self.target.write(json.dumps("Init").encode("ascii"))
-            parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
-            self.target.write(json.dumps(parameters).encode("ascii"))
-            parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
-            self.target.write(json.dumps(parameters).encode("ascii"))
-            device_id = self.read_response()
-            owner_page = self.read_response()
-            boot_log = self.read_response()
-            boot_measurements = self.read_response()
-            version = self.read_response()
-            return device_id, owner_page, boot_log, boot_measurements, version
+        # IbexSca command.
+        self._ujson_ibex_sca_cmd()
+        # Init command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("Init").encode("ascii"))
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        device_id = self.read_response()
+        owner_page = self.read_response()
+        boot_log = self.read_response()
+        boot_measurements = self.read_response()
+        version = self.read_response()
+        return device_id, owner_page, boot_log, boot_measurements, version
 
     def init_keymgr(self):
         """ Initializes the key manager for OTBN on the target.
@@ -236,6 +231,23 @@ class OTOTBN:
                 self.target.write(cmd="e", data=num_segments)
             else:
                 self.target.write(cmd="b", data=num_segments)
+
+    def start_combi_ops_batch(self, num_iterations, fixed_data1, fixed_data2, print_flag, trigger):
+        """ Start the combi ops app in batch mode.
+        Args:
+            num_iterations: How many traces per batch.
+            fixed_data1: The first fixed input.
+            fixed_data2: The second fixed input.
+            print_flag: Whether to print an output or an empty RESP_OK.
+            trigger: Which triggers to raise.
+        """
+        # OtbnSca command.
+        self._ujson_otbn_sca_cmd()
+        # Start the CombiOps test.
+        self.target.write(json.dumps("CombiOps").encode("ascii"))
+        time.sleep(0.01)
+        data = {"num_iterations": num_iterations, "fixed_data1": fixed_data1, "fixed_data2": fixed_data2, "print_flag": print_flag, "trigger": trigger}
+        self.target.write(json.dumps(data).encode("ascii"))
 
     def read_output(self, len_bytes):
         """ Read the output from whichever OTBN app.

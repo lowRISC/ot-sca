@@ -1,0 +1,6 @@
+# DO NOT MODIFY THIS FILE.
+#
+# It must match what is in the open source OpenTitan repository.
+workspace(name = "otsca_exts")
+
+load("@python3//:defs.bzl", "interpreter")

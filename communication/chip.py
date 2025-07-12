@@ -9,7 +9,7 @@ from typing import Optional
 # Command to flash the target given the location of the opentitantool and the firmware
 # For example, opentitantool = "/path/to/opentitan/bazel-bin/sw/host/opentitantool/opentitantool"
 # Firmware is the pre-compiled and signed binary
-def flash_target(opentitantool, firmware):
+def flash_target(opentitantool, firmware, boot_delay=5):
     flash_process = Popen([opentitantool,
                         "--rcfile=",
                         "--interface=hyper310",
@@ -22,9 +22,27 @@ def flash_target(opentitantool, firmware):
         return 0
     else:
         # Wait until chip finished booting.
-        time.sleep(2)
+        time.sleep(boot_delay)
         print(f'Info: Chip flashed with {firmware}.')
         return 1
+
+# Command to flash the target given the location of the opentitantool and the firmware
+# Firmware is the pre-compiled and signed binary
+# This uses the rescue protocol in order to flash the binary
+def flash_rescue_target(opentitantool, firmware, boot_delay=50):
+    flash_process = Popen([opentitantool,
+                        "--rcfile=",
+                        "--interface=hyper310",
+                        "--exec", "transport init",
+                        "--exec", "rescue firmware " + firmware, "no-op"])
+    flash_process.communicate()
+    rc = flash_process.returncode
+    if rc != 0:
+        raise RuntimeError('Error: Failed to flash OpenTitan chip.')
+    else:
+        # Wait until chip finished booting.
+        time.sleep(boot_delay)
+        print(f'Info: OpenTitan flashed with {firmware}.')
 
 # Command to reset the target given the location of the opentitantool
 # For example, opentitantool = "/path/to/opentitan/bazel-bin/sw/host/opentitantool/opentitantool"

@@ -45,6 +45,15 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharRegOpLoop").encode("ascii"))
 
+    def ibex_char_unrolled_reg_op_loop_chain(self) -> None:
+        """ Starts the ibex.char.reg_op_loop_chain test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharUnrolledRegOpLoopChain command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharUnrolledRegOpLoopChain").encode("ascii"))
+
     def ibex_char_mem_op_loop(self) -> None:
         """ Starts the ibex.char.mem_op_loop test.
         """
@@ -54,7 +63,7 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharMemOpLoop").encode("ascii"))
 
-    def ibex_char_flash_read(self) -> None:
+    def ibex_char_flash_read(self, flash_region = 3) -> None:
         """ Starts the ibex.char.flash_read test.
         """
         # IbexFi command.
@@ -62,10 +71,10 @@ class OTFIIbex:
         # CharFlashRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharFlashRead").encode("ascii"))
-        parameters = {"flash_region": 3}
+        parameters = {"flash_region": flash_region}
         self.target.write(json.dumps(parameters).encode("ascii"))
 
-    def ibex_char_flash_write(self) -> None:
+    def ibex_char_flash_write(self, flash_region = 3) -> None:
         """ Starts the ibex.char.flash_write test.
         """
         # IbexFi command.
@@ -73,7 +82,7 @@ class OTFIIbex:
         # CharFlashWrite command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharFlashWrite").encode("ascii"))
-        parameters = {"flash_region": 3}
+        parameters = {"flash_region": flash_region}
         self.target.write(json.dumps(parameters).encode("ascii"))
 
     def ibex_char_sram_read(self) -> None:
@@ -84,6 +93,15 @@ class OTFIIbex:
         # CharSramRead command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramRead").encode("ascii"))
+
+    def ibex_char_sram_read_ret(self) -> None:
+        """ Starts the ibex.char.sram_read_ret test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharSramReadRet command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharSramReadRet").encode("ascii"))
 
     def ibex_char_sram_write_static_unrolled(self) -> None:
         """ Starts the ibex.char.sram_write_static_unrolled test.
@@ -126,37 +144,65 @@ class OTFIIbex:
         """
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharSramWrite command.
+        # CharSramStatic command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSramStatic").encode("ascii"))
 
     def ibex_char_single_beq(self) -> None:
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharCondBranchBeq command.
+        # CharSingleBeq command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSingleBeq").encode("ascii"))
+
+    def ibex_char_addi_single_beq(self) -> None:
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharAddiSingleBeq command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharAddiSingleBeq").encode("ascii"))
+
+    def ibex_char_addi_single_beq_neg(self) -> None:
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharAddiSingleBeqNeg command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharAddiSingleBeqNeg").encode("ascii"))
+
+    def ibex_char_addi_single_beq_cm(self) -> None:
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharAddiSingleBeqCm command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharAddiSingleBeqCm").encode("ascii"))
+
+    def ibex_char_addi_single_beq_cm2(self) -> None:
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharAddiSingleBeqCm2 command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharAddiSingleBeqCm2").encode("ascii"))
+
+    def ibex_char_addi_single_bne(self) -> None:
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharAddiSingleBne command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharAddiSingleBne").encode("ascii"))
 
     def ibex_char_single_bne(self) -> None:
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharCondBranchBeq command.
+        # CharSingleBne command.
         time.sleep(0.01)
         self.target.write(json.dumps("CharSingleBne").encode("ascii"))
 
-    def ibex_char_single_addi_beq(self) -> None:
+    def ibex_char_addi_single_bne_neg(self) -> None:
         # IbexFi command.
         self._ujson_ibex_fi_cmd()
-        # CharCondBranchBeq command.
+        # CharAddiSingleBneNeg command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharAddiSingleBeq").encode("ascii"))
-    
-    def ibex_char_single_addi_bne(self) -> None:
-        # IbexFi command.
-        self._ujson_ibex_fi_cmd()
-        # CharCondBranchBeq command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("CharAddiSingleBne").encode("ascii"))
+        self.target.write(json.dumps("CharAddiSingleBneNeg").encode("ascii"))
 
     def ibex_char_conditional_branch_beq(self) -> None:
         """ Starts the ibex.char.conditional_branch_beq test.
@@ -230,6 +276,16 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharUncondBranchNop").encode("ascii"))
 
+
+    def ibex_char_hardened_check_eq_complement_branch(self) -> None:
+        """ Starts the ibex.char.hardened_check_eq_complement_branch test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheckComplementBranch command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheckComplementBranch").encode("ascii"))
+
     def ibex_char_register_file(self) -> None:
         """ Starts the ibex.char.register_file test.
         """
@@ -253,7 +309,9 @@ class OTFIIbex:
         
         Returns:
             Device id
-            The owner info page
+            The sensor control config
+            The alert config
+            The owner page
             The boot log
             The boot measurements
             The testOS version
@@ -269,13 +327,13 @@ class OTFIIbex:
         self.target.write(json.dumps(parameters).encode("ascii"))
         parameters = {"alert_classes":[2,2,2,2,0,0,2,2,2,2,0,0,0,0,0,1,0,0,0,2,2,2,0,0,0,1,0,2,2,2,2,0,1,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,0,0,0,0,1,0,1], "enable_alerts": [True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True], "enable_classes": [True,True,False,False], "accumulation_thresholds": [2,2,2,2], "signals": [4294967295, 0, 2, 3], "duration_cycles": [0, 7200,48,48], "ping_timeout": 1200}
         self.target.write(json.dumps(parameters).encode("ascii"))
-        device_id = self.read_response()
-        sensors = self.read_response()
-        alerts = self.read_response()
-        owner_page = self.read_response()
-        boot_log = self.read_response()
-        boot_measurements = self.read_response()
-        version = self.read_response()
+        device_id = self.target.read_response()
+        sensors = self.target.read_response()
+        alerts = self.target.read_response()
+        owner_page = self.target.read_response()
+        boot_log = self.target.read_response()
+        boot_measurements = self.target.read_response()
+        version = self.target.read_response()
         return device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version
 
     def start_test(self, cfg: dict) -> None:
@@ -368,6 +426,24 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharHardenedCheck3Unimps").encode("ascii"))
 
+    def ibex_char_hardened_check_eq_4_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_4_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck4Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck4Unimps").encode("ascii"))
+
+    def ibex_char_hardened_check_eq_5_unimps(self) -> None:
+        """ Starts the ibex.fi.char.hardened_check_eq_5_unimps test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # CharHardenedCheck5Unimps command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("CharHardenedCheck5Unimps").encode("ascii"))
+
     def ibex_char_combi(self) -> None:
         """ Starts the ibex.fi.char.combi test.
         """
@@ -377,21 +453,23 @@ class OTFIIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("CharCombi").encode("ascii"))
 
-    def read_response(self, max_tries: Optional[int] = 10) -> str:
-        """ Read response from Ibex FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
+    def ibex_char_otp_data_read(self) -> None:
+        """ Starts the ibex.fi.otp.data_read test.
         """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # OtpDataRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("OtpDataRead").encode("ascii"))
+
+    def ibex_char_otp_read_lock(self) -> None:
+        """ Starts the ibex.fi.otp.read_lock test.
+        """
+        # IbexFi command.
+        self._ujson_ibex_fi_cmd()
+        # OtpReadLock command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("OtpReadLock").encode("ascii"))
 
     def ibex_characterise(self) -> None:
         # IbexFi command.

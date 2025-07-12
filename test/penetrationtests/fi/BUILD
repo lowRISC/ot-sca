@@ -2,11 +2,14 @@ package(default_visibility = ["//visibility:public"])
 
 py_binary(
     name = "fi_ibex_test",
-    srcs = ["fi_ibex_test.py"],
+    srcs = ["test_scripts/fi_ibex_test.py"],
     testonly = True,
     deps = [
-        ":fi_ibex_function_test",
+        ":fi_ibex_functions",
+        "//communication:dut",
         "//communication:chip",
+        "//communication:fi_ibex_commands",
+        "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
     data = [
@@ -38,8 +41,8 @@ py_binary(
 )
 
 py_library(
-    name = "fi_ibex_function_test",
-    srcs = ["fi_ibex_function_test.py"],
+    name = "fi_ibex_functions",
+    srcs = ["host_scripts/fi_ibex_functions.py"],
     deps = [
         "//communication:dut",
         "//communication:chip",

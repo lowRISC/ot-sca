@@ -44,12 +44,34 @@ class DUT:
 
     def dump_all(self):
         while True:
-            read_line = str(self.readline().decode().strip())
-            if len(read_line) <= 0:
+            read_line = str(self.readline())
+            if len(read_line) <= 5:
                 break
+
+    def check_crash_or_read_reponse(self, max_tries = 50):
+        """ 
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            try:
+                read_line = str(self.readline())
+                if "FAULT" in read_line:
+                    return read_line, False
+                if "RESP_OK" in read_line:
+                    return read_line.split("RESP_OK:")[1].split(" CRC:")[0], True
+                it += 1
+            except:
+                it += 1
+                continue
+        return "", False
     
-    def read_response(self, max_tries = 1):
-        """ Read response from AES SCA framework.
+    def read_response(self, max_tries = 10):
+        """ 
         Args:
             max_tries: Maximum number of attempts to read from UART.
 

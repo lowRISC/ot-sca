@@ -9,7 +9,7 @@ from typing import Optional
 # Command to flash the target given the location of the opentitantool and the firmware
 # For example, opentitantool = "/path/to/opentitan/bazel-bin/sw/host/opentitantool/opentitantool"
 # Firmware is the pre-compiled and signed binary
-def flash_target(opentitantool, firmware, boot_delay=5):
+def flash_target(opentitantool, firmware, boot_delay=2):
     flash_process = Popen([opentitantool,
                         "--rcfile=",
                         "--interface=hyper310",

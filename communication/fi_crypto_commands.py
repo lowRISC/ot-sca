@@ -56,6 +56,15 @@ class OTFICrypto:
         time.sleep(0.01)
         self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
 
+    def crypto_shadow_reg_read(self) -> None:
+        """ Starts the crypto.fi.shadow_reg_read test.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # ShadowRegRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("ShadowRegRead").encode("ascii"))
+
     def crypto_aes_key(self) -> None:
         """ Starts the crypto.fi.aes_key test.
         """
@@ -167,8 +176,16 @@ class OTFICrypto:
         mode = {"key_trigger": False, "absorb_trigger": False,
                 "static_trigger": True, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
-        
 
+    def crypto_kmac_state(self) -> None:
+        """ Starts the crypto.fi.kmac_state test.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # KmacState command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("KmacState").encode("ascii"))
+        
     def read_response(self) -> str:
         """ Read response from Crypto FI framework.
         Returns:

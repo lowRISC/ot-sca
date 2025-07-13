@@ -49,11 +49,11 @@ class OTKMAC:
             self.target.write(json.dumps(parameters).encode("ascii"))
             parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
             self.target.write(json.dumps(parameters).encode("ascii"))
-            device_id = self.read_response()
-            owner_page = self.read_response()
-            boot_log = self.read_response()
-            boot_measurements = self.read_response()
-            version = self.read_response()
+            device_id = self.target.read_response()
+            owner_page = self.target.read_response()
+            boot_log = self.target.read_response()
+            boot_measurements = self.target.read_response()
+            version = self.target.read_response()
             return device_id, owner_page, boot_log, boot_measurements, version
 
     def write_key(self, key: list[int]):

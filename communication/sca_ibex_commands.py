@@ -11,10 +11,8 @@ from typing import Optional
 
 
 class OTIbex:
-    def __init__(self, target, protocol: str) -> None:
+    def __init__(self, target) -> None:
         self.target = target
-        if protocol == "simpleserial":
-            raise RuntimeError("Error: Simpleserial not supported!")
 
     def _ujson_ibex_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
@@ -79,8 +77,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_read_random(self, data: list[int]):
-        """ Start ibex.sca.register_file_read_random test.
+    def ibex_sca_register_file_read(self, data: list[int]):
+        """ Start ibex.sca.register_file_read test.
         Args:
             data: The data that is first written into the RF and then read back.
         """
@@ -136,8 +134,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_write_random(self, data: list[int]):
-        """ Start ibex.sca.register_file_write_random test.
+    def ibex_sca_register_file_write(self, data: list[int]):
+        """ Start ibex.sca.register_file_write test.
         Args:
             data: The data that is written into the RF.
         """
@@ -163,20 +161,6 @@ class OTIbex:
         # Data payload.
         time.sleep(0.01)
         data = {"num_iterations": num_segments, "fixed_data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
-    def ibex_sca_register_file_write_fvsr(self, data: list[int]):
-        """ Start ibex.sca.register_file_write_fvsr test.
-        Args:
-            data: The data that is written into the RF.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # RFWrite command.
-        self.target.write(json.dumps("RFWrite").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_tl_write_batch_random(self, num_segments: int):
@@ -207,7 +191,7 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_write_random(self, data: list[int]):
+    def ibex_sca_tl_write(self, data: list[int]):
         """ Start ibex.sca.tl_write_random test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
@@ -252,20 +236,6 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_write_fvsr(self, data: list[int]):
-        """ Start ibex.sca.tl_write_fvsr test.
-        Args:
-            data: The data that is written into the SRAM over Tl-UL.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # TLWrite command.
-        self.target.write(json.dumps("TLWrite").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
     def ibex_sca_tl_read_batch_random(self, num_segments: int):
         """ Start ibex.sca.tl_read_batch_random test.
         Args:
@@ -294,8 +264,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_read_random(self, data: list[int]):
-        """ Start ibex.sca.tl_read_random test.
+    def ibex_sca_tl_read(self, data: list[int]):
+        """ Start ibex.sca.tl_read test.
         Args:
             num_iterations: The number of iterations the RF is written.
             data: The data that is written into the SRAM over Tl-UL.
@@ -340,23 +310,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_read_fvsr(self, data: list[int]):
-        """ Start ibex.sca.tl_read_fvsr test.
-        Args:
-            num_iterations: The number of iterations the RF is written.
-            data: The data that is written into the SRAM over Tl-UL.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # TLRead command.
-        self.target.write(json.dumps("TLRead").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
     def ibex_sca_combi_operations_batch_fvsr(self, num_iterations: int, trigger:int, fixed_data1: int, fixed_data2: int):
-        """ Start ibex.sca.combi_operations_batch test.
+        """ Start ibex.sca.combi_operations_batch_fvsr test.
         Args:
             num_iterations: The number of iterations the test is repeated.
             fixed_data1: The first fixed value.
@@ -366,6 +321,22 @@ class OTIbex:
         self._ujson_ibex_sca_cmd()
         # CombiOperationsBatchFvsr command.
         self.target.write(json.dumps("CombiOperationsBatchFvsr").encode("ascii"))
+        # Input payload.
+        time.sleep(0.01)
+        data = {"num_iterations": num_iterations, "trigger": trigger, "fixed_data1": fixed_data1, "fixed_data2": fixed_data2}
+        self.target.write(json.dumps(data).encode("ascii"))
+
+    def ibex_sca_combi_operations_batch(self, num_iterations: int, trigger:int, fixed_data1: int, fixed_data2: int):
+        """ Start ibex.sca.combi_operations_batch test.
+        Args:
+            num_iterations: The number of iterations the test is repeated.
+            fixed_data1: The first fixed value.
+            fixed_data2: The second fixed value.
+        """
+        # IbexSca command.
+        self._ujson_ibex_sca_cmd()
+        # CombiOperationsBatchFvsr command.
+        self.target.write(json.dumps("CombiOperationsBatch").encode("ascii"))
         # Input payload.
         time.sleep(0.01)
         data = {"num_iterations": num_iterations, "trigger": trigger, "fixed_data1": fixed_data1, "fixed_data2": fixed_data2}

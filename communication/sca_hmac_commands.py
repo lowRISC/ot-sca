@@ -48,20 +48,6 @@ class OTHMAC:
         version = self.target.read_response()
         return device_id, owner_page, boot_log, boot_measurements, version
 
-    def test(self, key: list[int], num_segments: int):
-         # HmacSca command.
-        self._ujson_hmac_sca_cmd()
-        # Single command.
-        self.target.write(json.dumps("Test").encode("ascii"))
-        # Key payload.
-        time.sleep(0.01)
-        key_data = {"key": key}
-        self.target.write(json.dumps(key_data).encode("ascii"))
-        # Number of iterations payload.
-        time.sleep(0.05)
-        num_it_data = {"num_iterations": num_segments}
-        self.target.write(json.dumps(num_it_data).encode("ascii"))
-
     def single(self, msg: list[int], key: list[int], trigger: int):
         """ Start a single HMAC operation using the given message and key.
         Args:
@@ -214,21 +200,6 @@ class OTHMAC:
                 return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
             it += 1
         return ""
-    
-    def crypto_sha2(self, msg, calculation_trigger) -> None:
-        # HmacSca command.
-        self._ujson_hmac_sca_cmd()
-        # Sha2 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha2").encode("ascii"))
-        time.sleep(0.01)
-        if calculation_trigger:
-            mode = {"message": msg, "update_trigger": False,
-                    "final_trigger": True}
-        else:
-            mode = {"message": msg, "update_trigger": True,
-                    "final_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
 
     def read_tag(self):
         """ Read tag from OpenTitan HMAC.

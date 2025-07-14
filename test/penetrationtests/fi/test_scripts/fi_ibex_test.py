@@ -852,7 +852,7 @@ def main():
         print("Init test failure")
         return False
 
-    iterations = 2
+    iterations = 10
 
     char_addi_single_beq_test(opentitantool_path, iterations)
     char_addi_single_bne_test(opentitantool_path, iterations)

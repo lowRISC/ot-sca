@@ -86,4 +86,5 @@ py_library(
 py_library(
     name = "data_generator",
     srcs = ["data_generator.py"],
+    deps = [requirement("pycryptodome"),],
 )

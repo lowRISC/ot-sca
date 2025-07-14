@@ -18,7 +18,7 @@ class OTFIRom:
         time.sleep(0.01)
         self.target.write(json.dumps("RomFi").encode("ascii"))
 
-    def rom_read(self) -> None:
+    def handle_rom_read(self) -> None:
         """ Reads Rom digest.
         """
         # RomFi command.

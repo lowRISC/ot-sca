@@ -163,6 +163,46 @@ py_binary(
     }),
 )
 
+py_binary(
+    name = "fi_rom_test",
+    srcs = ["test_scripts/fi_rom_test.py"],
+    testonly = True,
+    deps = [
+        ":fi_rom_functions",
+        "//communication:dut",
+        "//communication:chip",
+        "//communication:fi_rom_commands",
+        "//test/penetrationtests/util:utils",
+        "@rules_python//python/runfiles",
+    ],
+    data = [
+        "@lowrisc_opentitan//sw/host/opentitantool", 
+    ] +
+        select({
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_silicon_owner_gb_rom_ext": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_silicon_owner_gb_rom_ext",
+        ],
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_fpga_cw310_rom_with_fake_keys": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_fpga_cw310_rom_with_fake_keys",
+        ],
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_fpga_cw310_sival_rom_ext": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_fpga_cw310_sival_rom_ext",
+        ],
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_fpga_cw310_test_rom": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_fpga_cw310_test_rom",
+        ],
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_silicon_owner_a2_rom_ext": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_silicon_owner_a2_rom_ext",
+        ],
+        "@lowrisc_opentitan//sw/device/tests/penetrationtests/config:env_silicon_owner_sival_rom_ext": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_silicon_owner_sival_rom_ext",
+        ],
+        "//conditions:default": [
+            "@lowrisc_opentitan//sw/device/tests/penetrationtests/firmware:pen_test_fi_silicon_owner_gb_rom_ext", 
+        ],
+    }),
+)
+
 py_library(
     name = "fi_ibex_functions",
     srcs = ["host_scripts/fi_ibex_functions.py"],
@@ -200,5 +240,15 @@ py_library(
         "//communication:dut",
         "//communication:chip",
         "//communication:fi_otp_commands",
+    ],
+)
+
+py_library(
+    name = "fi_rom_functions",
+    srcs = ["host_scripts/fi_rom_functions.py"],
+    deps = [
+        "//communication:dut",
+        "//communication:chip",
+        "//communication:fi_rom_commands",
     ],
 )

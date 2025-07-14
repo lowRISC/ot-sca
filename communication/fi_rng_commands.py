@@ -108,13 +108,10 @@ class OTFIRng:
         time.sleep(0.05)
         self.target.write(json.dumps("EntropySrcBias").encode("ascii"))
 
-    def rng_fw_overwrite(self, init: Optional[bool] = False,
-                         disable_health_check: Optional[bool] = False) -> None:
+    def rng_fw_overwrite(self, disable_health_check: Optional[bool] = False) -> None:
         """ Starts the rng_fw_overwrite test.
 
         Args:
-            init: Using disable_health_check is only possible at the very first
-              rng_fw_overwrite test. Afterwards this option cannot be switched.
             disable_health_check: Turn the health check on or off.
         """
         # RngFi command.
@@ -123,9 +120,8 @@ class OTFIRng:
         # FWOverride command.
         time.sleep(0.05)
         self.target.write(json.dumps("FWOverride").encode("ascii"))
-        if init:
-            data = {"disable_health_check": disable_health_check}
-            self.target.write(json.dumps(data).encode("ascii"))
+        data = {"disable_health_check": disable_health_check}
+        self.target.write(json.dumps(data).encode("ascii"))
 
     def start_test(self, cfg: dict) -> None:
         """ Start the selected test.

@@ -1,6 +1,6 @@
-from communication.fi_ibex_commands import OTFIIbex
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_ibex_commands import OTFIIbex
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_address_translation(opentitantool, iterations):

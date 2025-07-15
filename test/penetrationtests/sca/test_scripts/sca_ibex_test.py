@@ -1,8 +1,8 @@
 
 from test.penetrationtests.sca.host_scripts.sca_ibex_functions import *
-from communication.sca_ibex_commands import OTIbex
+from target.communication.sca_ibex_commands import OTIbex
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

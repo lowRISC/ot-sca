@@ -8,9 +8,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_ibex_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_ibex_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_ibex_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -48,9 +48,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_crypto_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_crypto_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_crypto_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
         requirement("pycryptodome"),
@@ -89,9 +89,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_otbn_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_otbn_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_otbn_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -129,9 +129,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_otp_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_otp_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_otp_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -169,9 +169,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_rom_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_rom_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_rom_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -209,9 +209,9 @@ py_binary(
     testonly = True,
     deps = [
         ":fi_rng_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_rng_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_rng_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -247,9 +247,9 @@ py_library(
     name = "fi_ibex_functions",
     srcs = ["host_scripts/fi_ibex_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_ibex_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_ibex_commands",
     ],
 )
 
@@ -257,9 +257,9 @@ py_library(
     name = "fi_crypto_functions",
     srcs = ["host_scripts/fi_crypto_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_crypto_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_crypto_commands",
     ],
 )
 
@@ -267,9 +267,9 @@ py_library(
     name = "fi_otbn_functions",
     srcs = ["host_scripts/fi_otbn_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_otbn_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_otbn_commands",
     ],
 )
 
@@ -277,9 +277,9 @@ py_library(
     name = "fi_otp_functions",
     srcs = ["host_scripts/fi_otp_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_otp_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_otp_commands",
     ],
 )
 
@@ -287,9 +287,9 @@ py_library(
     name = "fi_rom_functions",
     srcs = ["host_scripts/fi_rom_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_rom_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_rom_commands",
     ],
 )
 
@@ -297,8 +297,8 @@ py_library(
     name = "fi_rng_functions",
     srcs = ["host_scripts/fi_rng_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:fi_rng_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:fi_rng_commands",
     ],
 )

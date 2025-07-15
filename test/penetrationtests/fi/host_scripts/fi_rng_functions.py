@@ -1,6 +1,6 @@
-from communication.fi_rng_commands import OTFIRng
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_rng_commands import OTFIRng
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_csrng_bias(opentitantool, iterations, trigger):

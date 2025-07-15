@@ -1,7 +1,7 @@
 from test.penetrationtests.sca.host_scripts.sca_hmac_functions import *
-from communication.sca_hmac_commands import OTHMAC
+from target.communication.sca_hmac_commands import OTHMAC
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

@@ -1,7 +1,7 @@
 from test.penetrationtests.fi.host_scripts.fi_rom_functions import *
-from communication.fi_rom_commands import OTFIRom
+from target.communication.fi_rom_commands import OTFIRom
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

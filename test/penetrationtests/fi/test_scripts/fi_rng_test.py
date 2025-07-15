@@ -1,7 +1,7 @@
 from test.penetrationtests.fi.host_scripts.fi_rng_functions import *
-from communication.fi_rng_commands import OTFIRng
+from target.communication.fi_rng_commands import OTFIRng
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

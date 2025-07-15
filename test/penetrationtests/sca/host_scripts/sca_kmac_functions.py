@@ -1,8 +1,8 @@
-from communication.sca_kmac_commands import OTKMAC
-from communication.sca_prng_commands import OTPRNG
-from communication.sca_trigger_commands import OTTRIGGER
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.sca_kmac_commands import OTKMAC
+from target.communication.sca_prng_commands import OTPRNG
+from target.communication.sca_trigger_commands import OTTRIGGER
+from target.chip import *
+from target.dut import DUT
 import time
 import random
 
@@ -58,7 +58,7 @@ def char_kmac_batch_daisy_chain(opentitantool, iterations, num_segments, masking
         response = target.read_response()
     return response
 
-def char_kmac_batch(opentitantool, iterations, num_segments, masking, key, text):
+def char_kmac_batch(opentitantool, iterations, num_segments, masking, key):
     target = DUT()
     reset_target(opentitantool)
     # Clear the output from the reset

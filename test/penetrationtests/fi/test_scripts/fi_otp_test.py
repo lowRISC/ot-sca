@@ -1,7 +1,7 @@
 from test.penetrationtests.fi.host_scripts.fi_otp_functions import *
-from communication.fi_otp_commands import OTFIOtp
+from target.communication.fi_otp_commands import OTFIOtp
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

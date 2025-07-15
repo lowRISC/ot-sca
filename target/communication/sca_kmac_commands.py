@@ -24,16 +24,17 @@ class OTKMAC:
         time.sleep(0.01)
         self.target.write(json.dumps("KmacSca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int, icache_disable: bool, dummy_instr_disable: bool):
+    def init(self, fpga_mode_bit: int) -> list:
         """ Initializes KMAC on the target.
         Args:
             fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
-        Returns:
-            The device ID of the device.
+
+         Returns:
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         if not self.simple_serial:
             # KmacSca command.
@@ -44,12 +45,16 @@ class OTKMAC:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
-            # Disable iCache / dummy instructions.
-            time.sleep(0.01)
-            data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
-            self.target.write(json.dumps(data).encode("ascii"))
-            # Read back device ID from device.
-            return self.read_response(max_tries=30)
+            parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
+            self.target.write(json.dumps(parameters).encode("ascii"))
+            parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+            self.target.write(json.dumps(parameters).encode("ascii"))
+            device_id = self.target.read_response()
+            owner_page = self.target.read_response()
+            boot_log = self.target.read_response()
+            boot_measurements = self.target.read_response()
+            version = self.target.read_response()
+            return device_id, owner_page, boot_log, boot_measurements, version
 
     def write_key(self, key: list[int]):
         """ Write the key to KMAC.
@@ -109,7 +114,7 @@ class OTKMAC:
             num_segments: Number of encryptions to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="b", data=num_segments.to_bytes(4, "little"))
+            self.target.write(cmd="b", data=num_segments)
         else:
             # KmacSca command.
             self._ujson_kmac_sca_cmd()
@@ -119,6 +124,29 @@ class OTKMAC:
             time.sleep(0.01)
             num_segments_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
+
+    def absorb_daisy_chain(self, text, key, num_segments):
+        """ Start absorb for daisy chain batch.
+        Args:
+            num_segments: Number of encryptions to perform.
+            text: The input message
+            key: The KMAC128 key
+        """
+        if self.simple_serial:
+            self.target.write(cmd="b", data=num_segments)
+        else:
+            # KmacSca command.
+            self._ujson_kmac_sca_cmd()
+            # BatchDaisy command.
+            self.target.write(json.dumps("BatchDaisy").encode("ascii"))
+            # Num_segments payload.
+            time.sleep(0.01)
+            num_it_data = {"num_enc": num_segments}
+            self.target.write(json.dumps(num_it_data).encode("ascii"))
+            message_data = {"msg": text, "msg_length": len(text)}
+            self.target.write(json.dumps(message_data).encode("ascii"))
+            key_data = {"key": key, "key_length": len(key)}
+            self.target.write(json.dumps(key_data).encode("ascii"))
 
     def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan KMAC & start absorb.
@@ -174,5 +202,26 @@ class OTKMAC:
             read_line = str(self.target.readline())
             if "RESP_OK" in read_line:
                 return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+            it += 1
+        return ""
+
+    def read_digest(self, max_tries: Optional[int] = 10) -> str:
+        """ Read response from Ibex SCA framework.
+        Args:
+            max_tries: Maximum number of attempts to read from UART.
+
+        Returns:
+            The JSON response of OpenTitan.
+        """
+        it = 0
+        while it != max_tries:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                try:
+                    tag = json.loads(json_string)["batch_digest"]
+                    return tag
+                except Exception:
+                    pass  # noqa: E302
             it += 1
         return ""

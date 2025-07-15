@@ -1,8 +1,8 @@
-from communication.sca_sha3_commands import OTSHA3
-from communication.sca_prng_commands import OTPRNG
-from communication.sca_trigger_commands import OTTRIGGER
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.sca_sha3_commands import OTSHA3
+from target.communication.sca_prng_commands import OTPRNG
+from target.communication.sca_trigger_commands import OTTRIGGER
+from target.chip import *
+from target.dut import DUT
 import time
 import random
 

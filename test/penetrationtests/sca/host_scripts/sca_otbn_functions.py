@@ -1,6 +1,6 @@
-from communication.sca_otbn_commands import OTOTBN
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.sca_otbn_commands import OTOTBN
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_combi_operations_batch(opentitantool, iterations, num_segments, fixed_data1, fixed_data2, print_flag, trigger):

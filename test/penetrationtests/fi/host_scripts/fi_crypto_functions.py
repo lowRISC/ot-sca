@@ -1,6 +1,6 @@
-from communication.fi_crypto_commands import OTFICrypto
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_crypto_commands import OTFICrypto
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_aes(opentitantool, iterations, trigger):

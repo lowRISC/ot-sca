@@ -1,7 +1,7 @@
 from test.penetrationtests.sca.host_scripts.sca_kmac_functions import *
-from communication.sca_kmac_commands import OTKMAC
+from target.communication.sca_kmac_commands import OTKMAC
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json
@@ -165,9 +165,8 @@ def char_kmac_batch_daisy_chain_test(opentitantool_path, iterations, num_segment
 
 def char_kmac_batch_test(opentitantool_path, iterations, num_segments):
     key = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
-    text = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     masking = True
-    actual_result = char_kmac_batch(opentitantool_path, iterations, num_segments, masking, key, text)
+    actual_result = char_kmac_batch(opentitantool_path, iterations, num_segments, masking, key)
     try:
         actual_result_json = json.loads(actual_result)
     except:
@@ -179,23 +178,25 @@ def char_kmac_batch_test(opentitantool_path, iterations, num_segments):
     random.seed(1)
 
     # Generate the batch data
+    sample_fixed = 0
     for _ in range(iterations):
-        sample_fixed = 0
+        xor_tag = [0 for _ in range(32)]
         for __ in range(num_segments):
             if sample_fixed == 1:
                 batch_key = key
             else:
-                batch_key = [random.randint(0, 255) for _ in range(32)]
+                batch_key = [random.randint(0, 255) for _ in range(16)]
             batch_data = [random.randint(0, 255) for _ in range(16)]
             sample_fixed = batch_data[0] & 0x1
 
-    mac = KMAC128.new(key=bytes(batch_key), mac_len=32)
-    mac.update(bytes(batch_data))
-    tag = [x for x in bytearray(mac.digest())]
-    digest = tag[:16]
+            mac = KMAC128.new(key=bytes(batch_key), mac_len=32)
+            mac.update(bytes(batch_data))
+            tag = [x for x in bytearray(mac.digest())]
+            xor_tag = [xor_tag[i] ^ tag[i] for i in range(32)]
+            digest = tag[:16]
 
     expected_result_json = {
-        "batch_digest": digest,
+        "batch_digest": xor_tag,
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
         print("char_kmac_batch failed")
@@ -231,7 +232,7 @@ def main():
     char_kmac_single_test(opentitantool_path, iterations)
     for num_segments in num_segments_list:
         char_kmac_batch_daisy_chain_test(opentitantool_path, iterations, num_segments)
-        char_kmac_batch(opentitantool_path, iterations, num_segments)
+        char_kmac_batch_test(opentitantool_path, iterations, num_segments)
 
     print("Testing finished")
     return True

@@ -1,8 +1,8 @@
 from test.penetrationtests.sca.host_scripts.sca_aes_functions import *
-from communication.sca_aes_commands import OTAES
+from target.communication.sca_aes_commands import OTAES
 from python.runfiles import Runfiles
-from communication.chip import *
-import communication.data_generator as dg
+from target.chip import *
+import util.data_generator as dg
 from test.penetrationtests.util.utils import *
 import os
 import json

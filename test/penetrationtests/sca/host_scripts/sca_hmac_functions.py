@@ -1,8 +1,8 @@
-from communication.sca_hmac_commands import OTHMAC
-from communication.sca_prng_commands import OTPRNG
-from communication.sca_trigger_commands import OTTRIGGER
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.sca_hmac_commands import OTHMAC
+from target.communication.sca_prng_commands import OTPRNG
+from target.communication.sca_trigger_commands import OTTRIGGER
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_hmac_single(opentitantool, iterations, trigger, key, text):

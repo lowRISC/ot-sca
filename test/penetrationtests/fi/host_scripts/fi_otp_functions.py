@@ -1,6 +1,6 @@
-from communication.fi_otp_commands import OTFIOtp
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_otp_commands import OTFIOtp
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_vendor_test(opentitantool, iterations):

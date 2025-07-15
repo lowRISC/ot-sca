@@ -1,6 +1,6 @@
-from communication.fi_otbn_commands import OTFIOtbn
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_otbn_commands import OTFIOtbn
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_beq(opentitantool, iterations):
@@ -177,8 +177,11 @@ def char_mem(opentitantool, iterations, byte_offset, num_words, imem, dmem):
     otbnfi = OTFIOtbn(target)
     # Initialize our chip and catch its output
     device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version = otbnfi.init()
+    # The config is only set in the first call
+    first_call = True
     for _ in range(iterations):
-        otbnfi.otbn_char_mem(byte_offset, num_words, imem, dmem)
+        otbnfi.otbn_char_mem(byte_offset, num_words, imem, dmem, first_call)
+        first_call = False
         response = target.read_response()
     # Return the result that is read out
     return response

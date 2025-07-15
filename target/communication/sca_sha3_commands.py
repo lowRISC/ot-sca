@@ -24,16 +24,16 @@ class OTSHA3:
         time.sleep(0.01)
         self.target.write(json.dumps("Sha3Sca").encode("ascii"))
 
-    def init(self, fpga_mode_bit: int, icache_disable: bool, dummy_instr_disable: bool):
+    def init(self, fpga_mode_bit: int) -> list:
         """ Initializes SHA3 on the target.
         Args:
-            fpga_mode_bit: Indicates whether FPGA specific SHA3 test is started.
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
+            fpga_mode_bit: Indicates whether FPGA specific KMAC test is started.
         Returns:
-            The device ID of the device.
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         if not self.simple_serial:
             # Sha3Sca command.
@@ -44,12 +44,16 @@ class OTSHA3:
             time.sleep(0.01)
             fpga_mode = {"fpga_mode": fpga_mode_bit}
             self.target.write(json.dumps(fpga_mode).encode("ascii"))
-            # Disable iCache / dummy instructions.
-            time.sleep(0.01)
-            data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
-            self.target.write(json.dumps(data).encode("ascii"))
-            # Read back device ID from device.
-            return self.read_response(max_tries=30)
+            parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
+            self.target.write(json.dumps(parameters).encode("ascii"))
+            parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+            self.target.write(json.dumps(parameters).encode("ascii"))
+            device_id = self.target.read_response()
+            owner_page = self.target.read_response()
+            boot_log = self.target.read_response()
+            boot_measurements = self.target.read_response()
+            version = self.target.read_response()
+            return device_id, owner_page, boot_log, boot_measurements, version
 
     def _ujson_sha3_sca_ack(self, num_attempts: Optional[int] = 100):
         # Wait for ack.
@@ -81,7 +85,7 @@ class OTSHA3:
             self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
-            # masks_off payload.
+            # Num_segments payload.
             time.sleep(0.01)
             mask = {"masks_off": 1}
             self.target.write(json.dumps(mask).encode("ascii"))
@@ -99,7 +103,7 @@ class OTSHA3:
             self._ujson_sha3_sca_cmd()
             # DisableMasking command.
             self.target.write(json.dumps("DisableMasking").encode("ascii"))
-            # masks_off payload.
+            # Num_segments payload.
             time.sleep(0.01)
             mask = {"masks_off": 0}
             self.target.write(json.dumps(mask).encode("ascii"))
@@ -130,7 +134,7 @@ class OTSHA3:
             num_segments: Number of hashings to perform.
         """
         if self.simple_serial:
-            self.target.write(cmd="b", data=num_segments.to_bytes(4, "little"))
+            self.target.write(cmd="b", data=num_segments)
             ack_ret = self.target.wait_ack(5000)
             if ack_ret is None:
                 raise Exception("Batch mode acknowledge error: Device and host not in sync")
@@ -211,7 +215,7 @@ class OTSHA3:
             # Reading from device failed.
             return None, False
 
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
+    def read_response(self, max_tries: Optional[int] = 10) -> str:
         """ Read response from Ibex SCA framework.
         Args:
             max_tries: Maximum number of attempts to read from UART.

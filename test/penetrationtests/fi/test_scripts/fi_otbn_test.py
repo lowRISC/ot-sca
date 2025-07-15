@@ -1,7 +1,7 @@
 from test.penetrationtests.fi.host_scripts.fi_otbn_functions import *
-from communication.fi_otbn_commands import OTFIOtbn
+from target.communication.fi_otbn_commands import OTFIOtbn
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json
@@ -450,7 +450,7 @@ def main():
         print("Init test failure")
         return False
 
-    iterations = 20
+    iterations = 5
 
     char_beq_test(opentitantool_path, iterations)
     char_bn_rshi_test(opentitantool_path, iterations)

@@ -1,6 +1,6 @@
-from communication.fi_rom_commands import OTFIRom
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.fi_rom_commands import OTFIRom
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_rom_read(opentitantool, iterations):

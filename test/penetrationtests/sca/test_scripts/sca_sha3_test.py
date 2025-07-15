@@ -1,7 +1,7 @@
 from test.penetrationtests.sca.host_scripts.sca_sha3_functions import *
-from communication.sca_sha3_commands import OTSHA3
+from target.communication.sca_sha3_commands import OTSHA3
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

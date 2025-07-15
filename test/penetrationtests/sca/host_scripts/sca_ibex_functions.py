@@ -1,7 +1,7 @@
-from communication.sca_ibex_commands import OTIbex
-from communication.sca_prng_commands import OTPRNG
-from communication.chip import *
-from communication.dut import DUT
+from target.communication.sca_ibex_commands import OTIbex
+from target.communication.sca_prng_commands import OTPRNG
+from target.chip import *
+from target.dut import DUT
 import time
 
 def char_combi_operations_batch(opentitantool, iterations, num_segments, trigger, fixed_data1, fixed_data2):

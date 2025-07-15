@@ -1,7 +1,7 @@
 from test.penetrationtests.sca.host_scripts.sca_otbn_functions import *
-from communication.sca_otbn_commands import OTOTBN
+from target.communication.sca_otbn_commands import OTOTBN
 from python.runfiles import Runfiles
-from communication.chip import *
+from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json

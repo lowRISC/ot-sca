@@ -8,9 +8,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_ibex_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_ibex_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_ibex_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -48,9 +48,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_aes_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_aes_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_aes_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
         requirement("pycryptodome"),
@@ -89,9 +89,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_hmac_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_hmac_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_hmac_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
         requirement("pycryptodome"),
@@ -130,9 +130,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_kmac_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_kmac_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_kmac_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
         requirement("pycryptodome"),
@@ -171,9 +171,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_otbn_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_otbn_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_otbn_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
     ],
@@ -211,9 +211,9 @@ py_binary(
     testonly = True,
     deps = [
         ":sca_sha3_functions",
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_sha3_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_sha3_commands",
         "//test/penetrationtests/util:utils",
         "@rules_python//python/runfiles",
         requirement("pycryptodome"),
@@ -250,10 +250,10 @@ py_library(
     name = "sca_ibex_functions",
     srcs = ["host_scripts/sca_ibex_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_ibex_commands",
-        "//communication:sca_prng_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_ibex_commands",
+        "//target/communication:sca_prng_commands",
     ],
 )
 
@@ -261,12 +261,12 @@ py_library(
     name = "sca_aes_functions",
     srcs = ["host_scripts/sca_aes_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_aes_commands",
-        "//communication:sca_prng_commands",
-        "//communication:sca_trigger_commands",
-        "//communication:data_generator",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_aes_commands",
+        "//target/communication:sca_prng_commands",
+        "//target/communication:sca_trigger_commands",
+        "//util:data_generator",
     ],
 )
 
@@ -274,11 +274,11 @@ py_library(
     name = "sca_hmac_functions",
     srcs = ["host_scripts/sca_hmac_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_hmac_commands",
-        "//communication:sca_prng_commands",
-        "//communication:sca_trigger_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_hmac_commands",
+        "//target/communication:sca_prng_commands",
+        "//target/communication:sca_trigger_commands",
     ],
 )
 
@@ -286,11 +286,11 @@ py_library(
     name = "sca_kmac_functions",
     srcs = ["host_scripts/sca_kmac_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_kmac_commands",
-        "//communication:sca_prng_commands",
-        "//communication:sca_trigger_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_kmac_commands",
+        "//target/communication:sca_prng_commands",
+        "//target/communication:sca_trigger_commands",
     ],
 )
 
@@ -298,9 +298,9 @@ py_library(
     name = "sca_otbn_functions",
     srcs = ["host_scripts/sca_otbn_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_otbn_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_otbn_commands",
     ],
 )
 
@@ -308,10 +308,10 @@ py_library(
     name = "sca_sha3_functions",
     srcs = ["host_scripts/sca_sha3_functions.py"],
     deps = [
-        "//communication:dut",
-        "//communication:chip",
-        "//communication:sca_prng_commands",
-        "//communication:sca_trigger_commands",
-        "//communication:sca_sha3_commands",
+        "//target:dut",
+        "//target:chip",
+        "//target/communication:sca_prng_commands",
+        "//target/communication:sca_trigger_commands",
+        "//target/communication:sca_sha3_commands",
     ],
 )

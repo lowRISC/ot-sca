@@ -15,31 +15,37 @@ class OTFICrypto:
         self.target = target
 
     def _ujson_crypto_cmd(self) -> None:
-        time.sleep(0.01)
         self.target.write(json.dumps("CryptoFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, icache_disable: bool, dummy_instr_disable: bool) -> list:
+    def init(self) -> list:
         """ Initialize the Crypto FI code on the chip.
-        Args:
-            icache_disable: If true, disable the iCache. If false, use default config
-                            set in ROM.
-            dummy_instr_disable: If true, disable the dummy instructions. If false,
-                                 use default config set in ROM.
+        
         Returns:
-            The device ID of the device.
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Init command.
-        time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
-        # Disable iCache / dummy instructions.
-        time.sleep(0.01)
-        data = {"icache_disable": icache_disable, "dummy_instr_disable": dummy_instr_disable}
-        self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID from device.
-        return self.read_response(max_tries=30)
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        parameters = {"alert_classes":[2,2,2,2,0,0,2,2,2,2,0,0,0,0,0,1,0,0,0,2,2,2,0,0,0,1,0,2,2,2,2,0,1,0,0,1,0,0,0,1,0,0,1,0,0,1,0,0,1,1,0,1,0,1,0,1,0,1,0,0,0,0,1,0,1], "enable_alerts": [True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True,True], "enable_classes": [True,True,False,False], "accumulation_thresholds": [2,2,2,2], "signals": [4294967295, 0, 2, 3], "duration_cycles": [0, 7200,48,48], "ping_timeout": 1200}
+        self.target.write(json.dumps(parameters).encode("ascii"))
+        device_id = self.target.read_response()
+        sensors = self.target.read_response()
+        alerts = self.target.read_response()
+        owner_page = self.target.read_response()
+        boot_log = self.target.read_response()
+        boot_measurements = self.target.read_response()
+        version = self.target.read_response()
+        return device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version
 
     def crypto_shadow_reg_access(self) -> None:
         """ Starts the crypto.fi.shadow_reg_access test.
@@ -49,6 +55,15 @@ class OTFICrypto:
         # ShadowRegAccess command.
         time.sleep(0.01)
         self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
+
+    def crypto_shadow_reg_read(self) -> None:
+        """ Starts the crypto.fi.shadow_reg_read test.
+        """
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # ShadowRegRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("ShadowRegRead").encode("ascii"))
 
     def crypto_aes_key(self) -> None:
         """ Starts the crypto.fi.aes_key test.
@@ -162,106 +177,64 @@ class OTFICrypto:
                 "static_trigger": True, "squeeze_trigger": False}
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_sha256_start(self) -> None:
-        """ Starts the crypto.fi.sha256_start test with a hardcoded msg of 0.
+    def crypto_kmac_state(self) -> None:
+        """ Starts the crypto.fi.kmac_state test.
         """
         # CryptoFi command.
         self._ujson_crypto_cmd()
-        # Sha256 command.
+        # KmacState command.
         time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": True, "msg_trigger": False, "process_trigger": False,
-                "finish_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_sha256_msg(self) -> None:
-        """ Starts the crypto.fi.sha256_msg test with a hardcoded msg of 0.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Sha256 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": True, "process_trigger": False,
-                "finish_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_sha256_process(self) -> None:
-        """ Starts the crypto.fi.sha256_process test with a hardcoded msg of 0.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Sha256 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": True,
-                "finish_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_sha256_finish(self) -> None:
-        """ Starts the crypto.fi.sha256_finish test with a hardcoded msg of 0.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Sha256 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": False,
-                "finish_trigger": True}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
-
-        Call the function selected in the config file. Uses the getattr()
-        construct to call the function.
-
-        Args:
-            cfg: Config dict containing the selected test.
-        """
-        test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
+        self.target.write(json.dumps("KmacState").encode("ascii"))
+        
+    def read_response(self) -> str:
         """ Read response from Crypto FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
         Returns:
             The JSON response of OpenTitan.
         """
-        it = 0
-        while it != max_tries:
+        while True:
             read_line = str(self.target.readline())
+            if len(read_line) < 5:
+                break
             if "RESP_OK" in read_line:
                 return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
         return ""
+    
+    def crypto_sha2(self, msg, trigger) -> None:
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # Sha2 command.
+        self.target.write(json.dumps("Sha256").encode("ascii"))
+        time.sleep(0.01)
+        data = {"message": msg}
+        self.target.write(json.dumps(data).encode("ascii"))
+        time.sleep(0.01)
+        if trigger == 0:
+            mode = {"start_trigger": True, "msg_trigger": False, "process_trigger" : False,
+                    "finish_trigger": False}
+        elif trigger == 1:
+            mode = {"start_trigger": False, "msg_trigger": True, "process_trigger" : False,
+                    "finish_trigger": False}
+        elif trigger == 2:
+            mode = {"start_trigger": False, "msg_trigger": False, "process_trigger" : True,
+                    "finish_trigger": False}
+        else:
+            mode = {"start_trigger": False, "msg_trigger": False, "process_trigger" : False,
+                    "finish_trigger": True}
+        self.target.write(json.dumps(mode).encode("ascii"))
+
+        
+    def read_digest(self):
+        """ Read tag from OpenTitan HMAC.
+
+        Returns:
+            The received tag.
+        """
+        while True:
+            read_line = str(self.target.readline())
+            if "RESP_OK" in read_line:
+                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
+                try:
+                    tag = json.loads(json_string)["digest"]
+                    return tag
+                except Exception:
+                    pass  # noqa: E302

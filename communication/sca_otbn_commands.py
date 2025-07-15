@@ -24,8 +24,8 @@ class OTOTBN:
         time.sleep(0.01)
         self.target.write(json.dumps("OtbnSca").encode("ascii"))
 
-     def init(self) -> list:
-        """ Initializes the Ibex SCA tests on the target.
+    def init(self) -> list:
+        """ Initializes the Otbn SCA tests on the target.
 
          Returns:
             Device id
@@ -34,8 +34,8 @@ class OTOTBN:
             The boot measurements
             The testOS version
         """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
+        # OtbnSca command.
+        self._ujson_otbn_sca_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))

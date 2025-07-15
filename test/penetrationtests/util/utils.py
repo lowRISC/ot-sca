@@ -29,3 +29,15 @@ def bytes_to_32bit_words(byte_array):
         word = struct.unpack('>I', chunk)[0]
         word_list.append(word)
     return word_list
+
+def array_to_int(data_array):
+    result = 0
+    for i, val in enumerate(data_array):
+        result |= (val & 0xFFFFFFFF) << (i * 32)
+    return result
+
+def int_to_array(large_int):
+    data_array = [0] * 8
+    for i in range(8):
+        data_array[i] = (large_int >> (i * 32)) & 0xFFFFFFFF
+    return data_array

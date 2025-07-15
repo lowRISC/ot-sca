@@ -145,7 +145,7 @@ class OTSHA3:
             self.target.write(json.dumps("Batch").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            num_segments_data = {"data": [x for x in num_segments]}
+            num_segments_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
             # Wait for ack.
             self._ujson_sha3_sca_ack()

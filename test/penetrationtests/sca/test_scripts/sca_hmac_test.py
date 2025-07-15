@@ -173,7 +173,7 @@ def char_hmac_random_batch_test(opentitantool_path, iterations, num_segments):
         return False
 
     # Set the syncrhonized randomness
-    batch_prng_seed = 0
+    batch_prng_seed = 1
     random.seed(batch_prng_seed)
 
     # Generate the batch data
@@ -209,7 +209,7 @@ def char_hmac_fvsr_batch_test(opentitantool_path, iterations, num_segments):
         return False
 
     # Set the syncrhonized randomness
-    batch_prng_seed = 0
+    batch_prng_seed = 1
     random.seed(batch_prng_seed)
 
     # Generate the batch data

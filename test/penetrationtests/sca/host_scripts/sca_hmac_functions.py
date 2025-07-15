@@ -59,7 +59,7 @@ def char_hmac_random_batch(opentitantool, iterations, num_segments, trigger):
 
     # Set the internal prng
     ot_prng = OTPRNG(target=target, protocol="ujson")
-    ot_prng.seed_prng([0,0,0,0])
+    ot_prng.seed_prng([1,0,0,0])
     
     for _ in range(iterations):
         hmacsca.random_batch(num_segments, trigger)
@@ -82,7 +82,7 @@ def char_hmac_fvsr_batch(opentitantool, iterations, num_segments, trigger, key):
 
     # Set the internal prng
     ot_prng = OTPRNG(target=target, protocol="ujson")
-    ot_prng.seed_prng([0,0,0,0])
+    ot_prng.seed_prng([1,0,0,0])
     
     for _ in range(iterations):
         hmacsca.fvsr_batch(key, num_segments, trigger)

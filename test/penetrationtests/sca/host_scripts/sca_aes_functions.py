@@ -85,7 +85,7 @@ def char_aes_batch_data_fvsr_encrypt(opentitantool, iterations, num_segments, ma
 
     # Set the internal prng
     ot_prng = OTPRNG(target=target, protocol="ujson")
-    ot_prng.seed_prng([0,0,0,0])
+    ot_prng.seed_prng([1,0,0,0])
 
     # Generate plaintexts and keys for first batch.
     aessca.start_fvsr_batch_generate(2)
@@ -118,7 +118,7 @@ def char_aes_batch_key_fvsr_encrypt(opentitantool, iterations, num_segments, mas
 
     # Set the internal prng
     ot_prng = OTPRNG(target=target, protocol="ujson")
-    ot_prng.seed_prng([0,0,0,0])
+    ot_prng.seed_prng([1,0,0,0])
 
     # Generate plaintexts and keys for first batch.
     aessca.start_fvsr_batch_generate(1)

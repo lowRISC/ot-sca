@@ -122,7 +122,7 @@ class OTKMAC:
             self.target.write(json.dumps("Batch").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
-            num_segments_data = {"data": [x for x in num_segments]}
+            num_segments_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_segments_data).encode("ascii"))
 
     def absorb_daisy_chain(self, text, key, num_segments):
@@ -137,15 +137,16 @@ class OTKMAC:
         else:
             # KmacSca command.
             self._ujson_kmac_sca_cmd()
-            # Batch command.
+            # BatchDaisy command.
             self.target.write(json.dumps("BatchDaisy").encode("ascii"))
             # Num_segments payload.
             time.sleep(0.01)
             num_it_data = {"num_enc": num_segments}
             self.target.write(json.dumps(num_it_data).encode("ascii"))
-            message_data = {"msg": text, "msg_length": 16}
+            message_data = {"msg": text, "msg_length": len(text)}
             self.target.write(json.dumps(message_data).encode("ascii"))
-            key_data = {"key": key, "key_length": 16}
+            key_data = {"key": key, "key_length": len(key)}
+            self.target.write(json.dumps(key_data).encode("ascii"))
 
     def absorb(self, text, text_length: Optional[int] = 16):
         """ Write plaintext to OpenTitan KMAC & start absorb.

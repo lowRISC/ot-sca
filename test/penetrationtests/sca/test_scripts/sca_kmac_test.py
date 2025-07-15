@@ -1,13 +1,12 @@
-from test.penetrationtests.sca.host_scripts.sca_aes_functions import *
-from communication.sca_aes_commands import OTAES
+from test.penetrationtests.sca.host_scripts.sca_kmac_functions import *
+from communication.sca_kmac_commands import OTKMAC
 from python.runfiles import Runfiles
 from communication.chip import *
-import communication.data_generator as dg
 from test.penetrationtests.util.utils import *
 import os
 import json
 import random
-from Crypto.Cipher import AES
+from Crypto.Hash import KMAC128
 
 ignored_keys_set = set([])
 
@@ -23,8 +22,8 @@ def reset_test(opentitantool, target):
 
 
 def init_test(opentitantool, target):
-    aessca = OTAES(target, "ujson")
-    device_id, owner_page, boot_log, boot_measurements, version = aessca.init(0)
+    kmacsca = OTKMAC(target, "ujson")
+    device_id, owner_page, boot_log, boot_measurements, version = kmacsca.init(0)
     device_id_json = json.loads(device_id)
     owner_page_json = json.loads(owner_page)
     boot_log_json = json.loads(boot_log)
@@ -107,140 +106,103 @@ def init_test(opentitantool, target):
 
     return True
 
-def char_aes_single_encrypt_test(opentitantool_path, iterations):
-    masking = False
+def char_kmac_single_test(opentitantool_path, iterations):
     key = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
     text = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-    actual_result = char_aes_single_encrypt(opentitantool_path, iterations, masking, key, text)
+    masking = True
+    actual_result = char_kmac_single(opentitantool_path, iterations, masking, key, text)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_aes_single_encrypt gave an unexpected result")
+        print("char_kmac_single gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
 
-    cipher_gen = AES.new(bytes(key), AES.MODE_ECB)
-    expected_result = [x for x in cipher_gen.encrypt(bytes(text))]
+    mac = KMAC128.new(key=bytes(key), mac_len=32)
+    mac.update(bytes(text))
+    tag = bytearray(mac.digest())
+    expected_result = [x for x in tag]
 
     expected_result_json = {
-        "ciphertext": expected_result,
-        "ciphertext_length": 16
+        "batch_digest": expected_result,
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_aes_single_encrypt failed")
+        print("char_kmac_single failed")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
-        return False
-    
+        return False    
     return True
 
-def char_aes_batch_alternative_encrypt_test(opentitantool_path, iterations, num_segments):
+def char_kmac_batch_daisy_chain_test(opentitantool_path, iterations, num_segments):
+    key = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    text = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     masking = True
-    key = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-    text = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
-    actual_result = char_aes_batch_alternative_encrypt(opentitantool_path, iterations, num_segments, masking, key, text)
+    actual_result = char_kmac_batch_daisy_chain(opentitantool_path, iterations, num_segments, masking, key, text)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_aes_batch_alternative_encrypt gave an unexpected result")
+        print("char_kmac_batch_daisy_chain gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
 
-    cipher_gen = AES.new(bytes(key), AES.MODE_ECB)
-    for _ in range(iterations):
-        for __ in range(num_segments):
-            text = [x for x in cipher_gen.encrypt(bytes(text))]
+    for i in range(num_segments):
+        mac = KMAC128.new(key=bytes(key), mac_len=32)
+        mac.update(bytes(text))
+        digest = [x for x in bytearray(mac.digest())]
+        text = digest[:16]
 
     expected_result_json = {
-        "ciphertext": text,
-        "ciphertext_length": len(text)
+        "digest": text,
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_aes_batch_alternative_encrypt failed")
+        print("char_kmac_batch_daisy_chain failed")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
-        return False
+        return False    
     return True
 
-def char_aes_batch_data_fvsr_encrypt_test(opentitantool_path, iterations, num_segments):
+def char_kmac_batch_test(opentitantool_path, iterations, num_segments):
+    key = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    text = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
     masking = True
-    actual_result = char_aes_batch_data_fvsr_encrypt(opentitantool_path, iterations, num_segments, masking)
+    actual_result = char_kmac_batch(opentitantool_path, iterations, num_segments, masking, key, text)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_aes_batch_data_fvsr_encrypt gave an unexpected result")
+        print("char_kmac_batch gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
 
-    # Set the syncrhonized randomness
-    batch_prng_seed = 1
-    random.seed(batch_prng_seed)
+    # Seed the synchronized randomness with the same seed as in the chip which is 1
+    random.seed(1)
 
-    # Start with a fixed measurement
-    sample_fixed = 1
-    prng_state = 0x99999999
-    dg.set_start('FVSR_DATA')
+    # Generate the batch data
     for _ in range(iterations):
+        sample_fixed = 0
         for __ in range(num_segments):
-            if sample_fixed:
-                plaintext, ciphertext, key = dg.get_fixed('FVSR_DATA')
+            if sample_fixed == 1:
+                batch_key = key
             else:
-                plaintext, ciphertext, key = dg.get_random('FVSR_DATA')
-            sample_fixed = prng_state & 0x1
-            prng_state = prng_state >> 1
-            if sample_fixed:
-                prng_state ^= 0x80000057
+                batch_key = [random.randint(0, 255) for _ in range(32)]
+            batch_data = [random.randint(0, 255) for _ in range(16)]
+            sample_fixed = batch_data[0] & 0x1
+
+    mac = KMAC128.new(key=bytes(batch_key), mac_len=32)
+    mac.update(bytes(batch_data))
+    tag = [x for x in bytearray(mac.digest())]
+    digest = tag[:16]
 
     expected_result_json = {
-        "ciphertext": ciphertext,
-        "ciphertext_length": len(ciphertext)
+        "batch_digest": digest,
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_aes_batch_data_fvsr_encrypt failed")
+        print("char_kmac_batch failed")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
-        return False
-    return True
-
-def char_aes_batch_key_fvsr_encrypt_test(opentitantool_path, iterations, num_segments):
-    masking = True
-    actual_result = char_aes_batch_key_fvsr_encrypt(opentitantool_path, iterations, num_segments, masking)
-    try:
-        actual_result_json = json.loads(actual_result)
-    except:
-        print("char_aes_batch_key_fvsr_encrypt gave an unexpected result")
-        print(f"Actual: {actual_result}")
-        return False
-
-    # Set the syncrhonized randomness
-    batch_prng_seed = 1
-    random.seed(batch_prng_seed)
-
-    # Start with a fixed measurement
-    sample_fixed = 1
-    prng_state = 0x99999999
-    dg.set_start('FVSR_KEY')
-    for _ in range(iterations):
-        for __ in range(num_segments):
-            if sample_fixed:
-                plaintext, ciphertext, key = dg.get_fixed('FVSR_KEY')
-            else:
-                plaintext, ciphertext, key = dg.get_random('FVSR_KEY')
-            sample_fixed = plaintext[0] & 0x1
-
-    expected_result_json = {
-        "ciphertext": ciphertext,
-        "ciphertext_length": len(ciphertext)
-    }
-    if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_aes_batch_key_fvsr_encrypt failed")
-        print(f"Expected: {expected_result_json}")
-        print(f"Actual: {actual_result_json}")
-        print("")
-        return False
+        return False    
     return True
 
 def main():
@@ -264,12 +226,12 @@ def main():
         return False
 
     iterations = 10
-    num_segments_list = [1, 2, 5, 10, 12]
-    char_aes_single_encrypt_test(opentitantool_path, iterations)
+    num_segments_list = [1, 2, 5, 10, 12, 50]
+
+    char_kmac_single_test(opentitantool_path, iterations)
     for num_segments in num_segments_list:
-        char_aes_batch_alternative_encrypt_test(opentitantool_path, iterations, num_segments)
-        char_aes_batch_data_fvsr_encrypt_test(opentitantool_path, iterations, num_segments)
-        char_aes_batch_key_fvsr_encrypt_test(opentitantool_path, iterations, num_segments)
+        char_kmac_batch_daisy_chain_test(opentitantool_path, iterations, num_segments)
+        char_kmac_batch(opentitantool_path, iterations, num_segments)
 
     print("Testing finished")
     return True

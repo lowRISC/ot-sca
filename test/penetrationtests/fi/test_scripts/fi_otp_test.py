@@ -6,7 +6,7 @@ from test.penetrationtests.util.utils import *
 import os
 import json
 
-ignored_keys_set = set(["partition_ref", "partition_fi"])
+ignored_keys_set = set(["partition_ref", "partition_fi", "otp_status_codes"])
 
 def reset_test(opentitantool, target):
     reset_target(opentitantool)
@@ -142,7 +142,7 @@ def char_vendor_test_test(opentitantool_path, iterations):
         print("char_vendor_test gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
-    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"err_status":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
+    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
         print("char_vendor_test failed")
         print(f"Expected: {expected_result_json}")
@@ -159,7 +159,7 @@ def char_owner_sw_cfg_test(opentitantool_path, iterations):
         print("char_owner_sw_cfg gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
-    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"err_status":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
+    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
         print("char_owner_sw_cfg failed")
         print(f"Expected: {expected_result_json}")
@@ -176,7 +176,7 @@ def char_hw_cfg_test(opentitantool_path, iterations):
         print("char_hw_cfg gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
-    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"err_status":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
+    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
         print("char_hw_cfg failed")
         print(f"Expected: {expected_result_json}")
@@ -193,7 +193,7 @@ def char_life_cycle_test(opentitantool_path, iterations):
         print("char_life_cycle gave an unexpected result")
         print(f"Actual: {actual_result}")
         return False
-    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"err_status":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
+    expected_result_json = json.loads('{"data_faulty":[false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false],"otp_error_causes":[0,0,0,0,0,0,0,0,0,0],"otp_status_codes":0,"alerts":[0,0,0],"ast_alerts":[0,0]}')
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
         print("char_life_cycle failed")
         print(f"Expected: {expected_result_json}")

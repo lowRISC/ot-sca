@@ -11,7 +11,7 @@ def char_aes_single_encrypt(opentitantool, iterations, masking, key, text):
     # Clear the output from the reset
     target.dump_all()
 
-    aessca = OTAES(target, "ujson")
+    aessca = OTAES(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = aessca.init(0)
 
@@ -23,7 +23,7 @@ def char_aes_single_encrypt(opentitantool, iterations, masking, key, text):
     aessca.seed_lfsr(lfsr_seed.to_bytes(4, "little"))
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     aessca.key_set(key)
@@ -39,7 +39,7 @@ def char_aes_batch_alternative_encrypt(opentitantool, iterations, num_segments, 
     # Clear the output from the reset
     target.dump_all()
 
-    aessca = OTAES(target, "ujson")
+    aessca = OTAES(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = aessca.init(0)
 
@@ -51,7 +51,7 @@ def char_aes_batch_alternative_encrypt(opentitantool, iterations, num_segments, 
     aessca.seed_lfsr(lfsr_seed.to_bytes(4, "little"))
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     aessca.key_set(key, len(key))
@@ -68,7 +68,7 @@ def char_aes_batch_data_fvsr_encrypt(opentitantool, iterations, num_segments, ma
     # Clear the output from the reset
     target.dump_all()
 
-    aessca = OTAES(target, "ujson")
+    aessca = OTAES(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = aessca.init(0)
 
@@ -80,11 +80,11 @@ def char_aes_batch_data_fvsr_encrypt(opentitantool, iterations, num_segments, ma
     aessca.seed_lfsr(lfsr_seed.to_bytes(4, "little"))
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
 
     # Generate plaintexts and keys for first batch.
@@ -101,7 +101,7 @@ def char_aes_batch_key_fvsr_encrypt(opentitantool, iterations, num_segments, mas
     # Clear the output from the reset
     target.dump_all()
 
-    aessca = OTAES(target, "ujson")
+    aessca = OTAES(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = aessca.init(0)
 
@@ -113,11 +113,11 @@ def char_aes_batch_key_fvsr_encrypt(opentitantool, iterations, num_segments, mas
     aessca.seed_lfsr(lfsr_seed.to_bytes(4, "little"))
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
 
     # Generate plaintexts and keys for first batch.

@@ -23,7 +23,7 @@ def reset_test(opentitantool, target):
 
 
 def init_test(opentitantool, target):
-    sha3sca = OTSHA3(target, "ujson")
+    sha3sca = OTSHA3(target)
     device_id, owner_page, boot_log, boot_measurements, version = sha3sca.init(0)
     device_id_json = json.loads(device_id)
     owner_page_json = json.loads(owner_page)

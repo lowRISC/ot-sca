@@ -12,7 +12,7 @@ def char_kmac_single(opentitantool, iterations, masking, key, text):
     # Clear the output from the reset
     target.dump_all()
 
-    kmacsca = OTKMAC(target, "ujson")
+    kmacsca = OTKMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = kmacsca.init(0)
 
@@ -25,7 +25,7 @@ def char_kmac_single(opentitantool, iterations, masking, key, text):
     kmacsca.write_key(key)
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
     
     for _ in range(iterations):
@@ -39,7 +39,7 @@ def char_kmac_batch_daisy_chain(opentitantool, iterations, num_segments, masking
     # Clear the output from the reset
     target.dump_all()
 
-    kmacsca = OTKMAC(target, "ujson")
+    kmacsca = OTKMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = kmacsca.init(0)
 
@@ -50,7 +50,7 @@ def char_kmac_batch_daisy_chain(opentitantool, iterations, num_segments, masking
     kmacsca.write_lfsr_seed(lfsr_seed)
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
     
     for _ in range(iterations):
@@ -64,7 +64,7 @@ def char_kmac_batch(opentitantool, iterations, num_segments, masking, key):
     # Clear the output from the reset
     target.dump_all()
 
-    kmacsca = OTKMAC(target, "ujson")
+    kmacsca = OTKMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = kmacsca.init(0)
 
@@ -75,11 +75,11 @@ def char_kmac_batch(opentitantool, iterations, num_segments, masking, key):
     kmacsca.write_lfsr_seed(lfsr_seed)
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
 
     kmacsca.fvsr_key_set(key, len(key))

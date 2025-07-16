@@ -22,7 +22,7 @@ def reset_test(opentitantool, target):
 
 
 def init_test(opentitantool, target):
-    hmacsca = OTHMAC(target, "ujson")
+    hmacsca = OTHMAC(target)
     device_id, owner_page, boot_log, boot_measurements, version = hmacsca.init()
     device_id_json = json.loads(device_id)
     owner_page_json = json.loads(owner_page)

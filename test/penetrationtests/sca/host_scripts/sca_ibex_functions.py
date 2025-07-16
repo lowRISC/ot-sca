@@ -26,7 +26,7 @@ def char_combi_operations_batch_fvsr(opentitantool, iterations, num_segments, tr
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -59,7 +59,7 @@ def char_register_file_read_batch_fvsr(opentitantool, iterations, data, num_segm
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -78,7 +78,7 @@ def char_register_file_read_batch_random(opentitantool, iterations, num_segments
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -111,7 +111,7 @@ def char_register_file_write_batch_fvsr(opentitantool, iterations, data, num_seg
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -130,7 +130,7 @@ def char_register_file_write_batch_random(opentitantool, iterations, num_segment
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -163,7 +163,7 @@ def char_tl_read_batch_fvsr(opentitantool, iterations, data, num_segments):
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -182,7 +182,7 @@ def char_tl_read_batch_fvsr_fix_address(opentitantool, iterations, data, num_seg
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -201,7 +201,7 @@ def char_tl_read_batch_random(opentitantool, iterations, num_segments):
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -220,7 +220,7 @@ def char_tl_read_batch_random_fix_address(opentitantool, iterations, num_segment
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -253,7 +253,7 @@ def char_tl_write_batch_fvsr(opentitantool, iterations, data, num_segments):
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -272,7 +272,7 @@ def char_tl_write_batch_fvsr_fix_address(opentitantool, iterations, data, num_se
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -291,7 +291,7 @@ def char_tl_write_batch_random(opentitantool, iterations, num_segments):
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)
@@ -310,7 +310,7 @@ def char_tl_write_batch_random_fix_address(opentitantool, iterations, num_segmen
 
     # Seed the prng to make synchronized randomness
     # This is the same as using python rand with seed 1
-    otprng = OTPRNG(target, protocol="ujson")
+    otprng = OTPRNG(target)
     otprng.seed_prng([1,0,0,0])
 
     ibexsca = OTIbex(target)

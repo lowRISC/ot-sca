@@ -9,7 +9,7 @@ def char_combi_operations_batch(opentitantool, iterations, num_segments, fixed_d
     # Clear the output from the reset
     target.dump_all()
 
-    otbnsca = OTOTBN(target, "ujson")
+    otbnsca = OTOTBN(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = otbnsca.init()
     for _ in range(iterations):

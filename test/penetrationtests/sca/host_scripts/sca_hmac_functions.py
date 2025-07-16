@@ -11,12 +11,12 @@ def char_hmac_single(opentitantool, iterations, trigger, key, text):
     # Clear the output from the reset
     target.dump_all()
 
-    hmacsca = OTHMAC(target, "ujson")
+    hmacsca = OTHMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = hmacsca.init()
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
     
     for _ in range(iterations):
@@ -30,12 +30,12 @@ def char_hmac_daisy_chain(opentitantool, iterations, num_segments, trigger, key,
     # Clear the output from the reset
     target.dump_all()
 
-    hmacsca = OTHMAC(target, "ujson")
+    hmacsca = OTHMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = hmacsca.init()
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
     
     for _ in range(iterations):
@@ -49,16 +49,16 @@ def char_hmac_random_batch(opentitantool, iterations, num_segments, trigger):
     # Clear the output from the reset
     target.dump_all()
 
-    hmacsca = OTHMAC(target, "ujson")
+    hmacsca = OTHMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = hmacsca.init()
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
     
     for _ in range(iterations):
@@ -72,16 +72,16 @@ def char_hmac_fvsr_batch(opentitantool, iterations, num_segments, trigger, key):
     # Clear the output from the reset
     target.dump_all()
 
-    hmacsca = OTHMAC(target, "ujson")
+    hmacsca = OTHMAC(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = hmacsca.init()
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
     
     for _ in range(iterations):

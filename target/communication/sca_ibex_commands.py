@@ -20,23 +20,6 @@ class OTIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("IbexSca").encode("ascii"))
 
-    def ibex_sca_read_response(self, num_attempts: Optional[int] = 100):
-        """ Reads back the "result" response from the device.
-        """
-        read_counter = 0
-        while read_counter < num_attempts:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-                try:
-                    if "result" in json_string:
-                        return json.loads(json_string)["result"]
-                except Exception:
-                    raise Exception("Acknowledge error: Device and host not in sync")
-            else:
-                read_counter += 1
-        raise Exception("Acknowledge error: Device and host not in sync")
-
     def init(self) -> list:
         """ Initializes the Ibex SCA tests on the target.
 
@@ -360,19 +343,3 @@ class OTIbex:
             test_function(arg1, arg2)
         else:
             test_function()
-
-    def read_response(self, max_tries: Optional[int] = 10) -> str:
-        """ Read response from Ibex SCA framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""

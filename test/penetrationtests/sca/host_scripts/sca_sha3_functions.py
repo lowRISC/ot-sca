@@ -12,7 +12,7 @@ def char_sha3_single_absorb(opentitantool, iterations, masking, text):
     # Clear the output from the reset
     target.dump_all()
 
-    sha3sca = OTSHA3(target, "ujson")
+    sha3sca = OTSHA3(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = sha3sca.init(0)
 
@@ -23,7 +23,7 @@ def char_sha3_single_absorb(opentitantool, iterations, masking, text):
         sha3sca.set_mask_off()
     
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
     
     for _ in range(iterations):
@@ -37,7 +37,7 @@ def char_sha3_batch_absorb(opentitantool, iterations, num_segments, masking, tex
     # Clear the output from the reset
     target.dump_all()
 
-    sha3sca = OTSHA3(target, "ujson")
+    sha3sca = OTSHA3(target)
     # Initialize our chip and catch its output
     device_id, owner_page, boot_log, boot_measurements, version = sha3sca.init(0)
 
@@ -48,11 +48,11 @@ def char_sha3_batch_absorb(opentitantool, iterations, num_segments, masking, tex
         sha3sca.set_mask_off()
     
     # Set the internal prng
-    ot_prng = OTPRNG(target=target, protocol="ujson")
+    ot_prng = OTPRNG(target=target)
     ot_prng.seed_prng([1,0,0,0])
 
     # Set the trigger
-    triggersca = OTTRIGGER(target, "ujson")
+    triggersca = OTTRIGGER(target)
     triggersca.select_trigger(0)
 
     sha3sca.fvsr_fixed_msg_set(text, len(text))

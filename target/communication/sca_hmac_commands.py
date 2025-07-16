@@ -10,10 +10,8 @@ import time
 
 
 class OTHMAC:
-    def __init__(self, target, protocol: str) -> None:
+    def __init__(self, target) -> None:
         self.target = target
-        if protocol == "simpleserial":
-            raise Exception("Only uJSON protocol is supported for this test.")
 
     def _ujson_hmac_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
@@ -184,51 +182,4 @@ class OTHMAC:
             mode = {"start_trigger": False, "msg_trigger": False,
                     "process_trigger": False, "finish_trigger": True}
         self.target.write(json.dumps(mode).encode("ascii"))
-        
-    def read_response(self, max_tries = 1) -> str:
-        """ Read response from AES SCA framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
 
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""
-
-    def read_tag(self):
-        """ Read tag from OpenTitan HMAC.
-
-        Returns:
-            The received tag.
-        """
-        while True:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-                try:
-                    tag = json.loads(json_string)["tag"]
-                    return tag
-                except Exception:
-                    pass  # noqa: E302
-                
-    def read_digest(self):
-        """ Read tag from OpenTitan HMAC.
-
-        Returns:
-            The received tag.
-        """
-        while True:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-                try:
-                    tag = json.loads(json_string)["digest"]
-                    return tag
-                except Exception:
-                    pass  # noqa: E302

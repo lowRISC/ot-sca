@@ -134,19 +134,3 @@ class OTFIRng:
         """
         test_function = getattr(self, cfg["test"]["which_test"])
         test_function()
-
-    def read_response(self, max_tries: Optional[int] = 10) -> str:
-        """ Read response from RNG FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""

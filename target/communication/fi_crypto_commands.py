@@ -185,19 +185,6 @@ class OTFICrypto:
         # KmacState command.
         time.sleep(0.01)
         self.target.write(json.dumps("KmacState").encode("ascii"))
-        
-    def read_response(self) -> str:
-        """ Read response from Crypto FI framework.
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        while True:
-            read_line = str(self.target.readline())
-            if len(read_line) < 5:
-                break
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-        return ""
     
     def crypto_sha2(self, msg, trigger) -> None:
         # CryptoFi command.
@@ -221,20 +208,3 @@ class OTFICrypto:
             mode = {"start_trigger": False, "msg_trigger": False, "process_trigger" : False,
                     "finish_trigger": True}
         self.target.write(json.dumps(mode).encode("ascii"))
-
-        
-    def read_digest(self):
-        """ Read tag from OpenTitan HMAC.
-
-        Returns:
-            The received tag.
-        """
-        while True:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-                try:
-                    tag = json.loads(json_string)["digest"]
-                    return tag
-                except Exception:
-                    pass  # noqa: E302

@@ -39,7 +39,8 @@ def init_test(opentitantool, target):
         "sram_main_readback_locked",
         "sram_main_readback_en",
         "sram_ret_readback_locked",
-        "sram_ret_readback_en"
+        "sram_ret_readback_en",
+        "data_ind_timing_en"
     }
     actual_device_id_keys = set(device_id_json.keys())
 
@@ -852,7 +853,7 @@ def main():
         print("Init test failure")
         return False
 
-    iterations = 1
+    iterations = 10
 
     char_addi_single_beq_test(opentitantool_path, iterations)
     char_addi_single_bne_test(opentitantool_path, iterations)

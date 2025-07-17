@@ -40,7 +40,7 @@ class OTFIRng:
             self.target.write(json.dumps("CsrngInit").encode("ascii"))
         else:
             self.target.write(json.dumps("EdnInit").encode("ascii"))
-        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True}
+        parameters = {"enable_icache": True, "enable_dummy_instr": True, "dummy_instr_count": 3, "enable_jittery_clock": True, "enable_sram_readback": True, "enable_data_ind_timing": True}
         self.target.write(json.dumps(parameters).encode("ascii"))
         parameters = {"sensor_ctrl_enable": True, "sensor_ctrl_en_fatal": [False, False, False, False, False, False, False, False, False, False, False]}
         self.target.write(json.dumps(parameters).encode("ascii"))

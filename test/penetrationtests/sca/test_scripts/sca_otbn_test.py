@@ -38,7 +38,8 @@ def init_test(opentitantool, target):
         "sram_main_readback_locked",
         "sram_main_readback_en",
         "sram_ret_readback_locked",
-        "sram_ret_readback_en"
+        "sram_ret_readback_en",
+        "data_ind_timing_en"
     }
     actual_device_id_keys = set(device_id_json.keys())
 

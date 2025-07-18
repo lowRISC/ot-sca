@@ -1,7 +1,7 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-"""Communication interface for OpenTitan Otp FI framework.
+"""Communication interface for OpenTitan Rom FI framework.
 
 Communication with OpenTitan happens over the uJSON command interface.
 """
@@ -10,52 +10,25 @@ import time
 from typing import Optional
 
 
-class OTFIOtp:
+class OTFIRom:
     def __init__(self, target) -> None:
         self.target = target
 
-    def _ujson_otp_fi_cmd(self) -> None:
+    def _ujson_rom_fi_cmd(self) -> None:
         time.sleep(0.01)
-        self.target.write(json.dumps("OtpFi").encode("ascii"))
+        self.target.write(json.dumps("RomFi").encode("ascii"))
 
-    def otp_fi_vendor_test(self) -> None:
-        """ Reads otp VENDOR_TEST partition.
+    def handle_rom_read(self) -> None:
+        """ Reads Rom digest.
         """
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # VendorTest command.
+        # RomFi command.
+        self._ujson_rom_fi_cmd()
+        # Read command.
         time.sleep(0.01)
-        self.target.write(json.dumps("VendorTest").encode("ascii"))
-
-    def otp_fi_owner_sw_cfg(self) -> None:
-        """ Reads otp OWNER_SW_CFG partition.
-        """
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # OwnerSwCfg command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("OwnerSwCfg").encode("ascii"))
-
-    def otp_fi_hw_cfg(self) -> None:
-        """ Reads otp HW_CFG partition.
-        """
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # HwCfg command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("HwCfg").encode("ascii"))
-
-    def otp_fi_life_cycle(self) -> None:
-        """ Reads otp LIFE_CYCLE partition.
-        """
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # LifeCycle command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("LifeCycle").encode("ascii"))
+        self.target.write(json.dumps("Read").encode("ascii"))
 
     def init(self) -> list:
-        """ Initialize the Otp FI code on the chip.
+        """ Initialize the ROM FI code on the chip.
         Args:
             cfg: Config dict containing the selected test.
             
@@ -66,8 +39,8 @@ class OTFIOtp:
             The boot measurements
             The testOS version
         """
-        # OtpFi command.
-        self._ujson_otp_fi_cmd()
+        # RomFi command.
+        self._ujson_rom_fi_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
@@ -85,15 +58,3 @@ class OTFIOtp:
         boot_measurements = self.target.read_response()
         version = self.target.read_response()
         return device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version
-
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
-
-        Call the function selected in the config file. Uses the getattr()
-        construct to call the function.
-
-        Args:
-            cfg: Config dict containing the selected test.
-        """
-        test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()

@@ -19,7 +19,7 @@ def to_signed32(n_unsigned):
         return n_unsigned - 0x100000000 
     return n_unsigned
 
-def bytes_to_32bit_words(byte_array):
+def bytes_to_words(byte_array):
     if not isinstance(byte_array, (bytes, bytearray)):
         raise TypeError("Input must be a bytes object or bytearray.")
 
@@ -29,6 +29,17 @@ def bytes_to_32bit_words(byte_array):
         word = struct.unpack('>I', chunk)[0]
         word_list.append(word)
     return word_list
+
+def words_to_bytes(dword_array):
+    if not isinstance(dword_array, list):
+        raise TypeError("Input must be a list of 32-bit integers.")
+
+    byte_list = bytearray()
+    for dword in dword_array:
+        if not isinstance(dword, int) or not (0 <= dword <= 0xFFFFFFFF):
+            raise ValueError("Each element in the array must be a 32-bit integer (0 to 0xFFFFFFFF).")
+        byte_list.extend(struct.pack('>I', dword))
+    return bytes(byte_list)
 
 def array_to_int(data_array):
     result = 0

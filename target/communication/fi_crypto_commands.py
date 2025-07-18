@@ -186,25 +186,25 @@ class OTFICrypto:
         time.sleep(0.01)
         self.target.write(json.dumps("KmacState").encode("ascii"))
     
-    def crypto_sha2(self, msg, trigger) -> None:
+    def crypto_hmac(self, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode) -> None:
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Sha2 command.
-        self.target.write(json.dumps("Sha256").encode("ascii"))
+        self.target.write(json.dumps("Hmac").encode("ascii"))
         time.sleep(0.01)
-        data = {"message": msg}
+        data = {"message": msg, "key": key}
         self.target.write(json.dumps(data).encode("ascii"))
         time.sleep(0.01)
         if trigger == 0:
             mode = {"start_trigger": True, "msg_trigger": False, "process_trigger" : False,
-                    "finish_trigger": False}
+                    "finish_trigger": False, "enable_hmac": enable_hmac, "message_endianness_big": message_endianness_big, "digest_endianness_big":digest_endianness_big, "key_endianness_big": key_endianness_big, "hash_mode":hash_mode}
         elif trigger == 1:
             mode = {"start_trigger": False, "msg_trigger": True, "process_trigger" : False,
-                    "finish_trigger": False}
+                    "finish_trigger": False, "enable_hmac": enable_hmac, "message_endianness_big": message_endianness_big, "digest_endianness_big":digest_endianness_big, "key_endianness_big": key_endianness_big, "hash_mode":hash_mode}
         elif trigger == 2:
             mode = {"start_trigger": False, "msg_trigger": False, "process_trigger" : True,
-                    "finish_trigger": False}
+                    "finish_trigger": False, "enable_hmac": enable_hmac, "message_endianness_big": message_endianness_big, "digest_endianness_big":digest_endianness_big, "key_endianness_big": key_endianness_big, "hash_mode":hash_mode}
         else:
             mode = {"start_trigger": False, "msg_trigger": False, "process_trigger" : False,
-                    "finish_trigger": True}
+                    "finish_trigger": True, "enable_hmac": enable_hmac, "message_endianness_big": message_endianness_big, "digest_endianness_big":digest_endianness_big, "key_endianness_big": key_endianness_big, "hash_mode":hash_mode}
         self.target.write(json.dumps(mode).encode("ascii"))

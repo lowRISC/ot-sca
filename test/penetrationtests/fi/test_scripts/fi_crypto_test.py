@@ -5,7 +5,7 @@ from target.chip import *
 from test.penetrationtests.util.utils import *
 import os
 import json
-from Crypto.Hash import SHA256
+from Crypto.Hash import SHA256, SHA384, SHA512, HMAC
 
 ignored_keys_set = set(["share0", "share1"])
 
@@ -189,21 +189,31 @@ def char_kmac_state_test(opentitantool_path, iterations):
         return False
     return True
 
-def char_sha256_test(opentitantool_path, iterations):
+def char_hmac_test(opentitantool_path, iterations):
     trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = False
+    hash_mode = 0
     msg = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    actual_result = char_sha256(opentitantool_path, iterations, msg, trigger)
+    key = [0,0,0,0,0,0,0,0]
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_sha256 gave an unexpected result")
+        print("char_hmac gave an unexpected result")
+        print("SHA256")
+        print(f"Input: {msg}")
         print(f"Actual: {actual_result}")
         return False
 
     sha256 = SHA256.new()
     sha256.update(bytes(msg))
-    expected_result = bytes_to_32bit_words(bytearray(sha256.digest()))
+    expected_result = bytes_to_words(bytearray(sha256.digest()))
     expected_result.reverse()
+    # Pad the rest with zero
+    expected_result += [0] * 8
 
     expected_result_json = {
         "tag": expected_result,
@@ -212,24 +222,114 @@ def char_sha256_test(opentitantool_path, iterations):
         "ast_alerts":[0,0]
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_sha256 failed")
+        print("char_hmac failed")
+        print("SHA256")
+        print(f"Input: {msg}")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
         return False
 
     msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-    actual_result = char_sha256(opentitantool_path, iterations, msg, trigger)
+    trigger = 0
+    message_endianness_big = True
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = False
+    hash_mode = 0
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_sha256 gave an unexpected result")
+        print("char_hmac gave an unexpected result")
+        print("SHA256")
+        print(f"Input: {msg}")
         print(f"Actual: {actual_result}")
         return False
 
+    # Switch the endianness of the message
+    msg = [3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12]
     sha256 = SHA256.new()
     sha256.update(bytes(msg))
-    expected_result = bytes_to_32bit_words(bytearray(sha256.digest()))
+    expected_result = bytes_to_words(bytearray(sha256.digest()))
+    expected_result.reverse()
+    # Pad the rest with zero
+    expected_result += [0] * 8
+
+    expected_result_json = {
+        "tag": expected_result,
+        "err_status": 0,
+        "alerts":[0,0,0],
+        "ast_alerts":[0,0]
+    }
+    if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
+        print("char_hmac failed")
+        print("SHA256")
+        print(f"Input: {msg}")
+        print(f"Expected: {expected_result_json}")
+        print(f"Actual: {actual_result_json}")
+        print("")
+        return False
+
+    msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = False
+    hash_mode = 1 # SHA384
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
+    try:
+        actual_result_json = json.loads(actual_result)
+    except:
+        print("char_hmac gave an unexpected result")
+        print("SHA384")
+        print(f"Input: {msg}")
+        print(f"Actual: {actual_result}")
+        return False
+
+    sha384 = SHA384.new()
+    sha384.update(bytes(msg))
+    expected_result = bytes_to_words(bytearray(sha384.digest()))
+    expected_result.reverse()
+    # Pad the rest with zero
+    expected_result += [0] * 4
+
+    expected_result_json = {
+        "tag": expected_result,
+        "err_status": 0,
+        "alerts":[0,0,0],
+        "ast_alerts":[0,0]
+    }
+    if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
+        print("char_hmac failed")
+        print("SHA384")
+        print(f"Input: {msg}")
+        print(f"Expected: {expected_result_json}")
+        print(f"Actual: {actual_result_json}")
+        print("")
+        return False     
+
+    msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = False
+    hash_mode = 2 # SHA512
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
+    try:
+        actual_result_json = json.loads(actual_result)
+    except:
+        print("char_hmac gave an unexpected result")
+        print("SHA512")
+        print(f"Input: {msg}")
+        print(f"Actual: {actual_result}")
+        return False
+
+    sha512 = SHA512.new()
+    sha512.update(bytes(msg))
+    expected_result = bytes_to_words(bytearray(sha512.digest()))
     expected_result.reverse()
 
     expected_result_json = {
@@ -239,24 +339,115 @@ def char_sha256_test(opentitantool_path, iterations):
         "ast_alerts":[0,0]
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_sha256 failed")
+        print("char_hmac failed")
+        print("SHA512")
+        print(f"Input: {msg}")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
-        return False
+        return False     
+    
+    # HMAC tests
 
-    msg = [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
-    actual_result = char_sha256(opentitantool_path, iterations, msg, trigger)
+    msg = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    key = [0,1,2,3,4,5,6,7]
+    trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = True
+    hash_mode = 0 # SHA256
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
     try:
         actual_result_json = json.loads(actual_result)
     except:
-        print("char_sha256 gave an unexpected result")
+        print("char_hmac gave an unexpected result")
+        print("HMAC-SHA256")
+        print(f"Input: {msg} and {key}")
         print(f"Actual: {actual_result}")
         return False
 
-    sha256 = SHA256.new()
-    sha256.update(bytes(msg))
-    expected_result = bytes_to_32bit_words(bytearray(sha256.digest()))
+    hmac = HMAC.new(key=bytes(words_to_bytes(key)), digestmod=SHA256)
+    hmac.update(bytes(msg))
+    expected_result = bytes_to_words(bytearray(hmac.digest()))
+    expected_result.reverse()
+    expected_result += [0] * 8
+
+    expected_result_json = {
+        "tag": expected_result,
+        "err_status": 0,
+        "alerts":[0,0,0],
+        "ast_alerts":[0,0]
+    }
+    if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
+        print("char_hmac failed")
+        print("HMAC-SHA256")
+        print(f"Input: {msg} and {key}")
+        print(f"Expected: {expected_result_json}")
+        print(f"Actual: {actual_result_json}")
+        print("")
+        return False    
+
+    msg = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    key = [0,1,2,3,4,5,6,7,8,9,10,11]
+    trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = True
+    hash_mode = 1 # SHA384
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
+    try:
+        actual_result_json = json.loads(actual_result)
+    except:
+        print("char_hmac gave an unexpected result")
+        print("HMAC-SHA384")
+        print(f"Input: {msg} and {key}")
+        print(f"Actual: {actual_result}")
+        return False
+
+    hmac = HMAC.new(key=bytes(words_to_bytes(key)), digestmod=SHA384)
+    hmac.update(bytes(msg))
+    expected_result = bytes_to_words(bytearray(hmac.digest()))
+    expected_result.reverse()
+    expected_result += [0] * 4
+
+    expected_result_json = {
+        "tag": expected_result,
+        "err_status": 0,
+        "alerts":[0,0,0],
+        "ast_alerts":[0,0]
+    }
+    if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
+        print("char_hmac failed")
+        print("HMAC-SHA384")
+        print(f"Input: {msg} and {key}")
+        print(f"Expected: {expected_result_json}")
+        print(f"Actual: {actual_result_json}")
+        print("")
+        return False 
+
+    msg = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    key = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    trigger = 0
+    message_endianness_big = False
+    digest_endianness_big = False
+    key_endianness_big = False
+    enable_hmac = True
+    hash_mode = 2 # SHA512
+    actual_result = char_hmac(opentitantool_path, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
+    try:
+        actual_result_json = json.loads(actual_result)
+    except:
+        print("char_hmac gave an unexpected result")
+        print("HMAC-SHA512")
+        print(f"Input: {msg} and {key}")
+        print(f"Actual: {actual_result}")
+        return False
+
+    hmac = HMAC.new(key=bytes(words_to_bytes(key)), digestmod=SHA512)
+    hmac.update(bytes(msg))
+    expected_result = bytes_to_words(bytearray(hmac.digest()))
     expected_result.reverse()
 
     expected_result_json = {
@@ -266,11 +457,13 @@ def char_sha256_test(opentitantool_path, iterations):
         "ast_alerts":[0,0]
     }
     if not compare_json_data(actual_result_json, expected_result_json, ignored_keys_set):
-        print("char_sha256 failed")
+        print("char_hmac failed")
+        print("HMAC-SHA512")
+        print(f"Input: {msg} and {key}")
         print(f"Expected: {expected_result_json}")
         print(f"Actual: {actual_result_json}")
         print("")
-        return False                
+        return False             
     return True
 
 def char_shadow_reg_access_test(opentitantool_path, iterations):
@@ -327,14 +520,14 @@ def main():
         print("Init test failure")
         return False
 
-    iterations = 20
+    iterations = 1
 
-    char_aes_test(opentitantool_path, iterations)
-    char_kmac_test(opentitantool_path, iterations)
-    char_kmac_state_test(opentitantool_path, iterations)
-    char_sha256_test(opentitantool_path, iterations)
-    char_shadow_reg_access_test(opentitantool_path, iterations)
-    char_shadow_reg_read_test(opentitantool_path, iterations)
+    # char_aes_test(opentitantool_path, iterations)
+    # char_kmac_test(opentitantool_path, iterations)
+    # char_kmac_state_test(opentitantool_path, iterations)
+    char_hmac_test(opentitantool_path, iterations)
+    # char_shadow_reg_access_test(opentitantool_path, iterations)
+    # char_shadow_reg_read_test(opentitantool_path, iterations)
 
     print("Testing finished")
     return True

@@ -70,7 +70,7 @@ def char_kmac_state(opentitantool, iterations):
     # Return the result that is read out
     return response
 
-def char_sha256(opentitantool, iterations, msg, trigger):
+def char_hmac(opentitantool, iterations, msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode):
     target = DUT()
     reset_target(opentitantool)
     # Clear the output from the reset
@@ -80,7 +80,7 @@ def char_sha256(opentitantool, iterations, msg, trigger):
     # Initialize our chip and catch its output
     device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version = cryptofi.init()
     for _ in range(iterations):
-        cryptofi.crypto_sha2(msg, trigger)
+        cryptofi.crypto_hmac(msg, key, trigger, enable_hmac, message_endianness_big, digest_endianness_big, key_endianness_big, hash_mode)
         response = target.read_response()
     # Return the result that is read out
     return response

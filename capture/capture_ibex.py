@@ -358,7 +358,7 @@ def main(argv=None):
     # Init the pentest framework and read the device ID.
     device_id = ot_ibex.init(cfg["test"]["enable_icache"],
                              cfg["test"]["enable_dummy_instr"],
-                             cfg["test"]["jittery_clock_enable"],
+                             cfg["test"]["enable_jittery_clock"],
                              cfg["test"]["sram_readback_enable"])
     # Capture traces.
     capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)

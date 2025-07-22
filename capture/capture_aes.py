@@ -202,7 +202,7 @@ def configure_cipher(cfg, capture_cfg, ot_aes, ot_prng):
     device_id = ot_aes.init(fpga_mode_bit,
                             cfg["test"]["enable_icache"],
                             cfg["test"]["enable_dummy_instr"],
-                            cfg["test"]["jittery_clock_enable"],
+                            cfg["test"]["enable_jittery_clock"],
                             cfg["test"]["sram_readback_enable"])
 
     # Configure PRNGs.

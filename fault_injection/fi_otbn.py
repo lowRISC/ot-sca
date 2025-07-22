@@ -106,7 +106,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
     # Configure the OTBN FI code on the target.
     device_cfg = ot_communication.init(cfg["test"]["enable_icache"],
                                        cfg["test"]["enable_dummy_instr"],
-                                       cfg["test"]["jittery_clock_enable"],
+                                       cfg["test"]["enable_jittery_clock"],
                                        cfg["test"]["sram_readback_enable"])
     # Setup key manager if needed by test.
     ot_communication.init_keymgr(cfg["test"]["which_test"])
@@ -153,7 +153,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Configure the OTBN FI code on the target.
                 ot_communication.init(cfg["test"]["enable_icache"],
                                       cfg["test"]["enable_dummy_instr"],
-                                      cfg["test"]["jittery_clock_enable"],
+                                      cfg["test"]["enable_jittery_clock"],
                                       cfg["test"]["sram_readback_enable"])
                 # Setup key manager if needed by test.
                 ot_communication.init_keymgr(cfg["test"]["which_test"])

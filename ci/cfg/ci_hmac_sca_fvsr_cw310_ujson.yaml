@@ -45,6 +45,6 @@ test:
   # When True, the dummy instructions are enabled.
   enable_dummy_instr: False
   # When True, enable the jittery clock.
-  jittery_clock_enable: False
+  enable_jittery_clock: False
   # When True, enable the SRAM readback feature.
   sram_readback_enable: False

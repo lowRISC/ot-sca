@@ -191,7 +191,7 @@ def configure_cipher(cfg, capture_cfg, ot_sha3, ot_prng):
     device_id = ot_sha3.init(fpga_mode_bit,
                              cfg["test"]["enable_icache"],
                              cfg["test"]["enable_dummy_instr"],
-                             cfg["test"]["jittery_clock_enable"],
+                             cfg["test"]["enable_jittery_clock"],
                              cfg["test"]["sram_readback_enable"])
 
     if cfg["test"]["masks_off"] is True:

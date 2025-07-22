@@ -195,7 +195,7 @@ def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
     # Initialize HMAC on the target.
     device_id = ot_hmac.init(cfg["test"]["enable_icache"],
                              cfg["test"]["enable_dummy_instr"],
-                             cfg["test"]["jittery_clock_enable"],
+                             cfg["test"]["enable_jittery_clock"],
                              cfg["test"]["sram_readback_enable"])
 
     # Seed the PRNG used for generating keys and plaintexts in batch mode.

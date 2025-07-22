@@ -106,7 +106,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
     # Configure the Ibex FI code on the target.
     device_cfg = ot_communication.init(cfg["test"]["enable_icache"],
                                        cfg["test"]["enable_dummy_instr"],
-                                       cfg["test"]["jittery_clock_enable"],
+                                       cfg["test"]["enable_jittery_clock"],
                                        cfg["test"]["sram_readback_enable"])
     # Store results in array for a quick access.
     fi_results = []
@@ -140,7 +140,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # Configure the Ibex FI code on the target.
                 ot_communication.init(cfg["test"]["enable_icache"],
                                       cfg["test"]["enable_dummy_instr"],
-                                      cfg["test"]["jittery_clock_enable"],
+                                      cfg["test"]["enable_jittery_clock"],
                                       cfg["test"]["sram_readback_enable"])
                 # Reset FIGear if necessary.
                 fi_gear.reset()

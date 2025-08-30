@@ -22,7 +22,7 @@ logger = logging.getLogger()
 
 
 def setup(cfg: dict, project: Path):
-    """ Setup target, FI gear, and project.
+    """Setup target, FI gear, and project.
 
     Args:
         cfg: The configuration for the current experiment.
@@ -34,21 +34,22 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
+    cfg["target"]["pll_frequency"] = (
+        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
+    )
 
     # Create target config & setup target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
     target_cfg = TargetConfig(
-        target_type = cfg["target"]["target_type"],
-        fw_bin = cfg["target"]["fw_bin"],
-        protocol = cfg["target"]["protocol"],
-        pll_frequency = cfg["target"]["pll_frequency"],
-        bitstream = cfg["target"].get("fpga_bitstream"),
-        force_program_bitstream = cfg["target"].get("force_program_bitstream"),
-        baudrate = cfg["target"].get("baudrate"),
-        port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes"),
-        usb_serial = cfg["target"].get("usb_serial")
+        target_type=cfg["target"]["target_type"],
+        fw_bin=cfg["target"]["fw_bin"],
+        pll_frequency=cfg["target"]["pll_frequency"],
+        bitstream=cfg["target"].get("fpga_bitstream"),
+        force_program_bitstream=cfg["target"].get("force_program_bitstream"),
+        baudrate=cfg["target"].get("baudrate"),
+        port=cfg["target"].get("port"),
+        usb_serial=cfg["target"].get("usb_serial"),
+        opentitantool=cfg["target"]["opentitantool"],
     )
     target = Target(target_cfg)
 
@@ -56,11 +57,12 @@ def setup(cfg: dict, project: Path):
     fi_gear = FIGear(cfg)
 
     # Init project.
-    project_cfg = ProjectConfig(type = cfg["fiproject"]["project_db"],
-                                path = project,
-                                overwrite = True,
-                                fi_threshold = cfg["fiproject"].get("project_mem_threshold")
-                                )
+    project_cfg = ProjectConfig(
+        type=cfg["fiproject"]["project_db"],
+        path=project,
+        overwrite=True,
+        fi_threshold=cfg["fiproject"].get("project_mem_threshold"),
+    )
     project = FIProject(project_cfg)
     project.create_project()
 
@@ -68,7 +70,7 @@ def setup(cfg: dict, project: Path):
 
 
 def print_fi_statistic(fi_results: list) -> None:
-    """ Print FI Statistic.
+    """Print FI Statistic.
 
     Prints the number of FISuccess.SUCCESS, FISuccess.EXPRESPONSE, and
     FISuccess.NORESPONSE.
@@ -80,15 +82,18 @@ def print_fi_statistic(fi_results: list) -> None:
     num_succ = round((fi_results.count(FISuccess.SUCCESS) / num_total) * 100, 2)
     num_exp = round((fi_results.count(FISuccess.EXPRESPONSE) / num_total) * 100, 2)
     num_no = round((fi_results.count(FISuccess.NORESPONSE) / num_total) * 100, 2)
-    logger.info(f"{num_total} faults, {fi_results.count(FISuccess.SUCCESS)}"
-                f"({num_succ}%) successful, {fi_results.count(FISuccess.EXPRESPONSE)}"
-                f"({num_exp}%) expected, and {fi_results.count(FISuccess.NORESPONSE)}"
-                f"({num_no}%) no response.")
+    logger.info(
+        f"{num_total} faults, {fi_results.count(FISuccess.SUCCESS)}"
+        f"({num_succ}%) successful, {fi_results.count(FISuccess.EXPRESPONSE)}"
+        f"({num_exp}%) expected, and {fi_results.count(FISuccess.NORESPONSE)}"
+        f"({num_no}%) no response."
+    )
 
 
-def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
-                       project: FIProject, ot_communication: OTFIOtp) -> None:
-    """ Fault parameter sweep.
+def fi_parameter_sweep(
+    cfg: dict, target: Target, fi_gear, project: FIProject, ot_communication: OTFIOtp
+) -> None:
+    """Fault parameter sweep.
 
     Sweep through the fault parameter space.
 
@@ -98,15 +103,30 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
         fi_gear: The FI gear to use.
         project: The project to store the results.
         ot_communication: The OpenTitan Otp FI communication interface.
+    Returns:
+        device_id: The ID of the target device.
+        sensors: The sensor info.
+        alerts: The alert info.
+        owner_page: The owner info page.
+        boot_log: The boot log.
+        boot_measurments: The boot measurements.
+        version: The testOS version.
     """
     # Configure the Otp FI code on the target.
-    ot_communication.init()
+    device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version = (
+        ot_communication.init(
+            cfg["test"]["core_config"],
+            cfg["test"]["sensor_config"],
+            cfg["test"]["alert_config"],
+        )
+    )
     # Store results in array for a quick access.
     fi_results = []
     # Start the parameter sweep.
     remaining_iterations = fi_gear.get_num_fault_injections()
-    with tqdm(total=remaining_iterations, desc="Injecting", ncols=80,
-              unit=" different faults") as pbar:
+    with tqdm(
+        total=remaining_iterations, desc="Injecting", ncols=80, unit=" different faults"
+    ) as pbar:
         while remaining_iterations > 0:
             # Get fault parameters (e.g., trigger delay, glitch voltage).
             fault_parameters = fi_gear.generate_fi_parameters()
@@ -118,7 +138,7 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             ot_communication.start_test(cfg)
 
             # Read response.
-            response = ot_communication.read_response()
+            response = target.read_response()
             response_compare = response
             expected_response = cfg["test"]["expected_result"]
 
@@ -127,11 +147,15 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                 # No UART response received.
                 fi_result = FISuccess.NORESPONSE
                 # Resetting OT as it most likely crashed.
-                ot_communication = target.reset_target(com_reset = True)
+                ot_communication = target.reset_target(com_reset=True)
                 # Re-establish UART connection.
                 ot_communication = OTFIOtp(target)
                 # Configure the Otp FI code on the target.
-                ot_communication.init()
+                ot_communication.init(
+                    cfg["test"]["core_config"],
+                    cfg["test"]["sensor_config"],
+                    cfg["test"]["alert_config"],
+                )
                 # Reset FIGear if necessary.
                 fi_gear.reset()
             else:
@@ -144,49 +168,30 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
                     exp_json = json.loads(expected_response)
                     if "alerts" in resp_json:
                         del resp_json["alerts"]
-                        response_compare = json.dumps(resp_json,
-                                                      separators=(',', ':'))
+                        response_compare = json.dumps(resp_json, separators=(",", ":"))
                     if "alerts" in exp_json:
                         del exp_json["alerts"]
-                        expected_response = json.dumps(exp_json,
-                                                       separators=(',', ':'))
+                        expected_response = json.dumps(exp_json, separators=(",", ":"))
 
                 resp_json = json.loads(response_compare)
-                print("\nUjson response from device:")
-                print(resp_json)
-
-                match cfg["test"]["which_test"]:
-                    case "otp_fi_vendor_test":
-                        otp_mem_comp = resp_json["vendor_test_comp"]
-                        otp_mem_fi = resp_json["vendor_test_fi"]
-                    case "otp_fi_owner_sw_cfg":
-                        otp_mem_comp = resp_json["owner_sw_cfg_comp"]
-                        otp_mem_fi = resp_json["owner_sw_cfg_fi"]
-                    case "otp_fi_hw_cfg":
-                        otp_mem_comp = resp_json["hw_cfg_comp"]
-                        otp_mem_fi = resp_json["hw_cfg_fi"]
-                    case "otp_fi_life_cycle":
-                        otp_mem_comp = resp_json["life_cycle_comp"]
-                        otp_mem_fi = resp_json["life_cycle_fi"]
-                    case _:
-                        pass
+                exp_json = json.loads(expected_response)
 
                 # Check if result is expected result (FI failed), unexpected result
                 # (FI successful), or no response (FI failed.)
                 fi_result = FISuccess.SUCCESS
-                if otp_mem_comp == otp_mem_fi:
+                if resp_json["data_faulty"] == exp_json["data_faulty"]:
                     # Expected result received. No FI effect.
                     fi_result = FISuccess.EXPRESPONSE
 
             # Store result into FIProject.
             project.append_firesult(
-                response = response,
-                fi_result = fi_result,
-                trigger_delay = fault_parameters.get("trigger_delay"),
-                glitch_voltage = fault_parameters.get("glitch_voltage"),
-                glitch_width = fault_parameters.get("glitch_width"),
-                x_pos = fault_parameters.get("x_pos"),
-                y_pos = fault_parameters.get("y_pos")
+                response=response,
+                fi_result=fi_result,
+                trigger_delay=fault_parameters.get("trigger_delay"),
+                glitch_voltage=fault_parameters.get("glitch_voltage"),
+                glitch_width=fault_parameters.get("glitch_width"),
+                x_pos=fault_parameters.get("x_pos"),
+                y_pos=fault_parameters.get("y_pos"),
             )
             fi_results.append(fi_result)
 
@@ -194,9 +199,11 @@ def fi_parameter_sweep(cfg: dict, target: Target, fi_gear,
             pbar.update(1)
     print_fi_statistic(fi_results)
 
+    return device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version
+
 
 def print_plot(project: FIProject, config: dict, file: Path) -> None:
-    """ Print plot of traces.
+    """Print plot of traces.
 
     Printing the plot helps to narrow down the fault injection parameters.
 
@@ -208,8 +215,7 @@ def print_plot(project: FIProject, config: dict, file: Path) -> None:
     if config["fiproject"]["show_plot"]:
         plot.save_fi_plot_to_file(config, project, file)
         logger.info("Created plot.")
-        logger.info(f'Created plot: '
-                    f'{Path(str(file) + ".html").resolve()}')
+        logger.info(f"Created plot: " f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -232,21 +238,37 @@ def main(argv=None):
     ot_communication = OTFIOtp(target)
 
     # FI parameter sweep.
-    fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
+    device_id, sensors, alerts, owner_page, boot_log, boot_measurements, version = (
+        fi_parameter_sweep(cfg, target, fi_gear, project, ot_communication)
+    )
 
     # Print plot.
-    print_plot(project.get_firesults(start=0, end=cfg["fiproject"]["num_plots"]),
-               cfg, args.project)
+    print_plot(
+        project.get_firesults(start=0, end=cfg["fiproject"]["num_plots"]),
+        cfg,
+        args.project,
+    )
 
     # Save metadata.
     metadata = {}
+    metadata["device_id"] = device_id
+    metadata["sensors"] = sensors
+    metadata["alerts"] = alerts
+    metadata["owner_page"] = owner_page
+    metadata["boot_log"] = boot_log
+    metadata["boot_measurements"] = boot_measurements
+    metadata["version"] = version
     metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
     # Store bitstream information.
     metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
     if cfg["target"].get("fpga_bitstream") is not None:
-        metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
+        metadata["fpga_bitstream_crc"] = helpers.file_crc(
+            cfg["target"]["fpga_bitstream"]
+        )
     if args.save_bitstream:
-        metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
+        metadata["fpga_bitstream"] = helpers.get_binary_blob(
+            cfg["target"]["fpga_bitstream"]
+        )
     # Store binary information.
     metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
     metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])

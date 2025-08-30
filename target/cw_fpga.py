@@ -49,31 +49,34 @@ class CWFPGA(object):
     target binary.
     """
 
-    def __init__(self, bitstream, force_programming, firmware, pll_frequency,
-                 baudrate, output_len, protocol, usb_serial, husky_serial):
+    def __init__(
+        self,
+        bitstream,
+        force_programming,
+        firmware,
+        pll_frequency,
+        baudrate,
+        usb_serial,
+        husky_serial,
+    ):
         self.bitstream = bitstream
         self.firmware = firmware
         self.pll_frequency = pll_frequency
         self.baudrate = baudrate
-        self.output_len = output_len
         self.usb_serial = usb_serial
         self.husky_serial = husky_serial
 
         # Extract target board type from bitstream name.
-        m = re.search('cw305|cw310', bitstream)
+        m = re.search("cw305|cw310", bitstream)
         if m:
-            if m.group() == 'cw305':
+            if m.group() == "cw305":
                 self.fpga_type = cw.capture.targets.CW305()
             else:
-                assert m.group() == 'cw310'
+                assert m.group() == "cw310"
                 self.fpga_type = cw.capture.targets.CW310()
             programmer = SpiProgrammer(self.fpga_type, self.usb_serial)
         else:
-            raise ValueError(
-                'Could not infer target board type from bistream name')
-        self.prot_simple_serial = True
-        if protocol == "ujson":
-            self.prot_simple_serial = False
+            raise ValueError("Could not infer target board type from bistream name")
         # Initialize ChipWhisperer scope. This is needed to program the binary.
         # Note that the actual scope config for capturing traces is later
         # initialized.
@@ -82,23 +85,20 @@ class CWFPGA(object):
         # Initializing the scope twice seems to solve the problem.
         self.scope = cw.scope(sn=self.husky_serial)
 
-        self.fpga = self.initialize_fpga(self.fpga_type, bitstream,
-                                         force_programming, pll_frequency)
+        self.fpga = self.initialize_fpga(
+            self.fpga_type, bitstream, force_programming, pll_frequency
+        )
 
-        self.target = self.initialize_target(programmer, firmware, baudrate,
-                                             output_len, pll_frequency)
+        self.target = self.initialize_target(
+            programmer, firmware, baudrate, pll_frequency
+        )
 
-        # TODO: add version check also for uJson binary.
-        if self.prot_simple_serial:
-            self._test_read_version_from_target()
-
-    def initialize_fpga(self, fpga, bitstream, force_programming,
-                        pll_frequency):
+    def initialize_fpga(self, fpga, bitstream, force_programming, pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
         # bitstream.
-        print('Connecting and loading FPGA... ', end='', flush = True)
+        print("Connecting and loading FPGA... ", end="", flush=True)
 
         # Runtime patch fpga.fpga.FPGAProgram to detect if it was actually called.
         # Note: This is fragile and may break but it is easy to miss that the FPGA
@@ -111,7 +111,12 @@ class CWFPGA(object):
 
         with RuntimePatchFPGAProgram(fpga.fpga, program_callback):
             # Connect to the FPGA and program it.
-            fpga.con(bsfile=bitstream, force=force_programming, slurp=False, sn=self.usb_serial)
+            fpga.con(
+                bsfile=bitstream,
+                force=force_programming,
+                slurp=False,
+                sn=self.usb_serial,
+            )
             if not programmed:
                 # TODO: Update this message when we have this in the CLI.
                 stack_top = inspect.stack()[0]
@@ -121,7 +126,7 @@ class CWFPGA(object):
 
         fpga.vccint_set(1.0)
 
-        print('Initializing PLL1')
+        print("Initializing PLL1")
         fpga.pll.pll_enable_set(True)
         fpga.pll.pll_outenable_set(False, 0)
         fpga.pll.pll_outenable_set(True, 1)
@@ -139,8 +144,7 @@ class CWFPGA(object):
 
         return fpga
 
-    def initialize_target(self, programmer, firmware, baudrate, output_len,
-                          pll_frequency):
+    def initialize_target(self, programmer, firmware, baudrate, pll_frequency):
         """Loads firmware image and initializes test target."""
         # The bootstrapping always runs at 100 MHz.
         if pll_frequency != PLL_FREQUENCY_DEFAULT:
@@ -155,27 +159,13 @@ class CWFPGA(object):
 
         time.sleep(0.5)
         target = cw.target(self.scope)
-        target.output_len = output_len
-        target.baud = int(baudrate * pll_frequency / PLL_FREQUENCY_DEFAULT)
+        target.baud = int(self.baudrate * pll_frequency / PLL_FREQUENCY_DEFAULT)
         target.flush()
 
         return target
 
-    def _test_read_version_from_target(self):
-        version = None
-        ping_cnt = 0
-        while not version:
-            if ping_cnt == 3:
-                raise RuntimeError(
-                    f'No response from the target (attempts: {ping_cnt}).')
-            self.target.write('v' + '\n')
-            ping_cnt += 1
-            time.sleep(0.5)
-            version = self.target.read().strip()
-        print(f'Target simpleserial version: {version} (attempts: {ping_cnt}).')
-
     def program_target(self, fw, pll_frequency=PLL_FREQUENCY_DEFAULT):
-        """Loads firmware image """
+        """Loads firmware image"""
         programmer1 = SpiProgrammer(self.fpga, self.usb_serial)
         # To fully capture the long OTBN applications,
         # we may need to use pll_frequencies other than 100 MHz.
@@ -194,7 +184,7 @@ class CWFPGA(object):
         time.sleep(0.5)
 
     def reset_target(self):
-        """Resets the target. """
+        """Resets the target."""
         # Check if FPGA bitstream is corrupted by reading the state of INITB.
         if self.fpga.INITB_state() is not True:
             print("Reprogram the FPGA.")
@@ -203,15 +193,16 @@ class CWFPGA(object):
 
             self.scope = cw.scope(sn=self.husky_serial)
 
-            self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream,
-                                             True, self.pll_frequency)
+            self.fpga = self.initialize_fpga(
+                self.fpga_type, self.bitstream, True, self.pll_frequency
+            )
 
-            self.target = self.initialize_target(programmer, self.firmware,
-                                                 self.baudrate, self.output_len,
-                                                 self.pll_frequency)
-            # TODO: add version check also for uJson binary.
-            if self.prot_simple_serial:
-                self._test_read_version_from_target()
+            self.target = self.initialize_target(
+                programmer,
+                self.firmware,
+                self.baudrate,
+                self.pll_frequency,
+            )
         else:
             # Bitstream seems to be OK, reset OpenTitan.
             print("Reset OpenTitan.")

@@ -3,6 +3,7 @@
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import logging
 import random
 import signal
@@ -40,7 +41,7 @@ logger = logging.getLogger()
 
 
 def abort_handler_during_loop(this_project, sig, frame):
-    """ Abort capture and store traces.
+    """Abort capture and store traces.
 
     Args:
         this_project: Project instance.
@@ -53,18 +54,19 @@ def abort_handler_during_loop(this_project, sig, frame):
 
 @dataclass
 class CaptureConfig:
-    """ Configuration class for the current capture.
-    """
+    """Configuration class for the current capture."""
+
     test_mode: str
     num_traces: int
     num_segments: int
-    protocol: str
+    trigger: int
+    input_fixed: list[int]
     port: Optional[str] = "None"
     batch_prng_seed: Optional[str] = "None"
 
 
 def setup(cfg: dict, project: Path):
-    """ Setup target, scope, and project.
+    """Setup target, scope, and project.
 
     Args:
         cfg: The configuration for the current experiment.
@@ -76,76 +78,89 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
-
-    # Create target config & setup target.
-    logger.info(f"Initializing target {cfg['target']['target_type']} ...")
-    target_cfg = TargetConfig(
-        target_type = cfg["target"]["target_type"],
-        fw_bin = cfg["target"]["fw_bin"],
-        protocol = cfg["target"]["protocol"],
-        pll_frequency = cfg["target"]["pll_frequency"],
-        bitstream = cfg["target"].get("fpga_bitstream"),
-        force_program_bitstream = cfg["target"].get("force_program_bitstream"),
-        baudrate = cfg["target"].get("baudrate"),
-        port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes"),
-        usb_serial = cfg["target"].get("usb_serial"),
-        interface = cfg["target"].get("interface"),
-        husky_serial = cfg["husky"].get("usb_serial")
+    cfg["target"]["pll_frequency"] = (
+        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
     )
-    target = Target(target_cfg)
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
 
-    # Will determine sampling rate (for Husky only), if not given in cfg.
-    cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
-    # Will convert number of cycles into number of samples if they are not given in cfg.
-    cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
-    # Will convert offset in cycles into offset in samples, if they are not given in cfg.
-    cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+    # Check the ChipWhisperer version.
+    if scope_type == "husky":
+        check_version.check_cw("5.7.0")
 
-    logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
-
-    # Determine if we are in batch mode or not.
-    batch = False
-    if "batch" in cfg["test"]["which_test"]:
-        batch = True
-
-    # Create scope config & setup scope.
-    scope_cfg = ScopeConfig(
-        scope_type = scope_type,
-        batch_mode = batch,
-        bit = cfg[scope_type].get("bit"),
-        acqu_channel = cfg[scope_type].get("channel"),
-        ip = cfg[scope_type].get("waverunner_ip"),
-        num_samples = cfg[scope_type]["num_samples"],
-        offset_samples = cfg[scope_type]["offset_samples"],
-        sampling_rate = cfg[scope_type].get("sampling_rate"),
-        num_segments = cfg[scope_type].get("num_segments"),
-        sparsing = cfg[scope_type].get("sparsing"),
-        scope_gain = cfg[scope_type].get("scope_gain"),
-        pll_frequency = cfg["target"]["pll_frequency"],
-        scope_sn = cfg[scope_type].get("usb_serial"),
+    # Create target config & setup target.
+    logger.info(f"Initializing target {cfg['target']['target_type']} ...")
+    target_cfg = TargetConfig(
+        target_type=cfg["target"]["target_type"],
+        fw_bin=cfg["target"]["fw_bin"],
+        pll_frequency=cfg["target"]["pll_frequency"],
+        bitstream=cfg["target"].get("fpga_bitstream"),
+        force_program_bitstream=cfg["target"].get("force_program_bitstream"),
+        baudrate=cfg["target"].get("baudrate"),
+        port=cfg["target"].get("port"),
+        usb_serial=cfg["target"].get("usb_serial"),
+        interface=cfg["target"].get("interface"),
+        husky_serial = cfg["husky"].get("usb_serial"),
+        opentitantool=cfg["target"]["opentitantool"],
     )
-    scope = Scope(scope_cfg)
+    target = Target(target_cfg)
 
-    # Init project.
-    project_cfg = ProjectConfig(type = cfg["capture"]["trace_db"],
-                                path = project,
-                                wave_dtype = np.uint16,
-                                overwrite = True,
-                                trace_threshold = cfg["capture"].get("trace_threshold")
-                                )
-    project = SCAProject(project_cfg)
-    project.create_project()
+    if scope_type != "none":
+        # Will determine sampling rate (for Husky only), if not given in cfg.
+        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+        # Will convert number of cycles into number of samples if they are not given in cfg.
+        cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
+        # Will convert offset in cycles into offset in samples, if they are not given in cfg.
+        cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+
+        logger.info(
+            f"Initializing scope {scope_type} with a sampling rate of \
+            {cfg[scope_type]['sampling_rate']}..."
+        )  # noqa: E501
+
+        # Determine if we are in batch mode or not.
+        batch = False
+        if "batch" in cfg["test"]["which_test"]:
+            batch = True
+
+        # Create scope config & setup scope.
+        scope_cfg = ScopeConfig(
+            scope_type=scope_type,
+            batch_mode=batch,
+            bit=cfg[scope_type].get("bit"),
+            acqu_channel=cfg[scope_type].get("channel"),
+            ip=cfg[scope_type].get("waverunner_ip"),
+            num_samples=cfg[scope_type]["num_samples"],
+            offset_samples=cfg[scope_type]["offset_samples"],
+            sampling_rate=cfg[scope_type].get("sampling_rate"),
+            num_segments=cfg["capture"].get("num_segments"),
+            sparsing=cfg[scope_type].get("sparsing"),
+            scope_gain=cfg[scope_type].get("scope_gain"),
+            pll_frequency=cfg["target"]["pll_frequency"],
+            scope_sn=cfg[scope_type].get("usb_serial"),
+        )
+        scope = Scope(scope_cfg)
+
+        # Init project.
+        project_cfg = ProjectConfig(
+            type=cfg["capture"]["trace_db"],
+            path=project,
+            wave_dtype=np.uint16,
+            overwrite=True,
+            trace_threshold=cfg["capture"].get("trace_threshold"),
+        )
+        project = SCAProject(project_cfg)
+        project.create_project()
+    else:
+        scope = None
+        project = None
 
     return target, scope, project
 
 
-def establish_communication(target, capture_cfg: CaptureConfig):
-    """ Establish communication with the target device.
+def establish_communication(target):
+    """Establish communication with the target device.
 
     Args:
         target: The OT target.
@@ -157,48 +172,114 @@ def establish_communication(target, capture_cfg: CaptureConfig):
         ot_trig: The communication interface to the SCA trigger.
     """
     # Create communication interface to OT Ibex.
-    ot_ibex = OTIbex(target=target, protocol=capture_cfg.protocol)
+    ot_ibex = OTIbex(target=target)
 
     # Create communication interface to OT PRNG.
-    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+    ot_prng = OTPRNG(target=target)
 
     # Create communication interface to SCA trigger.
-    ot_trig = OTTRIGGER(target=target, protocol=capture_cfg.protocol)
+    ot_trig = OTTRIGGER(target=target)
 
     return ot_ibex, ot_prng, ot_trig
 
 
-def generate_data(test_mode, num_data):
-    """ Returns data used by the test.
+def to_signed32(n_unsigned):
+    n_unsigned = n_unsigned & 0xFFFFFFFF
+    if n_unsigned >= 0x80000000:
+        return n_unsigned - 0x100000000
+    return n_unsigned
+
+
+def generate_combi_response(fixed_data1, fixed_data2, trigger):
+    """
+    Returns the result of the combi test.
+    """
+    xor = (0, fixed_data1 ^ fixed_data2)[trigger & 1]
+    add = (0, (fixed_data1 + fixed_data2) & 0xFFFFFFFF)[trigger & 2]
+    sub = (0, (fixed_data1 - fixed_data2) & 0xFFFFFFFF)[trigger & 4]
+    shift_operand = (fixed_data2 & 0xFFFFFFFF) % 32
+    shift = (fixed_data1 << shift_operand) & 0xFFFFFFFF | (
+        fixed_data1 >> (32 - shift_operand) & 0xFFFFFFFF
+    )
+    shift = (0, shift)[trigger & 8]
+    mult = (0, (fixed_data1 * fixed_data2) & 0xFFFFFFFF)[trigger & 16]
+    if fixed_data2 == 0:
+        div = 0xFFFFFFFF
+    elif to_signed32(fixed_data1) == -2147483648 and to_signed32(fixed_data2) == -1:
+        div = 0x80000000
+    else:
+        div = int(to_signed32(fixed_data1) / to_signed32(fixed_data2)) & 0xFFFFFFFF
+    div = (0, div)[trigger & 32]
+
+    data = [
+        xor,
+        add,
+        sub,
+        shift,
+        mult,
+        div,
+        (0, fixed_data1)[trigger & 64],
+        (0, fixed_data1)[trigger & 128],
+        (0, fixed_data2)[trigger & 256],
+        (0, fixed_data2)[trigger & 512],
+        (0, fixed_data2)[trigger & 1024],
+        (0, fixed_data2)[trigger & 2048],
+    ]
+    return data
+
+
+def generate_ref_data(test_mode, fixed_data, num_segments):
+    """Returns data used by the test.
 
     Either a fixed dataset or a random one is generated.
 
     Returns:
-        data: The data set used for the test.
-        data_fixed: The fixed data set.
+        data1: The data set used for the test.
+        data2: The second data input for the combi test.
     """
-    data = []
-    data_fixed = 0xABBABABE
+
+    data1 = []
     # First sample is always fixed.
     sample_fixed = True
-    for i in range(num_data):
+    for _ in range(num_segments):
         if "fvsr" in test_mode:
             if sample_fixed:
-                data.append(data_fixed)
+                data1.append(fixed_data[0])
             else:
-                data.append(random.getrandbits(32))
+                data1.append(random.getrandbits(32))
             sample_fixed = random.getrandbits(32) & 0x1
         elif "random" in test_mode:
-            tmp = random.getrandbits(32)
-            data.append(tmp)
+            data1.append(random.getrandbits(32))
+        elif "combi" in test_mode:
+            data1.append(fixed_data[0])
         else:
-            raise RuntimeError("Error: Invalid test mode!")
-    return data, data_fixed
+            # The single test
+            data1.append(fixed_data)
+
+    data2 = []
+    if "combi" in test_mode:
+        sample_fixed = True
+        for _ in range(num_segments):
+            if "fvsr" in test_mode:
+                if sample_fixed:
+                    data2.append(fixed_data[1])
+                else:
+                    data2.append(random.getrandbits(32))
+                sample_fixed = random.getrandbits(32) & 0x1
+            else:
+                data2.append(fixed_data[1])
+    return data1, data2
 
 
-def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
-            capture_cfg: CaptureConfig, project: SCAProject, target: Target):
-    """ Capture power consumption during execution of Ibex SCA penetration tests.
+def capture(
+    scope: Scope,
+    ot_ibex: OTIbex,
+    ot_prng: OTPRNG,
+    capture_cfg: CaptureConfig,
+    project: SCAProject,
+    target: Target,
+):
+    """Capture power consumption during execution of Ibex SCA penetration tests.
 
     Supports the following captures:
     * ibex.sca.register_file_read: Read data from registers.
@@ -217,84 +298,128 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
     # Optimization for CW trace library.
     num_segments_storage = 1
 
-    # Seed the PRNG used for generating random data.
-    if "batch" in capture_cfg.test_mode:
-        # Seed host's PRNG.
-        random.seed(capture_cfg.batch_prng_seed)
+    # Check whether we are in batch mode.
+    batch = False
+    if (
+        "batch" in capture_cfg.test_mode or
+        "fvsr" in capture_cfg.test_mode or
+        "random" in capture_cfg.test_mode
+    ):
+        batch = True
 
-        # Seed the target's PRNG.
-        ot_prng.seed_prng(capture_cfg.batch_prng_seed.to_bytes(4, "little"))
+    # Seed the PRNG used for generating random data.
+    # Seed host's PRNG.
+    random.seed(capture_cfg.batch_prng_seed)
+
+    # Seed the target's PRNG.
+    ot_prng.seed_prng(capture_cfg.batch_prng_seed.to_bytes(4, "little"))
 
     # Register ctrl-c handler to store traces on abort.
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(
+        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
+    ) as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
-            scope.arm()
-            if "batch" in capture_cfg.test_mode:
-                num_data = capture_cfg.num_segments
-            else:
-                # In non-batch mode, 8 uint32 values are used.
-                num_data = 8
-            # Generate data set used for the test.
-            data, data_fixed = generate_data(capture_cfg.test_mode, num_data)
+            if scope is not None:
+                scope.arm()
+
             # Start the test based on the mode.
-            if "batch" in capture_cfg.test_mode:
-                if "fvsr" in capture_cfg.test_mode:
+            if batch:
+                if "combi" in capture_cfg.test_mode:
+                    # For the combi test, we need to provide the trigger and
+                    # two inputs of fixed data.
+                    ot_ibex.start_test(
+                        capture_cfg.test_mode,
+                        capture_cfg.num_segments,
+                        capture_cfg.trigger,
+                        capture_cfg.input_fixed[0],
+                        capture_cfg.input_fixed[1],
+                    )
+                elif "fvsr" in capture_cfg.test_mode:
                     # In FvsR batch, the fixed dataset and the number of segments
                     # is transferred to the device. The rest of the dataset is
                     # generated on the device. Trigger is set number of segments.
-                    ot_ibex.start_test(capture_cfg.test_mode, data_fixed, capture_cfg.num_segments)
-                elif "random" in capture_cfg.test_mode:
-                    # In Random batch, number of segments is transferred to the
+                    ot_ibex.start_test(
+                        capture_cfg.test_mode,
+                        capture_cfg.input_fixed[0],
+                        capture_cfg.num_segments,
+                    )
+                else:
+                    # In random batch, number of segments is transferred to the
                     # device. number of segments random datasets are generated
                     # on the device. Trigger is set number of segments.
-                    ot_ibex.start_test(capture_cfg.test_mode,
-                                       capture_cfg.num_segments)
+                    ot_ibex.start_test(capture_cfg.test_mode, capture_cfg.num_segments)
             else:
-                # In the non-batch mode, the dataset is generated in ot-sca and
-                # transferred to the device. Trigger is set once.
-                ot_ibex.start_test(capture_cfg.test_mode, data)
+                # We use fixed data.
+                ot_ibex.start_test(capture_cfg.test_mode, capture_cfg.input_fixed)
 
             # Capture traces.
-            waves = scope.capture_and_transfer_waves(target)
-            assert waves.shape[0] == capture_cfg.num_segments
+            if scope is not None:
+                waves = scope.capture_and_transfer_waves(target)
+                assert waves.shape[0] == capture_cfg.num_segments
 
-            response = ot_ibex.ibex_sca_read_response()
-            # Check response. 0 for non-batch and the last data element in
-            # batch mode.
-            if "batch" in capture_cfg.test_mode:
-                assert response == data[-1]
-            else:
-                assert response == 0
+            response_full = target.read_response()
+            response_json = json.loads(response_full)
+            response = response_json["result"]
+
+            # Generate data set used for the test.
+            data1, data2 = generate_ref_data(
+                capture_cfg.test_mode, capture_cfg.input_fixed, capture_cfg.num_segments
+            )
 
             # Store traces.
-            if "batch" in capture_cfg.test_mode:
+            if scope is not None:
                 for i in range(capture_cfg.num_segments):
                     # Sanity check retrieved data (wave).
                     assert len(waves[i, :]) >= 1
                     # Store trace into database.
-                    project.append_trace(wave = waves[i, :],
-                                         plaintext = data[i].to_bytes(4, 'little'),
-                                         ciphertext = None,
-                                         key = None)
-            else:
-                # Convert data into bytearray for storage in database.
-                data_bytes = []
-                for d in data:
-                    data_bytes.append(d.to_bytes(4, "little"))
-                # Sanity check retrieved data (wave).
-                assert len(waves[0, :]) >= 1
-                # Store trace into database.
-                project.append_trace(wave = waves[0, :],
-                                     plaintext = b''.join(data_bytes),
-                                     ciphertext = None,
-                                     key = None)
+                    if "combi" in capture_cfg.test_mode:
+                        project.append_trace(
+                            wave=waves[i, :],
+                            plaintext=data1[i].to_bytes(4, "little"),
+                            ciphertext=data2[i].to_bytes(4, "little"),
+                            key=None,
+                        )
+                    else:
+                        project.append_trace(
+                            wave=waves[i, :],
+                            plaintext=data1[i].to_bytes(4, "little"),
+                            ciphertext=None,
+                            key=None,
+                        )
 
             # Memory allocation optimization for CW trace library.
-            num_segments_storage = project.optimize_capture(num_segments_storage)
+            if scope is not None:
+                num_segments_storage = project.optimize_capture(num_segments_storage)
+
+            # Check response. 0 for non-batch and the last data element in
+            # batch mode.
+            # For the combi test, we generate the output specifically
+            if batch:
+                if "combi" in capture_cfg.test_mode:
+                    expected_response = generate_combi_response(
+                        data1[-1], data2[-1], capture_cfg.trigger
+                    )
+                    assert response == expected_response, (
+                        f"Incorrect encryption result!\n"
+                        f"actual:   {response}\n"
+                        f"expected: {expected_response}"
+                    )
+                else:
+                    assert response == data1[-1], (
+                        f"Incorrect encryption result!\n"
+                        f"actual:   {response}\n"
+                        f"expected: {data1[-1]}"
+                    )
+            else:
+                assert response == 0, (
+                    f"Incorrect encryption result!\n"
+                    f"actual:   {response}\n"
+                    f"expected: {0}"
+                )
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -302,7 +427,7 @@ def capture(scope: Scope, ot_ibex: OTIbex, ot_prng: OTPRNG,
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
-    """ Print plot of traces.
+    """Print plot of traces.
 
     Printing the plot helps to adjust the scope gain and check for clipping.
 
@@ -311,14 +436,18 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         config: The capture configuration.
         file: The output file path.
     """
-    if config["capture"]["show_plot"]:
-        plot.save_plot_to_file(project.get_waves(0, config["capture"]["plot_traces"]),
-                               set_indices = None,
-                               num_traces = config["capture"]["plot_traces"],
-                               outfile = file,
-                               add_mean_stddev=True)
-        logger.info(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-                    f'{Path(str(file) + ".html").resolve()}')
+    if config["capture"]["show_plot"] and config["capture"]["scope_select"] != "none":
+        plot.save_plot_to_file(
+            project.get_waves(0, config["capture"]["plot_traces"]),
+            set_indices=None,
+            num_traces=config["capture"]["plot_traces"],
+            outfile=file,
+            add_mean_stddev=True,
+        )
+        logger.info(
+            f'Created plot with {config["capture"]["plot_traces"]} traces: '
+            f'{Path(str(file) + ".html").resolve()}'
+        )
 
 
 def main(argv=None):
@@ -330,9 +459,6 @@ def main(argv=None):
     # Parse the provided arguments.
     args = helpers.parse_arguments(argv)
 
-    # Check the ChipWhisperer version.
-    check_version.check_cw("5.7.0")
-
     # Load configuration from file.
     with open(args.cfg) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -340,26 +466,35 @@ def main(argv=None):
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)
 
+    if not (
+        "batch" in cfg["test"]["which_test"] or
+        "fvsr" in cfg["test"]["which_test"] or
+        "random" in cfg["test"]["which_test"]
+    ):
+        cfg["capture"]["num_segments"] = 1
+
     # Create capture config object.
-    capture_cfg = CaptureConfig(test_mode = cfg["test"]["which_test"],
-                                num_traces = cfg["capture"]["num_traces"],
-                                num_segments = scope.scope_cfg.num_segments,
-                                protocol = cfg["target"]["protocol"],
-                                port = cfg["target"].get("port"),
-                                batch_prng_seed = cfg["test"].get("batch_prng_seed"))
+    capture_cfg = CaptureConfig(
+        test_mode=cfg["test"]["which_test"],
+        num_traces=cfg["capture"]["num_traces"],
+        num_segments=cfg["capture"]["num_segments"],
+        trigger=cfg["test"]["trigger"],
+        input_fixed=cfg["test"]["input_fixed"],
+        port=cfg["target"].get("port"),
+        batch_prng_seed=cfg["test"].get("batch_prng_seed"),
+    )
     logger.info(f"Setting up capture {capture_cfg.test_mode}...")
 
     # Open communication with target.
-    ot_ibex, ot_prng, ot_trig = establish_communication(target, capture_cfg)
+    ot_ibex, ot_prng, ot_trig = establish_communication(target)
 
     # Configure SW trigger.
     ot_trig.select_trigger(1)
 
-    # Init the pentest framework and read the device ID.
-    device_id = ot_ibex.init(cfg["test"]["enable_icache"],
-                             cfg["test"]["enable_dummy_instr"],
-                             cfg["test"]["enable_jittery_clock"],
-                             cfg["test"]["sram_readback_enable"])
+    # Init the pentest framework and read the target info.
+    device_id, owner_page, boot_log, boot_measurements, version = ot_ibex.init(
+        cfg["test"]["core_config"], cfg["test"]["sensor_config"]
+    )
     # Capture traces.
     capture(scope, ot_ibex, ot_prng, capture_cfg, project, target)
 
@@ -367,38 +502,51 @@ def main(argv=None):
     print_plot(project, cfg, args.project)
 
     # Save metadata.
-    metadata = {}
-    metadata["device_id"] = device_id
-    metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    metadata["cfg"] = cfg
-    metadata["num_samples"] = scope.scope_cfg.num_samples
-    metadata["offset_samples"] = scope.scope_cfg.offset_samples
-    metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
-    metadata["num_traces"] = capture_cfg.num_traces
-    metadata["scope_gain"] = scope.scope_cfg.scope_gain
-    metadata["cfg_file"] = str(args.cfg)
-    # Store bitstream information.
-    metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
-    if cfg["target"].get("fpga_bitstream") is not None:
-        metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
-    if args.save_bitstream:
-        metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
-    # Store binary information.
-    metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
-    metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
-    if args.save_binary:
-        metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
-    # Store user provided notes.
-    metadata["notes"] = args.notes
-    # Store the Git hash.
-    metadata["git_hash"] = helpers.get_git_hash()
-    # Write metadata into project database.
-    project.write_metadata(metadata)
+    if cfg["capture"]["scope_select"] != "none":
+        metadata = {}
+        metadata["device_id"] = device_id
+        metadata["owner_page"] = owner_page
+        metadata["boot_log"] = boot_log
+        metadata["boot_measurements"] = boot_measurements
+        metadata["version"] = version
+        metadata["owner_page"] = owner_page
+        metadata["boot_log"] = boot_log
+        metadata["boot_measurements"] = boot_measurements
+        metadata["version"] = version
+        metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        metadata["cfg"] = cfg
+        metadata["num_samples"] = scope.scope_cfg.num_samples
+        metadata["offset_samples"] = scope.scope_cfg.offset_samples
+        metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
+        metadata["num_traces"] = capture_cfg.num_traces
+        metadata["scope_gain"] = scope.scope_cfg.scope_gain
+        metadata["cfg_file"] = str(args.cfg)
+        # Store bitstream information.
+        metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
+        if cfg["target"].get("fpga_bitstream") is not None:
+            metadata["fpga_bitstream_crc"] = helpers.file_crc(
+                cfg["target"]["fpga_bitstream"]
+            )
+        if args.save_bitstream:
+            metadata["fpga_bitstream"] = helpers.get_binary_blob(
+                cfg["target"]["fpga_bitstream"]
+            )
+        # Store binary information.
+        metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
+        metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
+        if args.save_binary:
+            metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+        # Store user provided notes.
+        metadata["notes"] = args.notes
+        # Store the Git hash.
+        metadata["git_hash"] = helpers.get_git_hash()
+        # Write metadata into project database.
+        project.write_metadata(metadata)
 
-    # Finale the capture.
-    project.finalize_capture(capture_cfg.num_traces)
-    # Save and close project.
-    project.save()
+        # Finalize the capture.
+        project.finalize_capture(capture_cfg.num_traces)
+        # Save and close project.
+        project.save()
 
 
 if __name__ == "__main__":

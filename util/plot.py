@@ -15,8 +15,9 @@ from bokeh.plotting import figure, show
 from fault_injection.project_library.project import FISuccess
 
 
-def save_plot_to_file(traces, set_indices, num_traces, outfile,
-                      add_mean_stddev=False, ref_trace=None):
+def save_plot_to_file(
+    traces, set_indices, num_traces, outfile, add_mean_stddev=False, ref_trace=None
+):
     """Save plot figure to file."""
     if set_indices is None:
         colors = itertools.cycle(palette)
@@ -36,14 +37,21 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile,
     for i in range(min(len(traces), num_traces)):
         if set_indices is None:
             if add_mean_stddev or ref_trace is not None:
-                plot.line(xrange, traces[i], line_color='grey')
+                plot.line(xrange, traces[i], line_color="grey")
             else:
                 plot.line(xrange, traces[i], line_color=next(colors))
         else:
-            plot.line(xrange, traces[i], line_color=next(colors), legend_label=str(set_indices[i]))
+            plot.line(
+                xrange,
+                traces[i],
+                line_color=next(colors),
+                legend_label=str(set_indices[i]),
+            )
 
     if ref_trace is not None:
-        plot.line(xrange, ref_trace, line_color='firebrick', line_width=2, legend_label='mean')
+        plot.line(
+            xrange, ref_trace, line_color="firebrick", line_width=2, legend_label="mean"
+        )
 
     if add_mean_stddev:
         # Add mean and std dev to figure
@@ -55,18 +63,28 @@ def save_plot_to_file(traces, set_indices, num_traces, outfile,
         std = traces_new.std(axis=0)
         mean_stddev_upper = mean + std
         mean_stddev_lower = mean - std
-        plot.line(xrange, mean_stddev_upper, line_color='firebrick',
-                  line_width=2, legend_label='std')
-        plot.line(xrange, mean_stddev_lower, line_color='firebrick',
-                  line_width=2, legend_label='std')
-        plot.line(xrange, mean, line_color='black', line_width=2, legend_label='mean')
+        plot.line(
+            xrange,
+            mean_stddev_upper,
+            line_color="firebrick",
+            line_width=2,
+            legend_label="std",
+        )
+        plot.line(
+            xrange,
+            mean_stddev_lower,
+            line_color="firebrick",
+            line_width=2,
+            legend_label="std",
+        )
+        plot.line(xrange, mean, line_color="black", line_width=2, legend_label="mean")
 
     output_file(Path(str(outfile) + ".html"))
     show(plot)
 
 
 def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
-    """ Print FI plot of traces.
+    """Print FI plot of traces.
 
     Printing the plot helps to narrow down the fault injection parameters.
 
@@ -78,11 +96,11 @@ def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
     output_file(Path(str(outfile) + ".html"))
     x_axis = cfg["fiproject"]["plot_x_axis"]
     y_axis = cfg["fiproject"]["plot_y_axis"]
-    plot = figure(plot_width=800,
-                  x_range=(cfg["fisetup"][x_axis + "_min"],
-                           cfg["fisetup"][x_axis + "_max"]),
-                  y_range=(cfg["fisetup"][y_axis + "_min"],
-                           cfg["fisetup"][y_axis + "_max"]))
+    plot = figure(
+        plot_width=800,
+        x_range=(cfg["fisetup"][x_axis + "_min"], cfg["fisetup"][x_axis + "_max"]),
+        y_range=(cfg["fisetup"][y_axis + "_min"], cfg["fisetup"][y_axis + "_max"]),
+    )
     plot.xaxis.axis_label = x_axis + " " + cfg["fiproject"]["plot_x_axis_legend"]
     plot.yaxis.axis_label = y_axis + " " + cfg["fiproject"]["plot_y_axis_legend"]
 
@@ -105,13 +123,24 @@ def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
             no_y.append(fi_result_dict[y_axis])
 
     if unexp_x:
-        plot.scatter(unexp_x, unexp_y, line_color="green", fill_color="green",
-                     legend_label="Unexpected response")
+        plot.scatter(
+            unexp_x,
+            unexp_y,
+            line_color="green",
+            fill_color="green",
+            legend_label="Unexpected response",
+        )
     if exp_x:
-        plot.scatter(exp_x, exp_y, line_color="orange", fill_color="orange",
-                     legend_label="Expected response")
+        plot.scatter(
+            exp_x,
+            exp_y,
+            line_color="orange",
+            fill_color="orange",
+            legend_label="Expected response",
+        )
     if no_x:
-        plot.scatter(no_x, no_y, line_color="red", fill_color="red",
-                     legend_label="No response")
+        plot.scatter(
+            no_x, no_y, line_color="red", fill_color="red", legend_label="No response"
+        )
 
     show(plot)

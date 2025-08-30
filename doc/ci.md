@@ -8,19 +8,13 @@ Actions workflow that uses these FPGAs and runs on each pull request.
 
 ## Selecting FPGAs
 
-The pool of FPGAs contains both a CW305 and CW310 runner.
+The pool of FPGAs contain CW310 runners.
 
-To run a job on a machine with a particular FPGA, you must specify either the
-`cw305` or `cw310` labels in addition to `ubuntu-22.04-fpga` in the YAML
+To run a job on a machine with a particular FPGA, you must specify the `cw310` labels in addition to `ubuntu-22.04-fpga` in the YAML
 specification file:
 
 ```yaml
 jobs:
-  some_cw305_job:
-    runs-on: [ubuntu-22.04-fpga, cw305]
-    steps:
-      - ...
-
   some_cw310_job:
     runs-on: [ubuntu-22.04-fpga, cw310]
     steps:

@@ -21,7 +21,7 @@ equipment is required:
   OpenTitan implemented on the target board. The capture board comes with
   SMA and 20-pin ChipWhisperer cable required to connect to the target board.
 
-The following, alternative hardware equipment is partially supported:
+The following, alternative hardware equipment is no longer supported:
 
 * [ChipWhisperer CW305-A100 FPGA Board](https://rtfm.newae.com/Targets/CW305%20Artix%20FPGA/)
 
@@ -35,6 +35,8 @@ The following, alternative hardware equipment is partially supported:
   CW305-A100 is suitable for performing SCA of AES but not KMAC or OTBN. Note
   that also for this board there exist different versions of which of which
   only the board with the bigger FPGA device (XC7A100T-2FTG256) is supported.
+
+  **Support:** Older versions of the repo support this target.
 
 ### Hardware Setup
 
@@ -77,18 +79,6 @@ source. The CW-Husky should also have a green blinking status LED at this
 point. If LEDs are solid it may mean the device has not enumerated, which might
 require additional setup (see UDEV Rules below).
 
-#### CW305
-
-1. Connect the `X4` output of the CW305 (rightmost SMA) to the CW-Husky `Pos`
-   input.
-2. Connect the `ChipWhisperer 20-Pin Connector` on the CW305 to the
-   `ChipWhisperer 20-Pin Connector` on the capture board. On the CW-Husky this
-   is the connector on the *SIDE* not the connector on the *FRONT*.
-
-Make sure the `S1` jumper on the back of the CW305 is set to `111` such that
-the FPGA bitstream can be reconfigured via USB. Connect the two boards to your
-PC via USB.
-
 ### UDEV Rules
 
 You might need to setup the following `udev` rules to gain access to the two
@@ -101,9 +91,6 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c310", MODE="0666"
 
 # CW-Husky
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="ace5", MODE="0666" SYMLINK+="opentitan/cw_husky"
-
-# CW305 (Artix Target)
-SUBSYSTEM=="usb", ATTRS{idVendor}=="2b3e", ATTRS{idProduct}=="c305", MODE="0666", SYMLINK+="opentitan/cw_305"
 ```
 
 To activate the rules, type
@@ -171,7 +158,7 @@ to install the specific `apt` packages required by ChipWhisperer.
 
 **Notes:**
 - We recommend to use Python 3.10. Later versions might also work.
-- CW-Husky requires ChipWhisperer 5.6.1 or later. The default
+- CW-Husky requires ChipWhisperer 5.7.0 or later. The default
   `python_requirements.txt` will install a version supporting CW-Husky.
 
 ##### Git Large File Storage (LFS)
@@ -278,7 +265,7 @@ you can regenerate them from the
 [OpenTitan](https://github.com/lowRISC/OpenTitan) repository.
 
 Below, we quickly outline the necessary steps for building the binaries for the
-CW310 and CW305 boards from the sources. For more information on the build
+CW310 board from the sources. For more information on the build
 steps, refer to the [OpenTitan FPGA documentation](https://docs.opentitan.org/doc/ug/getting_started_fpga/).
 
 Note that below we use `$REPO_TOP` to refer to the main OpenTitan repository
@@ -288,64 +275,11 @@ top, not this `ot-sca` repo.
 
 To build FPGA bitstreams and penetration testing framework binaries for CW310, please follow this [guide](./building_fpga_bitstreams.md).
 
-#### English Breakfast for CW305
-
-To build the binaries for performing SCA of e.g. AES on the reduced English
-Breakfast top level of OpenTitan using the CW305, follow these steps:
-
-1. Go to the root directory of the OpenTitan repository.
-1. Before generating the OpenTitan FPGA bitstream for the CW305 target board, you first have to run:
-      ```console
-      $ cd $REPO_TOP
-      $ ./util/topgen-fusesoc.py --files-root=. --topname=top_englishbreakfast
-      ```
-   to generate top-level specific versions of some IP cores such as RV_PLIC,
-   TL-UL crossbars etc.
-1. Then run
-      ```console
-      $ cd $REPO_TOP
-      $ ./hw/top_englishbreakfast/util/prepare_sw.py --build --top=englishbreakfast
-      ```
-   in order to prepare the OpenTitan software build flow for English
-   Breakfast and build the required binaries. More precisely, this script
-   runs some code generators, patches some auto-generated source files and
-   finally generates the boot ROM needed for bitstream generation.
-1. Finally, the bitstream generation can be started by running
-    ```console
-    $ cd $REPO_TOP
-    $ fusesoc --cores-root . run --flag=fileset_topgen --target=synth lowrisc:systems:chip_englishbreakfast_cw305
-    ```
-   The generated bitstream can be found in
-    ```
-    build/lowrisc_systems_chip_englishbreakfast_cw305_0.1/synth-vivado/lowrisc_systems_chip_englishbreakfast_cw305_0.1.bit
-    ```
-   and will be loaded to the FPGA using the ChipWhisperer Python API.
-
-1. To generate the OpenTitan application binary for recording AES power traces,
-   make sure the `prepare_sw.py` script has been run before executing
-    ```console
-    $ cd $REPO_TOP
-    $ ./bazelisk.sh build //sw/device/sca:aes_serial --copt=-DOT_IS_ENGLISH_BREAKFAST_REDUCED_SUPPORT_FOR_INTERNAL_USE_ONLY_
-    ```
-1. The path to the generated binary will be printed to the terminal after running
-   ```console
-   $ cd $REPO_TOP
-   $ ci/scripts/target-location.sh //sw/device/sca:aes_serial
-   ```
-
-If you need to generate binaries for CW310 after you generate binaries for
-CW305, use the following command:
-```console
-$ ./hw/top_englishbreakfast/util/prepare_sw.py --delete
-```
-and clean the auto-generated files with a checkout.
-
 ## Configuration
 
 The main configuration of the OpenTitan SCA setup is stored in the files
 ```
 capture/configs/aes_sca_cw310.yaml
-capture/configs/aes_sca_cw305.yaml
 ```
 for AES.
 
@@ -360,10 +294,7 @@ the specified file paths.
   both bitstream and application binaries from the OpenTitan repository.
   Otherwise you might risk to end up with an incompatible combination of
   bitstream and application binary.
-* The default configurations target the CW310 board. When using
-  the CW305 FPGA board, the config file `capture/configs/aes_sca_cw305.yaml`
-  must be used to select a different bitstream and application binary, and
-  adjust the ADC gain.
+* The default configurations target the CW310 board.
 
 
 ## Capturing Power Traces

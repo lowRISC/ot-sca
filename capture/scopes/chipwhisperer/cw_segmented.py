@@ -50,8 +50,15 @@ class CwSegmented:
             this many trigger events. Read-only.
     """
 
-    def __init__(self, num_samples=1200, offset_samples=0, scope_gain=23, scope=None,
-                 clkgen_freq=100e6, adc_mul=2):
+    def __init__(
+        self,
+        num_samples=1200,
+        offset_samples=0,
+        scope_gain=23,
+        scope=None,
+        clkgen_freq=100e6,
+        adc_mul=2,
+    ):
         """Inits a CwSegmented.
 
         Args:
@@ -127,7 +134,7 @@ class CwSegmented:
         self._scope.adc.basic_mode = "rising_edge"
         self._scope.clock.adc_mul = adc_mul
         self._scope.clock.clkgen_freq = clkgen_freq
-        self._scope.clock.clkgen_src = 'extclk'
+        self._scope.clock.clkgen_src = "extclk"
 
         self._scope.trigger.triggers = "tio4"
         self._scope.io.tio1 = "serial_tx"

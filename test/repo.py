@@ -30,7 +30,7 @@ class TestDataPath:
 
         The subpath argument is a string or a Path object, relative to the test data directory.
         """
-        self._path = REPO_PATH / 'test' / 'data' / subpath
+        self._path = REPO_PATH / "test" / "data" / subpath
 
     def __str__(self) -> str:
         return str(self._path)

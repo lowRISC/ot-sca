@@ -7,6 +7,7 @@
 #       To be compatible to the other capture scripts, the variable is
 #       called ciphertext
 
+import json
 import logging
 import random
 import signal
@@ -42,12 +43,16 @@ Typical usage:
 >>> ./capture_hmac.py -c configs/hmac_sca_cw310.yaml -p projects/hmac_sca_capture
 """
 
+# Byte lengths of the text, key, and tag.
+text_length = 16
+key_length = 32
+tag_length = 32
 
 logger = logging.getLogger()
 
 
 def abort_handler_during_loop(this_project, sig, frame):
-    """ Abort capture and store traces.
+    """Abort capture and store traces.
 
     Args:
         this_project: Project instance.
@@ -60,26 +65,19 @@ def abort_handler_during_loop(this_project, sig, frame):
 
 @dataclass
 class CaptureConfig:
-    """ Configuration class for the current capture.
-    """
+    """Configuration class for the current capture."""
+
     capture_mode: str
-    batch_mode: bool
     num_traces: int
     num_segments: int
-    output_len: int
+    text_fixed: list[int]
     key_fixed: list[int]
-    key_len_bytes: int
-    msg_len_bytes: int
-    protocol: str
-    start_trigger: bool
-    msg_trigger: bool
-    process_trigger: bool
-    finish_trigger: bool
+    trigger: int
     port: Optional[str] = "None"
 
 
 def setup(cfg: dict, project: Path):
-    """ Setup target, scope, and project.
+    """Setup target, scope, and project.
 
     Args:
         cfg: The configuration for the current experiment.
@@ -91,76 +89,89 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
-
-    # Create target config & setup target.
-    logger.info(f"Initializing target {cfg['target']['target_type']} ...")
-    target_cfg = TargetConfig(
-        target_type = cfg["target"]["target_type"],
-        fw_bin = cfg["target"]["fw_bin"],
-        protocol = cfg["target"]["protocol"],
-        pll_frequency = cfg["target"]["pll_frequency"],
-        bitstream = cfg["target"].get("fpga_bitstream"),
-        force_program_bitstream = cfg["target"].get("force_program_bitstream"),
-        baudrate = cfg["target"].get("baudrate"),
-        port = cfg["target"].get("port"),
-        output_len = cfg["target"].get("output_len_bytes"),
-        usb_serial = cfg["target"].get("usb_serial"),
-        interface = cfg["target"].get("interface"),
-        husky_serial = cfg["husky"].get("usb_serial")
+    cfg["target"]["pll_frequency"] = (
+        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
     )
-    target = Target(target_cfg)
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
 
-    # Determine sampling rate, if necessary.
-    cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
-    # Convert number of cycles into number of samples, if necessary.
-    cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
-    # Convert offset in cycles into offset in samples, if necessary.
-    cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+    # Check the ChipWhisperer version.
+    if scope_type == "husky":
+        check_version.check_cw("5.7.0")
 
-    logger.info(f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
-
-    # Determine if we are in batch mode or not.
-    batch = False
-    if "batch" in cfg["test"]["which_test"]:
-        batch = True
-
-    # Create scope config & setup scope.
-    scope_cfg = ScopeConfig(
-        scope_type = scope_type,
-        batch_mode = batch,
-        bit = cfg[scope_type].get("bit"),
-        acqu_channel = cfg[scope_type].get("channel"),
-        ip = cfg[scope_type].get("waverunner_ip"),
-        num_samples = cfg[scope_type]["num_samples"],
-        offset_samples = cfg[scope_type]["offset_samples"],
-        sampling_rate = cfg[scope_type].get("sampling_rate"),
-        num_segments = cfg[scope_type].get("num_segments"),
-        sparsing = cfg[scope_type].get("sparsing"),
-        scope_gain = cfg[scope_type].get("scope_gain"),
-        pll_frequency = cfg["target"]["pll_frequency"],
-        scope_sn = cfg[scope_type].get("usb_serial"),
+    # Create target config & setup target.
+    logger.info(f"Initializing target {cfg['target']['target_type']} ...")
+    target_cfg = TargetConfig(
+        target_type=cfg["target"]["target_type"],
+        fw_bin=cfg["target"]["fw_bin"],
+        pll_frequency=cfg["target"]["pll_frequency"],
+        bitstream=cfg["target"].get("fpga_bitstream"),
+        force_program_bitstream=cfg["target"].get("force_program_bitstream"),
+        baudrate=cfg["target"].get("baudrate"),
+        port=cfg["target"].get("port"),
+        usb_serial=cfg["target"].get("usb_serial"),
+        interface=cfg["target"].get("interface"),
+        husky_serial = cfg["husky"].get("usb_serial"),
+        opentitantool=cfg["target"]["opentitantool"],
     )
-    scope = Scope(scope_cfg)
+    target = Target(target_cfg)
 
-    # Init project.
-    project_cfg = ProjectConfig(type = cfg["capture"]["trace_db"],
-                                path = project,
-                                wave_dtype = np.uint16,
-                                overwrite = True,
-                                trace_threshold = cfg["capture"].get("trace_threshold")
-                                )
-    project = SCAProject(project_cfg)
-    project.create_project()
+    if scope_type != "none":
+        # Determine sampling rate, if necessary.
+        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+        # Convert number of cycles into number of samples, if necessary.
+        cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
+        # Convert offset in cycles into offset in samples, if necessary.
+        cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+
+        logger.info(
+            f"Initializing scope {scope_type} with a sampling rate of \
+            {cfg[scope_type]['sampling_rate']}..."
+        )  # noqa: E501
+
+        # Determine if we are in batch mode or not.
+        batch = True
+        if "singe" in cfg["test"]["which_test"]:
+            batch = False
+
+        # Create scope config & setup scope.
+        scope_cfg = ScopeConfig(
+            scope_type=scope_type,
+            batch_mode=batch,
+            bit=cfg[scope_type].get("bit"),
+            acqu_channel=cfg[scope_type].get("channel"),
+            ip=cfg[scope_type].get("waverunner_ip"),
+            num_samples=cfg[scope_type]["num_samples"],
+            offset_samples=cfg[scope_type]["offset_samples"],
+            sampling_rate=cfg[scope_type].get("sampling_rate"),
+            num_segments=cfg["capture"].get("num_segments"),
+            sparsing=cfg[scope_type].get("sparsing"),
+            scope_gain=cfg[scope_type].get("scope_gain"),
+            pll_frequency=cfg["target"]["pll_frequency"],
+            scope_sn=cfg[scope_type].get("usb_serial"),
+        )
+        scope = Scope(scope_cfg)
+
+        # Init project.
+        project_cfg = ProjectConfig(
+            type=cfg["capture"]["trace_db"],
+            path=project,
+            wave_dtype=np.uint16,
+            overwrite=True,
+            trace_threshold=cfg["capture"].get("trace_threshold"),
+        )
+        project = SCAProject(project_cfg)
+        project.create_project()
+    else:
+        scope = None
+        project = None
 
     return target, scope, project
 
 
-def establish_communication(target, capture_cfg: CaptureConfig):
-    """ Establish communication with the target device.
+def establish_communication(target):
+    """Establish communication with the target device.
 
     Args:
         target: The OT target.
@@ -171,130 +182,129 @@ def establish_communication(target, capture_cfg: CaptureConfig):
         ot_prng: The communication interface to the PRNG SCA application.
     """
     # Create communication interface to OT HMAC.
-    ot_hmac = OTHMAC(target=target, protocol=capture_cfg.protocol)
+    ot_hmac = OTHMAC(target=target)
 
     # Create communication interface to OT PRNG.
-    ot_prng = OTPRNG(target=target, protocol=capture_cfg.protocol)
+    ot_prng = OTPRNG(target=target)
 
     return ot_hmac, ot_prng
 
 
-def configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng):
-    """ Configure the HMAC cipher.
+def configure_cipher(cfg, ot_hmac, ot_prng):
+    """Configure the HMAC cipher.
 
     Establish communication with the HMAC cipher and configure the seed.
 
     Args:
         cfg: The project config.
-        capture_cfg: The capture config.
         ot_hmac: The communication interface to the HMAC SCA application.
         ot_prng: The communication interface to the PRNG SCA application.
     Returns:
         device_id: The ID of the target device.
+        owner_page: The owner info page
+        boot_log: The boot log
+        boot_measurments: The boot measurements
+        version: The testOS version
     """
     # Initialize HMAC on the target.
-    device_id = ot_hmac.init(cfg["test"]["enable_icache"],
-                             cfg["test"]["enable_dummy_instr"],
-                             cfg["test"]["enable_jittery_clock"],
-                             cfg["test"]["sram_readback_enable"])
+    device_id, owner_page, boot_log, boot_measurements, version = ot_hmac.init(
+        cfg["test"]["core_config"], cfg["test"]["sensor_config"]
+    )
 
     # Seed the PRNG used for generating keys and plaintexts in batch mode.
-    if capture_cfg.batch_mode:
-        # Seed host's PRNG.
-        random.seed(cfg["test"]["batch_prng_seed"])
+    # Seed host's PRNG.
+    random.seed(cfg["test"]["batch_prng_seed"])
 
-        # Seed the target's PRNG.
-        ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
+    # Seed the target's PRNG.
+    ot_prng.seed_prng(cfg["test"]["batch_prng_seed"].to_bytes(4, "little"))
 
-    return device_id
+    return device_id, owner_page, boot_log, boot_measurements, version
 
 
-def generate_ref_crypto(num_segments, mode, batch, key_fixed, key_length, msg_length):
-    """ Generate cipher material for the encryption.
-
-    This function derives the next key as well as the plaintext for the next
-    encryption.
+def generate_ref_crypto(sample_fixed, mode, key_fixed, text_fixed, last_tag):
+    """Generate cipher material for the encryption.
 
     Args:
-        num_segments: The number of iterations in batch mode.
+        sample_fixed: Use the fixed or random bucket.
         mode: The mode of the capture.
-        batch: Batch or non-batch mode.
-        key_fixed: The fixed key for FVSR.
-        key_length: The length of the key.
-        msg_length: The length of the message.
+        key_fixed: The fixed key.
+        text_fixed: The fixed text.
+        last_tag: The previous tag.
 
     Returns:
-        msg: The next message.
-        key: The next key.
-        tag: The next tag.
+        batch_text: The text used.
+        batch_key: The key used.
+        batch_tag: The tag used.
+        new_sample_fixed: The sample_fixed for the next experiment.
     """
-    # First sample is always fixed.
-    sample_fixed = True
-    # Arrays for storing num_segments crypto material.
-    key_array = []
-    msg_array = []
-    for it in range(0, num_segments):
-        if mode == "hmac_random":
-            # Generate random message and key.
-            key = []
-            for i in range(0, key_length):
-                key.append(random.randint(0, 255))
-            msg = []
-            for i in range(0, msg_length):
-                msg.append(random.randint(0, 255))
+    if mode == "single":
+        batch_text = text_fixed
+        batch_key = key_fixed
+        new_sample_fixed = 1
+    elif mode == "random":
+        batch_key = [random.randint(0, 255) for _ in range(32)]
+        batch_text = [random.randint(0, 255) for _ in range(16)]
+        new_sample_fixed = 1
+    elif mode == "data_fvsr":
+        if sample_fixed == 1:
+            batch_key = key_fixed
         else:
-            # Generate FvsR key and message.
-            if sample_fixed:
-                key = key_fixed
-            else:
-                key = []
-                for i in range(0, key_length):
-                    key.append(random.randint(0, 255))
-            msg = []
-            for i in range(0, msg_length):
-                msg.append(random.randint(0, 255))
-            # The next sample is either fixed or random.
-            sample_fixed = msg[0] & 0x1
-        # Generate expected tag for comparison. We only compare the last
-        # tag.
-        mac_fixed = HMAC.new(key=bytes(key), digestmod=SHA256)
-        mac_fixed.update(bytes(msg))
-        tag = bytearray(mac_fixed.digest())
-        # Append generated material to arrays.
-        key_array.append(key)
-        msg_array.append(msg)
+            batch_key = [random.randint(0, 255) for _ in range(32)]
+        batch_text = [random.randint(0, 255) for _ in range(16)]
+        new_sample_fixed = batch_text[0] & 0x1
+    elif mode == "daisy_chain":
+        batch_text = last_tag
+        batch_key = key_fixed
+        new_sample_fixed = 1
+    else:
+        logger.info("Error: Mode not recognized.")
+        return None, None, None, None
 
-    return msg_array, key_array, tag
+    # Generate expected tag for comparison. We only compare the last
+    # tag.
+    mac_fixed = HMAC.new(key=bytes(batch_key), digestmod=SHA256)
+    mac_fixed.update(bytes(batch_text))
+    batch_tag_bytes = mac_fixed.digest()
+    batch_tag = [x for x in batch_tag_bytes]
+
+    return batch_text, batch_key, batch_tag, new_sample_fixed
 
 
-def check_ciphertext(ot_hmac, expected_last_ciphertext):
-    """ Compares the received with the generated ciphertext.
+def check_tag(target, expected_last_tag):
+    """Compares the received with the generated tag.
 
-    Ciphertext is read from the device and compared against the pre-computed
-    generated ciphertext. In batch mode, only the last ciphertext is compared.
+    Tag is read from the device and compared against the pre-computed
+    generated tag. In batch mode, only the last tag is compared.
     Asserts on mismatch.
 
     Args:
-        ot_hmac: The OpenTitan HMAC communication interface.
-        expected_last_ciphertext: The pre-computed ciphertext.
+        target: The OpenTitan communication interface.
+        expected_last_tag: The pre-computed tag.
     """
-    actual_last_ciphertext = bytearray(ot_hmac.read_tag())
-    assert actual_last_ciphertext == expected_last_ciphertext, (
+    actual_last_tag_full = target.read_response()
+    actual_last_tag_json = json.loads(actual_last_tag_full)
+    actual_last_tag = actual_last_tag_json["tag"]
+    assert actual_last_tag == expected_last_tag, (
         f"Incorrect encryption result!\n"
-        f"actual:   {actual_last_ciphertext}\n"
-        f"expected: {expected_last_ciphertext}"
+        f"actual:   {actual_last_tag}\n"
+        f"expected: {expected_last_tag}"
     )
 
 
-def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
-            project: SCAProject, target: Target):
-    """ Capture power consumption during HMAC Tag computation.
+def capture(
+    scope: Scope,
+    ot_hmac: OTHMAC,
+    capture_cfg: CaptureConfig,
+    project: SCAProject,
+    target: Target,
+):
+    """Capture power consumption during HMAC Tag computation.
 
     Supports four different capture types:
-    * hmac_batch_random: Random key and message in batch mode.
-    * hmac_batch_fvsr: Fixed key, random plaintext in batch mode
-    * hmac_random: Random key and message.
-    * hmac_fvsr: Fixed key, random plaintext.
+    * single: Fixed key and fixed message.
+    * random: Random key and message.
+    * data_fvsr: Fixed key, random message.
+    * daisy_chain: Fixed key, chained message.
 
     Args:
         scope: The scope class representing a scope (Husky or WaveRunner).
@@ -306,6 +316,15 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
     # Load fixed key.
     key_fixed = capture_cfg.key_fixed
 
+    # Load fixed message.
+    text_fixed = capture_cfg.text_fixed
+
+    # Set the tag to text_fixed to start daisy_chaining correctly
+    tag = text_fixed
+
+    # Load trigger.
+    trigger = capture_cfg.trigger
+
     # Optimization for CW trace library.
     num_segments_storage = 1
 
@@ -313,52 +332,61 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(
+        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
+    ) as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
-            scope.arm()
+            if scope is not None:
+                scope.arm()
+
+            if capture_cfg.capture_mode == "single":
+                ot_hmac.single(text_fixed, key_fixed, trigger)
+            elif capture_cfg.capture_mode == "random":
+                ot_hmac.random_batch(capture_cfg.num_segments, trigger)
+            elif capture_cfg.capture_mode == "data_fvsr":
+                ot_hmac.fvsr_batch(key_fixed, capture_cfg.num_segments, trigger)
+            elif capture_cfg.capture_mode == "daisy_chain":
+                text = tag[:text_length]
+                ot_hmac.daisy_chain(text, key_fixed, capture_cfg.num_segments, trigger)
+            else:
+                logger.info("Error: Mode not recognized.")
+                return
+
+            # Capture and store traces
+            if scope is not None:
+                waves = scope.capture_and_transfer_waves(target)
+                assert waves.shape[0] == capture_cfg.num_segments
 
             # Generate data for the HMAC test.
-            msg, key, tag_expected = generate_ref_crypto(
-                num_segments = capture_cfg.num_segments,
-                mode = capture_cfg.capture_mode,
-                batch = capture_cfg.batch_mode,
-                key_fixed = key_fixed,
-                key_length = capture_cfg.key_len_bytes,
-                msg_length = capture_cfg.msg_len_bytes)
-
-            if capture_cfg.batch_mode:
-                if capture_cfg.capture_mode == "hmac_fvsr":
-                    ot_hmac.fvsr_batch(key_fixed, capture_cfg.num_segments,
-                                       capture_cfg.start_trigger, capture_cfg.msg_trigger,
-                                       capture_cfg.process_trigger, capture_cfg.finish_trigger)
-                else:
-                    ot_hmac.random_batch(capture_cfg.num_segments, capture_cfg.start_trigger,
-                                         capture_cfg.msg_trigger, capture_cfg.process_trigger,
-                                         capture_cfg.finish_trigger)
-            else:
-                ot_hmac.single(msg[0], key[0], capture_cfg.start_trigger, capture_cfg.msg_trigger,
-                               capture_cfg.process_trigger, capture_cfg.finish_trigger)
-
-            # Capture traces.
-            waves = scope.capture_and_transfer_waves(target)
-            assert waves.shape[0] == capture_cfg.num_segments
-
-            # Compare received ciphertext with generated.
-            check_ciphertext(ot_hmac, tag_expected)
-
-            # Store trace and crypto material into database.
+            sample_fixed = 1
             for i in range(capture_cfg.num_segments):
-                # Sanity check retrieved data (wave).
-                assert len(waves[i, :]) >= 1
-                # Store trace into database.
-                project.append_trace(wave = waves[i, :],
-                                     plaintext = bytearray(msg[i]),
-                                     ciphertext = bytearray(tag_expected[i]),
-                                     key = bytearray(key[i]))
+                msg, key, tag, sample_fixed = generate_ref_crypto(
+                    sample_fixed=sample_fixed,
+                    mode=capture_cfg.capture_mode,
+                    key_fixed=key_fixed,
+                    text_fixed=text_fixed,
+                    last_tag=tag,
+                )
 
-            # Memory allocation optimization for CW trace library.
-            num_segments_storage = project.optimize_capture(num_segments_storage)
+                if scope is not None:
+                    # Store trace and crypto material into database.
+                    # Sanity check retrieved data (wave).
+                    assert len(waves[i, :]) >= 1
+                    # Store trace into database.
+                    project.append_trace(
+                        wave=waves[i, :],
+                        plaintext=bytearray(msg),
+                        ciphertext=bytearray(tag),
+                        key=bytearray(key),
+                    )
+
+            # Compare received tag with generated.
+            check_tag(target, tag)
+
+            if scope is not None:
+                # Memory allocation optimization for CW trace library.
+                num_segments_storage = project.optimize_capture(num_segments_storage)
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -366,7 +394,7 @@ def capture(scope: Scope, ot_hmac: OTHMAC, capture_cfg: CaptureConfig,
 
 
 def print_plot(project: SCAProject, config: dict, file: Path) -> None:
-    """ Print plot of traces.
+    """Print plot of traces.
 
     Printing the plot helps to adjust the scope gain and check for clipping.
 
@@ -375,14 +403,18 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         config: The capture configuration.
         file: The output file path.
     """
-    if config["capture"]["show_plot"]:
-        plot.save_plot_to_file(project.get_waves(0, config["capture"]["plot_traces"]),
-                               set_indices = None,
-                               num_traces = config["capture"]["plot_traces"],
-                               outfile = file,
-                               add_mean_stddev=True)
-        logger.info(f'Created plot with {config["capture"]["plot_traces"]} traces: '
-                    f'{Path(str(file) + ".html").resolve()}')
+    if config["capture"]["show_plot"] and config["capture"]["scope_select"] != "none":
+        plot.save_plot_to_file(
+            project.get_waves(0, config["capture"]["plot_traces"]),
+            set_indices=None,
+            num_traces=config["capture"]["plot_traces"],
+            outfile=file,
+            add_mean_stddev=True,
+        )
+        logger.info(
+            f'Created plot with {config["capture"]["plot_traces"]} traces: '
+            f'{Path(str(file) + ".html").resolve()}'
+        )
 
 
 def main(argv=None):
@@ -394,43 +426,35 @@ def main(argv=None):
     # Parse the provided arguments.
     args = helpers.parse_arguments(argv)
 
-    # Check the ChipWhisperer version.
-    check_version.check_cw("5.7.0")
-
     # Load configuration from file.
     with open(args.cfg) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
 
-    # Determine the capture mode and configure the current capture.
-    mode = "hmac_fvsr"
-    if "random" in cfg["test"]["which_test"]:
-        mode = "hmac_random"
-
     # Setup the target, scope and project.
     target, scope, project = setup(cfg, args.project)
 
+    if cfg["test"]["which_test"] == "single":
+        cfg["capture"]["num_segments"] = 1
+
     # Create capture config object.
-    capture_cfg = CaptureConfig(capture_mode = mode,
-                                batch_mode = scope.scope_cfg.batch_mode,
-                                num_traces = cfg["capture"]["num_traces"],
-                                num_segments = scope.scope_cfg.num_segments,
-                                output_len = cfg["target"]["output_len_bytes"],
-                                key_fixed = cfg["test"]["key_fixed"],
-                                key_len_bytes = cfg["test"]["key_len_bytes"],
-                                msg_len_bytes = cfg["test"]["msg_len_bytes"],
-                                start_trigger = cfg["test"]["start_trigger"],
-                                msg_trigger = cfg["test"]["msg_trigger"],
-                                process_trigger = cfg["test"]["process_trigger"],
-                                finish_trigger = cfg["test"]["finish_trigger"],
-                                protocol = cfg["target"]["protocol"],
-                                port = cfg["target"].get("port"))
-    logger.info(f"Setting up capture {capture_cfg.capture_mode} batch={capture_cfg.batch_mode}...")
+    capture_cfg = CaptureConfig(
+        capture_mode=cfg["test"]["which_test"],
+        num_traces=cfg["capture"]["num_traces"],
+        num_segments=cfg["capture"]["num_segments"],
+        text_fixed=cfg["test"]["text_fixed"],
+        key_fixed=cfg["test"]["key_fixed"],
+        trigger=cfg["test"]["trigger"],
+        port=cfg["target"].get("port"),
+    )
+    logger.info(f"Setting up capture {capture_cfg.capture_mode} ...")
 
     # Open communication with target.
-    ot_hmac, ot_prng = establish_communication(target, capture_cfg)
+    ot_hmac, ot_prng = establish_communication(target)
 
     # Configure cipher.
-    device_id = configure_cipher(cfg, capture_cfg, ot_hmac, ot_prng)
+    device_id, owner_page, boot_log, boot_measurements, version = configure_cipher(
+        cfg, ot_hmac, ot_prng
+    )
 
     # Capture traces.
     capture(scope, ot_hmac, capture_cfg, project, target)
@@ -439,38 +463,47 @@ def main(argv=None):
     print_plot(project, cfg, args.project)
 
     # Save metadata.
-    metadata = {}
-    metadata["device_id"] = device_id
-    metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
-    metadata["cfg"] = cfg
-    metadata["num_samples"] = scope.scope_cfg.num_samples
-    metadata["offset_samples"] = scope.scope_cfg.offset_samples
-    metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
-    metadata["num_traces"] = capture_cfg.num_traces
-    metadata["scope_gain"] = scope.scope_cfg.scope_gain
-    metadata["cfg_file"] = str(args.cfg)
-    # Store bitstream information.
-    metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
-    if cfg["target"].get("fpga_bitstream") is not None:
-        metadata["fpga_bitstream_crc"] = helpers.file_crc(cfg["target"]["fpga_bitstream"])
-    if args.save_bitstream:
-        metadata["fpga_bitstream"] = helpers.get_binary_blob(cfg["target"]["fpga_bitstream"])
-    # Store binary information.
-    metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
-    metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
-    if args.save_binary:
-        metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
-    # Store user provided notes.
-    metadata["notes"] = args.notes
-    # Store the Git hash.
-    metadata["git_hash"] = helpers.get_git_hash()
-    # Write metadata into project database.
-    project.write_metadata(metadata)
+    if cfg["capture"]["scope_select"] != "none":
+        metadata = {}
+        metadata["device_id"] = device_id
+        metadata["owner_page"] = owner_page
+        metadata["boot_log"] = boot_log
+        metadata["boot_measurements"] = boot_measurements
+        metadata["version"] = version
+        metadata["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+        metadata["cfg"] = cfg
+        metadata["num_samples"] = scope.scope_cfg.num_samples
+        metadata["offset_samples"] = scope.scope_cfg.offset_samples
+        metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
+        metadata["num_traces"] = capture_cfg.num_traces
+        metadata["scope_gain"] = scope.scope_cfg.scope_gain
+        metadata["cfg_file"] = str(args.cfg)
+        # Store bitstream information.
+        metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
+        if cfg["target"].get("fpga_bitstream") is not None:
+            metadata["fpga_bitstream_crc"] = helpers.file_crc(
+                cfg["target"]["fpga_bitstream"]
+            )
+        if args.save_bitstream:
+            metadata["fpga_bitstream"] = helpers.get_binary_blob(
+                cfg["target"]["fpga_bitstream"]
+            )
+        # Store binary information.
+        metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
+        metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
+        if args.save_binary:
+            metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+        # Store user provided notes.
+        metadata["notes"] = args.notes
+        # Store the Git hash.
+        metadata["git_hash"] = helpers.get_git_hash()
+        # Write metadata into project database.
+        project.write_metadata(metadata)
 
-    # Finale the capture.
-    project.finalize_capture(capture_cfg.num_traces)
-    # Save and close project.
-    project.save()
+        # Finalize the capture.
+        project.finalize_capture(capture_cfg.num_traces)
+        # Save and close project.
+        project.save()
 
 
 if __name__ == "__main__":

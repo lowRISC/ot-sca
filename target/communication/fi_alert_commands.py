@@ -1,7 +1,7 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-"""Communication interface for OpenTitan Otp FI framework.
+"""Communication interface for OpenTitan Alert FI framework.
 
 Communication with OpenTitan happens over the uJSON command interface.
 """
@@ -11,45 +11,36 @@ import time
 from target.communication import common_library
 
 
-class OTFIOtp:
+class OTFIAlert:
     def __init__(self, target) -> None:
         self.target = target
 
-    def _ujson_otp_fi_cmd(self) -> None:
+    def _ujson_alert_fi_cmd(self) -> None:
         time.sleep(0.01)
-        self.target.write(json.dumps("OtpFi").encode("ascii"))
+        self.target.write(json.dumps("AlertFi").encode("ascii"))
 
-    def otp_fi_vendor_test(self) -> None:
-        """Reads otp VENDOR_TEST partition."""
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # VendorTest command.
+    def handle_alert_trigger(self, alert) -> None:
+        # AlertFi command.
+        self._ujson_alert_fi_cmd()
+        # Trigger command.
         time.sleep(0.01)
-        self.target.write(json.dumps("VendorTest").encode("ascii"))
+        self.target.write(json.dumps("Trigger").encode("ascii"))
+        alert_data = {"alert": alert}
+        self.target.write(json.dumps(alert_data).encode("ascii"))
 
-    def otp_fi_owner_sw_cfg(self) -> None:
-        """Reads otp OWNER_SW_CFG partition."""
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # OwnerSwCfg command.
+    def handle_alert_sensor_ctrl_trigger(self) -> None:
+        # AlertFi command.
+        self._ujson_alert_fi_cmd()
+        # SensorCtrlTrigger command.
         time.sleep(0.01)
-        self.target.write(json.dumps("OwnerSwCfg").encode("ascii"))
+        self.target.write(json.dumps("SensorCtrlTrigger").encode("ascii"))
 
-    def otp_fi_hw_cfg(self) -> None:
-        """Reads otp HW_CFG partition."""
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # HwCfg command.
+    def handle_alert_ibex_sw_fatal(self) -> None:
+        # AlertFi command.
+        self._ujson_alert_fi_cmd()
+        # IbexSwFatal command.
         time.sleep(0.01)
-        self.target.write(json.dumps("HwCfg").encode("ascii"))
-
-    def otp_fi_life_cycle(self) -> None:
-        """Reads otp LIFE_CYCLE partition."""
-        # IbexFi command.
-        self._ujson_otp_fi_cmd()
-        # LifeCycle command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("LifeCycle").encode("ascii"))
+        self.target.write(json.dumps("IbexSwFatal").encode("ascii"))
 
     def init(
         self,
@@ -57,7 +48,7 @@ class OTFIOtp:
         sensor_config: dict = common_library.default_sensor_config,
         alert_config: dict = common_library.default_alert_config,
     ) -> tuple:
-        """Initialize the Otp FI code on the chip.
+        """Initialize the ALERT FI code on the chip.
         Args:
             cfg: Config dict containing the selected test.
 
@@ -69,8 +60,8 @@ class OTFIOtp:
             The testOS version
         """
 
-        # OtpFi command.
-        self._ujson_otp_fi_cmd()
+        # AlertFi command.
+        self._ujson_alert_fi_cmd()
         # Init command.
         time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
@@ -96,15 +87,3 @@ class OTFIOtp:
             boot_measurements,
             version,
         )
-
-    def start_test(self, cfg: dict) -> None:
-        """Start the selected test.
-
-        Call the function selected in the config file. Uses the getattr()
-        construct to call the function.
-
-        Args:
-            cfg: Config dict containing the selected test.
-        """
-        test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()

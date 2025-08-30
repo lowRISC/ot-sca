@@ -99,55 +99,6 @@ jobs:
           name: traces_sha3_random_cw310_ujson
           path: ./ci/projects/sha3_sca_random_cw310_ujson.html
 
-  sca_capture_cw305:
-    name: Capture AES SCA traces (CW305)
-    runs-on: [ubuntu-22.04-fpga, cw305]
-    timeout-minutes: 30
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
-
-      - name: Install python dependencies
-        run: |
-          python3 -m pip install --user -r python-requirements.txt
-          mkdir -p ci/projects
-
-      - name: Capture AES FVSR traces
-        working-directory: ci
-        run: |
-          ../capture/capture_aes.py -c cfg/ci_aes_sca_fvsr_cw305.yaml -p projects/aes_sca_fvsr_cw305
-
-      - name: Upload AES FVSR traces
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_aes_fvsr_key_cw305
-          path: ./ci/projects/aes_sca_fvsr_cw305.html
-
-      - name: Capture AES Random traces
-        working-directory: ci
-        run: |
-          ../capture/capture_aes.py -c cfg/ci_aes_sca_random_cw305.yaml -p projects/aes_sca_random_cw305
-
-      - name: Upload AES Random traces
-        uses: actions/upload-artifact@v4
-        with:
-          name: traces_aes_random_cw305
-          path: ./ci/projects/aes_sca_random_cw305.html
-
-      - name: Perform specific TVLA on AES Random traces
-        working-directory: ci
-        run: |
-          ../analysis/tvla.py --cfg-file cfg/ci_tvla_cfg_aes_specific_byte_0_15_rnd_0_1.yaml run-tvla
-        continue-on-error: true
-
-      - name: Upload figures of specific TVLA for AES.
-        uses: actions/upload-artifact@v4
-        with:
-          name: tvla_figures_aes_specific
-          path: ./ci/tmp/figures
-
   kmac_sca_capture_cw310:
     name: Capture KMAC SCA traces (CW310)
     runs-on: [ubuntu-22.04-fpga, cw310]

@@ -4,11 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Simple script to test all relevant capture modes supported by capture.py.
-# To test capture modes on the CW305 board, type
-#
-# ./test_capture.sh cw305
-#
-# For the CW310, simply type
+# To test capture modes on the CW310 board, type
 #
 # ./test_capture.sh
 #

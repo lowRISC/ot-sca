@@ -54,14 +54,9 @@ def ttest1_hist_xy(x_a, y_a, x_b, y_b):
     std2 = np.sqrt(var_hist_xy(x_b, y_b, mu2))
     N1 = np.sum(y_a, axis=1)
     N2 = np.sum(y_b, axis=1)
-    return ttest_ind_from_stats(mu1,
-                                std1,
-                                N1,
-                                mu2,
-                                std2,
-                                N2,
-                                equal_var=False,
-                                alternative='two-sided')[0]
+    return ttest_ind_from_stats(
+        mu1, std1, N1, mu2, std2, N2, equal_var=False, alternative="two-sided"
+    )[0]
 
 
 def ttest_hist_xy(x_a, y_a, x_b, y_b, num_orders):
@@ -124,8 +119,8 @@ def ttest_hist_xy(x_a, y_a, x_b, y_b, num_orders):
             # Take the power and fill in the values.
             tmp_a = np.power(tmp_a, i_order + 1)
             tmp_b = np.power(tmp_b, i_order + 1)
-            x_a_ord[i_order * num_samples:(i_order + 1) * num_samples, :] = tmp_a
-            x_b_ord[i_order * num_samples:(i_order + 1) * num_samples, :] = tmp_b
+            x_a_ord[i_order * num_samples: (i_order + 1) * num_samples, :] = tmp_a
+            x_b_ord[i_order * num_samples: (i_order + 1) * num_samples, :] = tmp_b
 
     # Compute Welch's t-test for all requested orders.
     ttest = ttest1_hist_xy(x_a_ord, y_a_ord, x_b_ord, y_b_ord)

@@ -7,14 +7,13 @@ Communication with OpenTitan happens over the uJson command interface.
 """
 import json
 import time
-from typing import Optional
+
+from target.communication import common_library
 
 
 class OTIbex:
-    def __init__(self, target, protocol: str) -> None:
+    def __init__(self, target) -> None:
         self.target = target
-        if protocol == "simpleserial":
-            raise RuntimeError("Error: Simpleserial not supported!")
 
     def _ujson_ibex_sca_cmd(self):
         # TODO: without the delay, the device uJSON command handler program
@@ -22,58 +21,40 @@ class OTIbex:
         time.sleep(0.01)
         self.target.write(json.dumps("IbexSca").encode("ascii"))
 
-    def ibex_sca_read_response(self, num_attempts: Optional[int] = 100):
-        """ Reads back the "result" response from the device.
-        """
-        read_counter = 0
-        while read_counter < num_attempts:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                json_string = read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-                try:
-                    if "result" in json_string:
-                        return json.loads(json_string)["result"]
-                except Exception:
-                    raise Exception("Acknowledge error: Device and host not in sync")
-            else:
-                read_counter += 1
-        raise Exception("Acknowledge error: Device and host not in sync")
+    def init(
+        self,
+        core_config: dict = common_library.default_core_config,
+        sensor_config: dict = common_library.default_sensor_config,
+    ) -> tuple:
+        """Initializes the Ibex SCA tests on the target.
 
-    def init(self, enable_icache: bool, enable_dummy_instr: bool,
-             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
-        """ Initializes the Ibex SCA tests on the target.
-        Args:
-            enable_icache: If true, enable the iCache.
-            enable_dummy_instr: If true, enable the dummy instructions.
-            enable_jittery_clock: If true, enable the jittery clock.
-            enable_sram_readback: If true, enable the SRAM readback feature.
         Returns:
-            The device ID and countermeasure config of the device.
+           Device id
+           The owner info page
+           The boot log
+           The boot measurements
+           The testOS version
         """
+
         # IbexSca command.
         self._ujson_ibex_sca_cmd()
-        # Init the Ibex SCA tests.
-        self.target.write(json.dumps("Init").encode("ascii"))
-        # Configure device and countermeasures.
+        # Init command.
         time.sleep(0.01)
-        data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
-                "enable_jittery_clock": enable_jittery_clock,
-                "enable_sram_readback": enable_sram_readback}
-        self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID and countermeasure configuration from device.
-        device_config = self.read_response(max_tries=30)
-        # Read flash owner page.
-        device_config += self.read_response(max_tries=30)
-        # Read boot log.
-        device_config += self.read_response(max_tries=30)
-        # Read boot measurements.
-        device_config += self.read_response(max_tries=30)
-        # Read pentest framework version.
-        device_config += self.read_response(max_tries=30)
-        return device_config
+        self.target.write(json.dumps("Init").encode("ascii"))
+
+        # Write each configuration block to the target.
+        self.target.write(json.dumps(core_config).encode("ascii"))
+        self.target.write(json.dumps(sensor_config).encode("ascii"))
+
+        device_id = self.target.read_response()
+        owner_page = self.target.read_response()
+        boot_log = self.target.read_response()
+        boot_measurements = self.target.read_response()
+        version = self.target.read_response()
+        return device_id, owner_page, boot_log, boot_measurements, version
 
     def ibex_sca_register_file_read_batch_random(self, num_segments: int):
-        """ Start ibex.sca.register_file_read_batch_random test.
+        """Start ibex.sca.register_file_read_batch_random test.
         Args:
             num_segments: The number of iterations.
         """
@@ -86,8 +67,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_read_random(self, data: list[int]):
-        """ Start ibex.sca.register_file_read_random test.
+    def ibex_sca_register_file_read(self, data: list[int]):
+        """Start ibex.sca.register_file_read test.
         Args:
             data: The data that is first written into the RF and then read back.
         """
@@ -101,7 +82,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_register_file_read_batch_fvsr(self, data: int, num_segments: int):
-        """ Start ibex.sca.register_file_read_batch_fvsr test.
+        """Start ibex.sca.register_file_read_batch_fvsr test.
         Args:
             data: The data that is first written into the RF and then read back.
             num_segments: The number of iterations.
@@ -115,22 +96,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_read_fvsr(self, data: list[int]):
-        """ Start ibex.sca.register_file_read_fvsr test.
-        Args:
-            data: The data that is first written into the RF and then read back.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # RFRead command.
-        self.target.write(json.dumps("RFRead").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
     def ibex_sca_register_file_write_batch_random(self, num_segments: int):
-        """ Start ibex.sca.register_file_write_batch_random test.
+        """Start ibex.sca.register_file_write_batch_random test.
         Args:
             num_segments: The number of iterations.
         """
@@ -143,8 +110,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_write_random(self, data: list[int]):
-        """ Start ibex.sca.register_file_write_random test.
+    def ibex_sca_register_file_write(self, data: list[int]):
+        """Start ibex.sca.register_file_write test.
         Args:
             data: The data that is written into the RF.
         """
@@ -158,7 +125,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_register_file_write_batch_fvsr(self, data: int, num_segments: int):
-        """ Start ibex.sca.register_file_write_batch_fvsr test.
+        """Start ibex.sca.register_file_write_batch_fvsr test.
         Args:
             data: The data that is written into the RF.
             num_segments: The number of iterations.
@@ -172,22 +139,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_register_file_write_fvsr(self, data: list[int]):
-        """ Start ibex.sca.register_file_write_fvsr test.
-        Args:
-            data: The data that is written into the RF.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # RFWrite command.
-        self.target.write(json.dumps("RFWrite").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
     def ibex_sca_tl_write_batch_random(self, num_segments: int):
-        """ Start ibex.sca.tl_write_batch_random test.
+        """Start ibex.sca.tl_write_batch_random test.
         Args:
             num_segments: The number of iterations.
         """
@@ -201,7 +154,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_tl_write_batch_random_fix_address(self, num_segments: int):
-        """ Start ibex.sca.tl_write_batch_random_fix_address test.
+        """Start ibex.sca.tl_write_batch_random_fix_address test.
         Args:
             num_segments: The number of iterations.
         """
@@ -214,8 +167,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_write_random(self, data: list[int]):
-        """ Start ibex.sca.tl_write_random test.
+    def ibex_sca_tl_write(self, data: list[int]):
+        """Start ibex.sca.tl_write_random test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
         """
@@ -229,7 +182,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_tl_write_batch_fvsr(self, data: int, num_segments: int):
-        """ Start ibex.sca.tl_write_batch_fvsr test.
+        """Start ibex.sca.tl_write_batch_fvsr test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
             num_segments: The number of iterations.
@@ -243,9 +196,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_write_batch_fvsr_fix_address(self, data: int,
-                                                 num_segments: int):
-        """ Start ibex.sca.tl_write_batch_fvsr_fix_address test.
+    def ibex_sca_tl_write_batch_fvsr_fix_address(self, data: int, num_segments: int):
+        """Start ibex.sca.tl_write_batch_fvsr_fix_address test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
             num_segments: The number of iterations.
@@ -259,22 +211,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_write_fvsr(self, data: list[int]):
-        """ Start ibex.sca.tl_write_fvsr test.
-        Args:
-            data: The data that is written into the SRAM over Tl-UL.
-        """
-        # IbexSca command.
-        self._ujson_ibex_sca_cmd()
-        # TLWrite command.
-        self.target.write(json.dumps("TLWrite").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"data": data}
-        self.target.write(json.dumps(data).encode("ascii"))
-
     def ibex_sca_tl_read_batch_random(self, num_segments: int):
-        """ Start ibex.sca.tl_read_batch_random test.
+        """Start ibex.sca.tl_read_batch_random test.
         Args:
             num_segments: The number of iterations.
         """
@@ -288,7 +226,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_tl_read_batch_random_fix_address(self, num_segments: int):
-        """ Start ibex.sca.tl_read_batch_random_fix_address test.
+        """Start ibex.sca.tl_read_batch_random_fix_address test.
         Args:
             num_segments: The number of iterations.
         """
@@ -301,8 +239,8 @@ class OTIbex:
         data = {"num_iterations": num_segments}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_read_random(self, data: list[int]):
-        """ Start ibex.sca.tl_read_random test.
+    def ibex_sca_tl_read(self, data: list[int]):
+        """Start ibex.sca.tl_read test.
         Args:
             num_iterations: The number of iterations the RF is written.
             data: The data that is written into the SRAM over Tl-UL.
@@ -317,7 +255,7 @@ class OTIbex:
         self.target.write(json.dumps(data).encode("ascii"))
 
     def ibex_sca_tl_read_batch_fvsr(self, data: int, num_segments: int):
-        """ Start ibex.sca.tl_read_batch_fvsr test.
+        """Start ibex.sca.tl_read_batch_fvsr test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
             num_segments: The number of iterations.
@@ -331,9 +269,8 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_read_batch_fvsr_fix_address(self, data: int,
-                                                num_segments: int):
-        """ Start ibex.sca.tl_read_batch_fvsr_fix_address test.
+    def ibex_sca_tl_read_batch_fvsr_fix_address(self, data: int, num_segments: int):
+        """Start ibex.sca.tl_read_batch_fvsr_fix_address test.
         Args:
             data: The data that is written into the SRAM over Tl-UL.
             num_segments: The number of iterations.
@@ -347,23 +284,58 @@ class OTIbex:
         data = {"num_iterations": num_segments, "fixed_data": data}
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def ibex_sca_tl_read_fvsr(self, data: list[int]):
-        """ Start ibex.sca.tl_read_fvsr test.
+    def ibex_sca_combi_operations_batch_fvsr(
+        self, num_iterations: int, trigger: int, fixed_data1: int, fixed_data2: int
+    ):
+        """Start ibex.sca.combi_operations_batch_fvsr test.
         Args:
-            num_iterations: The number of iterations the RF is written.
-            data: The data that is written into the SRAM over Tl-UL.
+            num_iterations: The number of iterations the test is repeated.
+            trigger: 12-bit value, each bit sets the trigger for one of the 12 trigger windows.
+            fixed_data1: The first fixed value.
+            fixed_data2: The second fixed value.
         """
         # IbexSca command.
         self._ujson_ibex_sca_cmd()
-        # TLRead command.
-        self.target.write(json.dumps("TLRead").encode("ascii"))
-        # Data payload.
+        # CombiOperationsBatchFvsr command.
+        self.target.write(json.dumps("CombiOperationsBatchFvsr").encode("ascii"))
+        # Input payload.
         time.sleep(0.01)
-        data = {"data": data}
+        data = {
+            "num_iterations": num_iterations,
+            "trigger": trigger,
+            "fixed_data1": fixed_data1,
+            "fixed_data2": fixed_data2,
+        }
         self.target.write(json.dumps(data).encode("ascii"))
 
-    def start_test(self, testname: str, arg1 = None, arg2 = None) -> None:
-        """ Start the selected test.
+    def ibex_sca_combi_operations_batch(
+        self, num_iterations: int, trigger: int, fixed_data1: int, fixed_data2: int
+    ):
+        """Start ibex.sca.combi_operations_batch test.
+        Args:
+            num_iterations: The number of iterations the test is repeated.
+            trigger: 12-bit value, each bit sets the trigger for one of the 12 trigger windows.
+            fixed_data1: The first fixed value.
+            fixed_data2: The second fixed value.
+        """
+        # IbexSca command.
+        self._ujson_ibex_sca_cmd()
+        # CombiOperationsBatchFvsr command.
+        self.target.write(json.dumps("CombiOperationsBatch").encode("ascii"))
+        # Input payload.
+        time.sleep(0.01)
+        data = {
+            "num_iterations": num_iterations,
+            "trigger": trigger,
+            "fixed_data1": fixed_data1,
+            "fixed_data2": fixed_data2,
+        }
+        self.target.write(json.dumps(data).encode("ascii"))
+
+    def start_test(
+        self, testname: str, arg1=None, arg2=None, arg3=None, arg4=None
+    ) -> None:
+        """Start the selected test.
 
         Call the function selected in the config file. Uses the getattr()
         construct to call the function.
@@ -374,25 +346,13 @@ class OTIbex:
             arg2: The second argument passed to the test.
         """
         test_function = getattr(self, testname)
-        if arg1 is not None and arg2 is None:
+        if arg1 is not None and arg2 is None and arg3 is None and arg4 is None:
             test_function(arg1)
-        elif arg2 is not None:
+        elif arg2 is not None and arg3 is None and arg4 is None:
             test_function(arg1, arg2)
+        elif arg3 is not None and arg4 is None:
+            test_function(arg1, arg2, arg3)
+        elif arg4 is not None:
+            test_function(arg1, arg2, arg3, arg4)
         else:
             test_function()
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
-        """ Read response from Ibex SCA framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""

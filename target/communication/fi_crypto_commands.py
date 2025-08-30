@@ -7,7 +7,8 @@ Communication with OpenTitan happens over the uJSON command interface.
 """
 import json
 import time
-from typing import Optional
+
+from target.communication import common_library
 
 
 class OTFICrypto:
@@ -15,112 +16,150 @@ class OTFICrypto:
         self.target = target
 
     def _ujson_crypto_cmd(self) -> None:
-        time.sleep(0.01)
         self.target.write(json.dumps("CryptoFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, enable_icache: bool, enable_dummy_instr: bool,
-             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
-        """ Initialize the Crypto FI code on the chip.
-        Args:
-            enable_icache: If true, enable the iCache.
-            enable_dummy_instr:  If true, enable the dummy instructions.
-            enable_jittery_clock: If true, enable the jittery clock.
-            enable_sram_readback: If true, enable the SRAM readback feature.
+    def init(
+        self,
+        core_config: dict = common_library.default_core_config,
+        sensor_config: dict = common_library.default_sensor_config,
+        alert_config: dict = common_library.default_alert_config,
+    ) -> tuple:
+        """Initialize the Crypto FI code on the chip.
+
         Returns:
-            The device ID and countermeasure config of the device.
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
+
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Init command.
-        time.sleep(0.01)
         self.target.write(json.dumps("Init").encode("ascii"))
-        # Configure device and countermeasures.
-        time.sleep(0.01)
-        data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
-                "enable_jittery_clock": enable_jittery_clock,
-                "enable_sram_readback": enable_sram_readback}
-        self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID and countermeasure configuration from device.
-        device_config = self.read_response(max_tries=30)
-        # Read flash owner page.
-        device_config += self.read_response(max_tries=30)
-        # Read boot log.
-        device_config += self.read_response(max_tries=30)
-        # Read boot measurements.
-        device_config += self.read_response(max_tries=30)
-        # Read pentest framework version.
-        device_config += self.read_response(max_tries=30)
-        return device_config
+
+        # Write each configuration block to the target.
+        self.target.write(json.dumps(core_config).encode("ascii"))
+        self.target.write(json.dumps(sensor_config).encode("ascii"))
+        self.target.write(json.dumps(alert_config).encode("ascii"))
+
+        device_id = self.target.read_response()
+        sensors = self.target.read_response()
+        alerts = self.target.read_response()
+        owner_page = self.target.read_response()
+        boot_log = self.target.read_response()
+        boot_measurements = self.target.read_response()
+        version = self.target.read_response()
+        return (
+            device_id,
+            sensors,
+            alerts,
+            owner_page,
+            boot_log,
+            boot_measurements,
+            version,
+        )
 
     def crypto_shadow_reg_access(self) -> None:
-        """ Starts the crypto.fi.shadow_reg_access test.
-        """
+        """Starts the crypto.fi.shadow_reg_access test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # ShadowRegAccess command.
         time.sleep(0.01)
         self.target.write(json.dumps("ShadowRegAccess").encode("ascii"))
 
-    def crypto_aes_key(self) -> None:
-        """ Starts the crypto.fi.aes_key test.
-        """
+    def crypto_shadow_reg_read(self) -> None:
+        """Starts the crypto.fi.shadow_reg_read test."""
+        # CryptoFi command.
+        self._ujson_crypto_cmd()
+        # ShadowRegRead command.
+        time.sleep(0.01)
+        self.target.write(json.dumps("ShadowRegRead").encode("ascii"))
+
+    def crypto_aes_key(self, plaintext, key) -> None:
+        """Starts the crypto.fi.aes_key test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
+        # Plaintext and key
+        input_data = {"plaintext": plaintext, "key": key}
+        self.target.write(json.dumps(input_data).encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": True, "plaintext_trigger": False,
-                "encrypt_trigger": False, "ciphertext_trigger": False}
+        mode = {
+            "key_trigger": True,
+            "plaintext_trigger": False,
+            "encrypt_trigger": False,
+            "ciphertext_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_aes_plaintext(self) -> None:
-        """ Starts the crypto.fi.aes_plaintext test.
-        """
+    def crypto_aes_plaintext(self, plaintext, key) -> None:
+        """Starts the crypto.fi.aes_plaintext test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
+        # Plaintext and key
+        input_data = {"plaintext": plaintext, "key": key}
+        self.target.write(json.dumps(input_data).encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": True,
-                "encrypt_trigger": False, "ciphertext_trigger": False}
+        mode = {
+            "key_trigger": False,
+            "plaintext_trigger": True,
+            "encrypt_trigger": False,
+            "ciphertext_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_aes_encrypt(self) -> None:
-        """ Starts the crypto.fi.aes_encrypt test.
-        """
+    def crypto_aes_encrypt(self, plaintext, key) -> None:
+        """Starts the crypto.fi.aes_encrypt test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
+        # Plaintext and key
+        input_data = {"plaintext": plaintext, "key": key}
+        self.target.write(json.dumps(input_data).encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": False,
-                "encrypt_trigger": True, "ciphertext_trigger": False}
+        mode = {
+            "key_trigger": False,
+            "plaintext_trigger": False,
+            "encrypt_trigger": True,
+            "ciphertext_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_aes_ciphertext(self) -> None:
-        """ Starts the crypto.fi.aes_ciphertext test.
-        """
+    def crypto_aes_ciphertext(self, plaintext, key) -> None:
+        """Starts the crypto.fi.aes_ciphertext test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Aes command.
         time.sleep(0.01)
         self.target.write(json.dumps("Aes").encode("ascii"))
+        # Plaintext and key
+        input_data = {"plaintext": plaintext, "key": key}
+        self.target.write(json.dumps(input_data).encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "plaintext_trigger": False,
-                "encrypt_trigger": False, "ciphertext_trigger": True}
+        mode = {
+            "key_trigger": False,
+            "plaintext_trigger": False,
+            "encrypt_trigger": False,
+            "ciphertext_trigger": True,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_key(self) -> None:
-        """ Starts the crypto.fi.kmac_key test.
-        """
+        """Starts the crypto.fi.kmac_key test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Kmac command.
@@ -128,13 +167,16 @@ class OTFICrypto:
         self.target.write(json.dumps("Kmac").encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": True, "absorb_trigger": False,
-                "static_trigger": False, "squeeze_trigger": False}
+        mode = {
+            "key_trigger": True,
+            "absorb_trigger": False,
+            "static_trigger": False,
+            "squeeze_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_absorb(self) -> None:
-        """ Starts the crypto.fi.kmac_absorb test.
-        """
+        """Starts the crypto.fi.kmac_absorb test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Kmac command.
@@ -142,13 +184,16 @@ class OTFICrypto:
         self.target.write(json.dumps("Kmac").encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": True,
-                "static_trigger": False, "squeeze_trigger": False}
+        mode = {
+            "key_trigger": False,
+            "absorb_trigger": True,
+            "static_trigger": False,
+            "squeeze_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_squeeze(self) -> None:
-        """ Starts the crypto.fi.kmac_squeeze test.
-        """
+        """Starts the crypto.fi.kmac_squeeze test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Kmac command.
@@ -156,13 +201,16 @@ class OTFICrypto:
         self.target.write(json.dumps("Kmac").encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": False,
-                "static_trigger": False, "squeeze_trigger": True}
+        mode = {
+            "key_trigger": False,
+            "absorb_trigger": False,
+            "static_trigger": False,
+            "squeeze_trigger": True,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
     def crypto_kmac_static(self) -> None:
-        """ Starts the crypto.fi.kmac_static test.
-        """
+        """Starts the crypto.fi.kmac_static test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
         # Kmac command.
@@ -170,110 +218,101 @@ class OTFICrypto:
         self.target.write(json.dumps("Kmac").encode("ascii"))
         # Mode payload.
         time.sleep(0.01)
-        mode = {"key_trigger": False, "absorb_trigger": False,
-                "static_trigger": True, "squeeze_trigger": False}
+        mode = {
+            "key_trigger": False,
+            "absorb_trigger": False,
+            "static_trigger": True,
+            "squeeze_trigger": False,
+        }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_sha256_start(self) -> None:
-        """ Starts the crypto.fi.sha256_start test with a hardcoded msg of 0.
-        """
+    def crypto_kmac_state(self) -> None:
+        """Starts the crypto.fi.kmac_state test."""
         # CryptoFi command.
         self._ujson_crypto_cmd()
-        # Sha256 command.
+        # KmacState command.
         time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": True, "msg_trigger": False, "process_trigger": False,
-                "finish_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
+        self.target.write(json.dumps("KmacState").encode("ascii"))
 
-    def crypto_sha256_msg(self) -> None:
-        """ Starts the crypto.fi.sha256_msg test with a hardcoded msg of 0.
-        """
+    def crypto_hmac(
+        self,
+        msg,
+        key,
+        trigger,
+        enable_hmac,
+        message_endianness_big,
+        digest_endianness_big,
+        key_endianness_big,
+        hash_mode,
+    ) -> None:
         # CryptoFi command.
         self._ujson_crypto_cmd()
-        # Sha256 command.
+        # Sha2 command.
+        self.target.write(json.dumps("Hmac").encode("ascii"))
         time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+        data = {"message": msg, "key": key}
         self.target.write(json.dumps(data).encode("ascii"))
         time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": True, "process_trigger": False,
-                "finish_trigger": False}
+        if trigger == 0:
+            mode = {
+                "start_trigger": True,
+                "msg_trigger": False,
+                "process_trigger": False,
+                "finish_trigger": False,
+                "enable_hmac": enable_hmac,
+                "message_endianness_big": message_endianness_big,
+                "digest_endianness_big": digest_endianness_big,
+                "key_endianness_big": key_endianness_big,
+                "hash_mode": hash_mode,
+            }
+        elif trigger == 1:
+            mode = {
+                "start_trigger": False,
+                "msg_trigger": True,
+                "process_trigger": False,
+                "finish_trigger": False,
+                "enable_hmac": enable_hmac,
+                "message_endianness_big": message_endianness_big,
+                "digest_endianness_big": digest_endianness_big,
+                "key_endianness_big": key_endianness_big,
+                "hash_mode": hash_mode,
+            }
+        elif trigger == 2:
+            mode = {
+                "start_trigger": False,
+                "msg_trigger": False,
+                "process_trigger": True,
+                "finish_trigger": False,
+                "enable_hmac": enable_hmac,
+                "message_endianness_big": message_endianness_big,
+                "digest_endianness_big": digest_endianness_big,
+                "key_endianness_big": key_endianness_big,
+                "hash_mode": hash_mode,
+            }
+        else:
+            mode = {
+                "start_trigger": False,
+                "msg_trigger": False,
+                "process_trigger": False,
+                "finish_trigger": True,
+                "enable_hmac": enable_hmac,
+                "message_endianness_big": message_endianness_big,
+                "digest_endianness_big": digest_endianness_big,
+                "key_endianness_big": key_endianness_big,
+                "hash_mode": hash_mode,
+            }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def crypto_sha256_process(self) -> None:
-        """ Starts the crypto.fi.sha256_process test with a hardcoded msg of 0.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Sha256 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": True,
-                "finish_trigger": False}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def crypto_sha256_finish(self) -> None:
-        """ Starts the crypto.fi.sha256_finish test with a hardcoded msg of 0.
-        """
-        # CryptoFi command.
-        self._ujson_crypto_cmd()
-        # Sha256 command.
-        time.sleep(0.01)
-        self.target.write(json.dumps("Sha256").encode("ascii"))
-        # Data payload.
-        time.sleep(0.01)
-        data = {"message": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
-        self.target.write(json.dumps(data).encode("ascii"))
-        time.sleep(0.01)
-        # Trigger payload.
-        time.sleep(0.01)
-        mode = {"start_trigger": False, "msg_trigger": False, "process_trigger": False,
-                "finish_trigger": True}
-        self.target.write(json.dumps(mode).encode("ascii"))
-
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
+    def start_test(self, cfg: dict, *args, **kwargs) -> None:
+        """Start the selected test.
 
         Call the function selected in the config file. Uses the getattr()
         construct to call the function.
 
         Args:
             cfg: Config dict containing the selected test.
+            *args: Variable length argument list to be passed to the test function.
+            **kwargs: Arbitrary keyword arguments to be passed to the test function.
         """
         test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
-        """ Read response from Crypto FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""
+        test_function(*args, **kwargs)

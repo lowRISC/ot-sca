@@ -3,21 +3,19 @@ target:
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: True
   fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
+  opentitantool: "../objs/opentitantool"
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
-  baudrate: 115200
-  output_len_bytes: 32
-  protocol: "ujson"
   port: "/dev/ttyACM_CW310_1"
 husky:
   sampling_rate: 200000000
-  num_segments: 20
   num_cycles: 60
   offset_cycles: -2
   scope_gain: 38
 capture:
   scope_select: husky
+  num_segments: 20
   num_traces: 100
   show_plot: True
   plot_traces: 10
@@ -25,26 +23,41 @@ capture:
   trace_threshold: 10000
   # trace_db: cw
 test:
-  which_test: hmac_fvsr
-  key_len_bytes: 32
+  # which_test: single
+  # which_test: random
+  which_test: data_fvsr
+  # which_test: daisy_chain
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E,
               0x22, 0xB2, 0x5C, 0xDD, 0xF9, 0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12,
               0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
-  msg_len_bytes: 16
   text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
   # seed for PRNG to generate sequence of messages, and keys; Python random
   # class on host, Mersenne twister implementation on OT SW.
   batch_prng_seed: 0
   # Trigger configuration.
-  start_trigger: False
-  msg_trigger: False
-  process_trigger: True
-  finish_trigger: False
-  # When True, the instruction cache is enabled.
-  enable_icache: False
-  # When True, the dummy instructions are enabled.
-  enable_dummy_instr: False
-  # When True, enable the jittery clock.
-  enable_jittery_clock: False
-  # When True, enable the SRAM readback feature.
-  sram_readback_enable: False
+  # 0 = start_trigger, 1 = msg_trigger, 2 = process_trigger, 3 = finish_trigger
+  trigger: 0
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }

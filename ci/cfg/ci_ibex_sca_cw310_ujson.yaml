@@ -3,31 +3,53 @@ target:
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: True
   fw_bin: ../objs/sca_ujson_fpga_cw310.bin
+  opentitantool: "../objs/opentitantool"
   target_clk_mult: 0.24
   target_freq: 24000000
-  baudrate: 115200
-  protocol: "ujson"
   port: "/dev/ttyACM_CW310_1"
 husky:
   samling_rate: 200000000
-  num_segments: 1
   num_cycles: 50
   offset_cycles: 100
   scope_gain: 27
 capture:
   scope_select: husky
+  num_segments: 1
   num_traces: 40
   show_plot: True
   plot_traces: 20
   trace_db: ot_trace_library
   trace_threshold: 10000
 test:
-  which_test: ibex_sca_register_file_read_random
-  # When True, the instruction cache is enabled.
-  enable_icache: True
-  # When True, the dummy instructions are enabled.
-  enable_dummy_instr: False
-  # When True, enable the jittery clock.
-  enable_jittery_clock: False
-  # When True, enable the SRAM readback feature.
-  sram_readback_enable: False
+  which_test: ibex_sca_register_file_read_batch_random
+  # Combi test uses the first two values of the fixed input.
+  input_fixed:  [0xABBABABE, 0xABADCAFE, 0xBAAAAAAD, 0xBAD22222, 0xBBADBEEF, 0xBEBEBEBE, 0xBEEFCACE, 0xC00010FF]
+  # Seed for PRNG generating sequence of plaintexts and keys for batch captures
+  # on the host and on the device.
+  batch_prng_seed: 0
+  # Trigger for the combi test, 12-bit value, each bit sets the trigger for one of the 12 trigger windows.
+  trigger: 0
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }

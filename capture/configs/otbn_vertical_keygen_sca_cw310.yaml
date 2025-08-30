@@ -3,20 +3,18 @@ target:
   fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
   force_program_bitstream: True
   fw_bin: "../objs/sca_ujson_fpga_cw310.bin"
+  opentitantool: "../objs/opentitantool"
+  # You can specify the port or leave it empty to find it automatically.
   # target_clk_mult is a hardcoded value in the bitstream. Do not change.
   target_clk_mult: 0.24
   target_freq: 24000000
   baudrate: 115200
-  output_len_bytes: 40
-  protocol: "ujson"
-  port: "/dev/opentitan/cw310_1_tty_03"
   # Trigger source.
   # hw: Precise, hardware-generated trigger - FPGA only.
   # sw: Fully software-controlled trigger.
   trigger: "hw"
 husky:
   sampling_rate: 200000000
-  num_segments: 20
   num_cycles: 200
   offset_cycles: 0
   scope_gain: 24
@@ -24,21 +22,19 @@ husky:
   decimate: 1
 waverunner:
   waverunner_ip: 100.107.71.10
-  num_segments: 20
   num_samples: 6000
   sample_offset: 0
 capture:
-  scope_select: husky
+  # scope_select: husky, waverunner, none
+  scope_select: none
   show_plot: True
   plot_traces: 100
+  num_segments: 20
   num_traces: 1000
   trace_threshold: 10000
   trace_db: ot_trace_library
 test:
   batch_prng_seed: 6
-  key_len_bytes: 40
-  text_len_bytes: 40
-  plain_text_len_bytes: 40
   masks_off: False
   # Currently, 'p256' is the only supported curve.
   curve: p256

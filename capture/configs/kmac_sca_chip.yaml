@@ -1,19 +1,17 @@
 target:
   target_type: chip
   fw_bin: "../objs/sca_ujson_chip_signed.img"
+  opentitantool: "../objs/opentitantool"
+  # You can specify the port or leave it empty to find it automatically.
   target_clk_mult: 1
   target_freq: 100000000
   baudrate: 115200
-  output_len_bytes: 16
-  protocol: "ujson"
-  port: "/dev/ttyUSB1"
   # Trigger source.
   # hw: Precise, hardware-generated trigger - FPGA only.
   # sw: Fully software-controlled trigger.
   trigger: "sw"
 waverunner:
   waverunner_ip: 192.168.33.128
-  num_segments: 1
   # cycles will only be used if not given in samples
   num_cycles: 160
   offset_cycles: 115
@@ -22,20 +20,21 @@ waverunner:
   channel: C1
   sparsing: 0
 capture:
-  scope_select: waverunner
-  num_traces: 20000
+  # scope_select: husky, waverunner, none
+  scope_select: none
+  num_segments: 20
+  num_traces: 500
   show_plot: True
   plot_traces: 10
+  # trace_db: cw
   trace_db: ot_trace_library
   trace_threshold: 10000
-  # trace_db: cw
 test:
-  # which_test: kmac_random
-  # which_test: kmac_fvsr_key_batch
-  which_test: kmac_fvsr_key
-  key_len_bytes: 16
+  # which_test: single
+  # which_test: fvsr_key
+  # which_test: daisy_chain
+  which_test: single
   key_fixed: [0x81, 0x1E, 0x37, 0x31, 0xB0, 0x12, 0x0A, 0x78, 0x42, 0x78, 0x1E, 0x22, 0xB2, 0x5C, 0xDD, 0xF9]
-  text_len_bytes: 16
   text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
   # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
   # For unprotected implemetation, lfsr_seed should be set to 0. This will
@@ -47,11 +46,27 @@ test:
   lfsr_seed: 0xdeadbeef
   # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
   batch_prng_seed: 0
-  # When True, the instruction cache is enabled.
-  enable_icache: True
-  # When True, the dummy instructions are enabled.
-  enable_dummy_instr: False
-  # When True, enable the jittery clock.
-  enable_jittery_clock: False
-  # When True, enable the SRAM readback feature.
-  sram_readback_enable: False
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }

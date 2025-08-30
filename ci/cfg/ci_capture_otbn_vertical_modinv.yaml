@@ -2,6 +2,7 @@ device:
   fpga_bitstream: ../cw/objs/lowrisc_systems_chip_earlgrey_cw310_0.1_ecdsa.bit
   force_program_bitstream: True
   fw_bin: ../cw/objs/otbn_vertical_serial_fpga_cw310.bin
+  opentitantool: "../objs/opentitantool"
   # The clock frequency of the target block is equal to
   # pll_frequency * target_clk_mult. pll_frequency is controllable via
   # ChipWhisperer API, whereas target_clk_mult is baked into the FPGA
@@ -19,12 +20,7 @@ capture:
   # Since this is not encryption, they don't correspond to key/plaintext, but
   # rather seed/mask.
   use_fixed_key_iter: False # See https://github.com/lowRISC/ot-sca/issues/116
-  # Here key/text length = length of key shares (40-byte shares, 32-byte key)
-  key_len_bytes: 40
-  plain_text_len_bytes: 40
   masks_off: false
-  # Output length (most likely unused).
-  output_len_bytes: 32
   # Fifo Size is 131070 = max num samples to avoid multiple runs per trace
   num_cycles: 5000
   offset_cycles: 0

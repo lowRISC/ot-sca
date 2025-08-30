@@ -21,7 +21,7 @@ import scared
 # Append ot-sca root directory to path such that ceca.py can find the
 # project_library module located in the capture/ directory.
 ABS_PATH = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(ABS_PATH + '/..')
+sys.path.append(ABS_PATH + "/..")
 from capture.project_library.project import ProjectConfig  # noqa : E402
 from capture.project_library.project import SCAProject  # noqa : E402
 
@@ -91,28 +91,29 @@ class TraceWorker:
         # ChipWhisperer or ot_trace_library project?
         project_type = "cw"
         if ".db" in project_file:
-            project_type = 'ot_trace_library'
+            project_type = "ot_trace_library"
 
         # Open the project.
-        project_cfg = ProjectConfig(type = project_type,
-                                    path = project_file,
-                                    wave_dtype = np.uint16,
-                                    overwrite = False
-                                    )
+        project_cfg = ProjectConfig(
+            type=project_type, path=project_file, wave_dtype=np.uint16, overwrite=False
+        )
         self.project = SCAProject(project_cfg)
         self.project.open_project()
 
         # TODO: Consider more efficient formats.
         self.num_samples = attack_window.stop - attack_window.start
         if attack_direction == AttackDirection.INPUT:
-            self.texts = np.vstack(self.project.get_plaintexts(
-                trace_slice.start, trace_slice.stop))
+            self.texts = np.vstack(
+                self.project.get_plaintexts(trace_slice.start, trace_slice.stop)
+            )
         else:
-            self.texts = np.vstack(self.project.get_ciphertexts(
-                trace_slice.start, trace_slice.stop))
+            self.texts = np.vstack(
+                self.project.get_ciphertexts(trace_slice.start, trace_slice.stop)
+            )
 
-        self.traces = np.asarray(self.project.get_waves(
-            trace_slice.start, trace_slice.stop))[:, attack_window]
+        self.traces = np.asarray(
+            self.project.get_waves(trace_slice.start, trace_slice.stop)
+        )[:, attack_window]
 
         self.project.close(save=False)
 
@@ -176,7 +177,7 @@ class TraceWorker:
             val_changes = np.where(np.roll(sorted_bytes, 1) != sorted_bytes)[0]
             # Append the number of rows to be able to use ``pairwise``.
             val_indices = list(val_changes) + [sorted_bytes.shape[0]]
-            for (start, end) in more_itertools.pairwise(val_indices):
+            for start, end in more_itertools.pairwise(val_indices):
                 byte_val = sorted_bytes[start]
                 cnts[byte_pos, byte_val] = end - start
                 act_indices = sorted_indices[start:end]
@@ -396,7 +397,7 @@ def find_best_diffs(pairwise_diffs_scores):
     # other bytes.
     diffs = np.zeros(16, dtype=np.uint8)
     for byte in range(1, 16):
-        for (a, b) in more_itertools.pairwise(paths[byte]):
+        for a, b in more_itertools.pairwise(paths[byte]):
             diffs[byte] ^= int(pairwise_diffs_scores[a, b, 0])
     return diffs
 
@@ -502,14 +503,12 @@ def perform_attack(
     # ChipWhisperer or ot_trace_library project?
     project_type = "cw"
     if ".db" in project_file:
-        project_type = 'ot_trace_library'
+        project_type = "ot_trace_library"
 
     # Open the project.
-    project_cfg = ProjectConfig(type = project_type,
-                                path = project_file,
-                                wave_dtype = np.uint16,
-                                overwrite = False
-                                )
+    project_cfg = ProjectConfig(
+        type=project_type, path=project_file, wave_dtype=np.uint16, overwrite=False
+    )
     project = SCAProject(project_cfg)
     project.open_project()
 
@@ -559,7 +558,7 @@ def perform_attack(
     num_traces = filter_noisy_traces(workers, mean, std_dev, max_std)
     logging.info(
         f"Will use {num_traces} traces "
-        f"({100*num_traces/orig_num_traces:.1f}% of all traces)"
+        f"({100 * num_traces / orig_num_traces:.1f}% of all traces)"
     )
     # Mean traces for all values of all text bytes.
     mean_text_traces = compute_mean_text_traces(workers)
@@ -568,18 +567,21 @@ def perform_attack(
     diffs = find_best_diffs(pairwise_diffs_scores)
     logging.info(f"Difference values (delta_0_i): {diffs}")
     # Recover the key.
-    key = recover_key(diffs, attack_direction, project.get_plaintexts(0),
-                      project.get_ciphertexts(0))
+    key = recover_key(
+        diffs, attack_direction, project.get_plaintexts(0), project.get_ciphertexts(0)
+    )
     if key is not None:
         logging.info(f"Recovered AES key: {bytes(key).hex()}")
     else:
         logging.error("Failed to recover the AES key")
     # Compare differences - both matrices are symmetric and have an all-zero main diagonal.
-    correct_diffs = compare_diffs(pairwise_diffs_scores, attack_direction,
-                                  project.get_keys(0))
+    correct_diffs = compare_diffs(
+        pairwise_diffs_scores, attack_direction, project.get_keys(0)
+    )
     logging.info(
-        f"Recovered {((np.sum(correct_diffs)-16)/2).astype(int)}/120 "
-        "differences between key bytes")
+        f"Recovered {((np.sum(correct_diffs) - 16) / 2).astype(int)}/120 "
+        "differences between key bytes"
+    )
     project.close(save=False)
     return key
 
@@ -592,8 +594,10 @@ def parse_args():
         Mischke, and T. Eisenbarth (https://eprint.iacr.org/2010/297.pdf)."""
     )
     parser.add_argument(
-        "-f", "--project-file", required=True,
-        help="chipwhisperer or ot_trace_library project file"
+        "-f",
+        "--project-file",
+        required=True,
+        help="chipwhisperer or ot_trace_library project file",
     )
     parser.add_argument(
         "-n",
@@ -658,9 +662,12 @@ def main():
     attack."""
     args = parse_args()
     config_logger()
-    ray.init(runtime_env={"working_dir": "../",
-                          "excludes": ["*.db", "*.cwp", "*.npy", "*.bit",
-                                       "*/lfs/*", "*.pack"]})
+    ray.init(
+        runtime_env={
+            "working_dir": "../",
+            "excludes": ["*.db", "*.cwp", "*.npy", "*.bit", "*/lfs/*", "*.pack"],
+        }
+    )
 
     key = perform_attack(**vars(args))
     sys.exit(0 if key is not None else 1)

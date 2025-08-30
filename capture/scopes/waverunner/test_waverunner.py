@@ -9,7 +9,7 @@ from datetime import datetime
 
 from waverunner import WaveRunner
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Create WaveRunner
     waverunner = WaveRunner("172.26.111.125")
 

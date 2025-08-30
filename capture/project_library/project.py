@@ -18,9 +18,10 @@ from capture.project_library.ot_trace_library.trace_library import (  # noqa: E4
 
 @dataclass
 class ProjectConfig:
-    """ Project configuration.
+    """Project configuration.
     Stores information about the project.
     """
+
     type: str
     path: Path
     wave_dtype: np.dtype
@@ -29,34 +30,38 @@ class ProjectConfig:
 
 
 class SCAProject:
-    """ Project class.
+    """Project class.
 
     Used to manage a SCA project.
     """
+
     def __init__(self, project_cfg: ProjectConfig) -> None:
         self.project_cfg = project_cfg
         self.project = None
 
     def create_project(self):
-        """ Create project.
+        """Create project.
 
         Create project using the provided path.
         """
         if self.project_cfg.type == "cw":
-            self.project = cw.create_project(self.project_cfg.path,
-                                             overwrite=self.project_cfg.overwrite)
+            self.project = cw.create_project(
+                self.project_cfg.path, overwrite=self.project_cfg.overwrite
+            )
         elif self.project_cfg.type == "ot_trace_library":
             self.project = TraceLibrary(
                 str(self.project_cfg.path),
                 trace_threshold=self.project_cfg.trace_threshold,
                 wave_datatype=self.project_cfg.wave_dtype,
-                overwrite=self.project_cfg.overwrite)
+                overwrite=self.project_cfg.overwrite,
+            )
         else:
-            raise RuntimeError("Only trace_db='cw' or trace_db='ot_trace_library' supported.")
+            raise RuntimeError(
+                "Only trace_db='cw' or trace_db='ot_trace_library' supported."
+            )
 
     def open_project(self) -> None:
-        """ Open project.
-        """
+        """Open project."""
         if self.project_cfg.type == "cw":
             self.project = cw.open_project(self.project_cfg.path)
         elif self.project_cfg.type == "ot_trace_library":
@@ -64,42 +69,38 @@ class SCAProject:
                 str(self.project_cfg.path),
                 trace_threshold=self.project_cfg.trace_threshold,
                 wave_datatype=self.project_cfg.wave_dtype,
-                overwrite=self.project_cfg.overwrite)
+                overwrite=self.project_cfg.overwrite,
+            )
 
     def close(self, save: bool) -> None:
-        """ Close project.
-        """
+        """Close project."""
         if self.project_cfg.type == "cw":
-            self.project.close(save = save)
+            self.project.close(save=save)
         elif self.project_cfg.type == "ot_trace_library":
-            self.project.close(save = save)
+            self.project.close(save=save)
 
         self.project = None
 
     def save(self) -> None:
-        """ Save project.
-        """
+        """Save project."""
         if self.project_cfg.type == "cw":
             self.project.save()
         elif self.project_cfg.type == "ot_trace_library":
             self.project.flush_to_disk()
 
     def append_trace(self, wave, plaintext, ciphertext, key) -> None:
-        """ Append trace to trace storage in project.
-        """
+        """Append trace to trace storage in project."""
         if self.project_cfg.type == "cw":
             trace = cw.Trace(wave, plaintext, ciphertext, key)
             self.project.traces.append(trace, dtype=self.project_cfg.wave_dtype)
         elif self.project_cfg.type == "ot_trace_library":
-            trace = Trace(wave=wave.tobytes(),
-                          plaintext=plaintext,
-                          ciphertext=ciphertext,
-                          key=key)
+            trace = Trace(
+                wave=wave.tobytes(), plaintext=plaintext, ciphertext=ciphertext, key=key
+            )
             self.project.write_to_buffer(trace)
 
     def get_waves(self, start: Optional[int] = None, end: Optional[int] = None):
-        """ Get waves from project.
-        """
+        """Get waves from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
                 return self.project.waves[start:end]
@@ -111,8 +112,7 @@ class SCAProject:
             return self.project.get_waves(start, end)
 
     def get_keys(self, start: Optional[int] = None, end: Optional[int] = None):
-        """ Get keys[start, end] from project.
-        """
+        """Get keys[start, end] from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
                 return self.project.keys[start:end]
@@ -124,8 +124,7 @@ class SCAProject:
             return self.project.get_keys(start, end)
 
     def get_plaintexts(self, start: Optional[int] = None, end: Optional[int] = None):
-        """ Get plaintexts[start, end] from project.
-        """
+        """Get plaintexts[start, end] from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
                 return self.project.textins[start:end]
@@ -137,8 +136,7 @@ class SCAProject:
             return self.project.get_plaintexts(start, end)
 
     def get_ciphertexts(self, start: Optional[int] = None, end: Optional[int] = None):
-        """ Get ciphertexts[start, end] from project.
-        """
+        """Get ciphertexts[start, end] from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
                 return self.project.textouts[start:end]
@@ -150,16 +148,14 @@ class SCAProject:
             return self.project.get_ciphertexts(start, end)
 
     def write_metadata(self, metadata: dict) -> None:
-        """ Write metadata to project.
-        """
+        """Write metadata to project."""
         if self.project_cfg.type == "cw":
             self.project.settingsDict.update(metadata)
         elif self.project_cfg.type == "ot_trace_library":
             self.project.write_metadata(metadata)
 
     def get_metadata(self) -> dict:
-        """ Get metadata from project.
-        """
+        """Get metadata from project."""
         if self.project_cfg.type == "cw":
             return self.project.settingsDict
         elif self.project_cfg.type == "ot_trace_library":
@@ -186,7 +182,9 @@ class SCAProject:
             # re-enabled using finalize_capture().
             if num_segments_storage != len(self.project.segments):
                 if num_segments_storage >= 2:
-                    self.project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2, False)
+                    self.project.traces.tm.setTraceSegmentStatus(
+                        num_segments_storage - 2, False
+                    )
                 num_segments_storage = len(self.project.segments)
             return num_segments_storage
 

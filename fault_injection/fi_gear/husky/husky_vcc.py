@@ -12,7 +12,7 @@ from util import check_version  # noqa: E402
 
 
 class HuskyVCC:
-    """ Initialize Husky for VCC glitching.
+    """Initialize Husky for VCC glitching.
 
     Args:
         pll_frequency: The PLL frequency of the target.
@@ -24,11 +24,20 @@ class HuskyVCC:
         trigger_delay_max: Upper bound for the trigger delay.
         trigger_step: Step for the trigger delay.
     """
-    def __init__(self, pll_frequency: int, serial_number: str,
-                 glitch_width_min: float, glitch_width_max: float,
-                 glitch_width_step: float, trigger_delay_min: int,
-                 trigger_delay_max: int, trigger_step: int, num_iterations: int,
-                 parameter_generation: str):
+
+    def __init__(
+        self,
+        pll_frequency: int,
+        serial_number: str,
+        glitch_width_min: float,
+        glitch_width_max: float,
+        glitch_width_step: float,
+        trigger_delay_min: int,
+        trigger_delay_max: int,
+        trigger_step: int,
+        num_iterations: int,
+        parameter_generation: str,
+    ):
         # Set Husky parameters.
         self.scope = None
         self.pll_frequency = pll_frequency
@@ -54,7 +63,7 @@ class HuskyVCC:
         self.init_husky()
 
     def init_husky(self) -> None:
-        """ Initialize husky.
+        """Initialize husky.
 
         Configure Husky crowbar in such a way that the glitcher uses the HP
         MOSFET and a single glitch is clkgen_freq long.
@@ -71,7 +80,7 @@ class HuskyVCC:
         # Configure the clock.
         self.scope.clock.clkgen_freq = self.pll_frequency
         # Initialize the voltage glitching.
-        self.scope.vglitch_setup('hp', default_setup=False)
+        self.scope.vglitch_setup("hp", default_setup=False)
         # Glitch output is high for glitch.repeat cycles. One cylce is
         # clkgen_freq.
         self.scope.glitch.output = "enable_only"
@@ -81,7 +90,7 @@ class HuskyVCC:
         self.scope.trigger.triggers = "tio4"
 
     def arm_trigger(self, fault_parameters: dict) -> None:
-        """ Arm the trigger.
+        """Arm the trigger.
 
         Configures the glitcher to inject a fault of width glitch.repeat cycles
         after the trigger delay.
@@ -89,12 +98,12 @@ class HuskyVCC:
         Args:
             A dict containing the FI parameters.
         """
-        self.scope.glitch.repeat = fault_parameters['glitch_width']
-        self.scope.glitch.ext_offset = fault_parameters['trigger_delay']
+        self.scope.glitch.repeat = fault_parameters["glitch_width"]
+        self.scope.glitch.ext_offset = fault_parameters["trigger_delay"]
         self.scope.arm()
 
     def generate_fi_parameters(self) -> dict:
-        """ Generate random voltage glitch parameters within the provided
+        """Generate random voltage glitch parameters within the provided
             limits.
 
         Random generation: randomly generate glitch_width & trigger_delay.
@@ -106,9 +115,9 @@ class HuskyVCC:
         """
         parameters = {}
         if self.parameter_generation == "random":
-            parameters["glitch_width"] = random_float_range(self.glitch_width_min,
-                                                            self.glitch_width_max,
-                                                            self.glitch_width_step)
+            parameters["glitch_width"] = random_float_range(
+                self.glitch_width_min, self.glitch_width_max, self.glitch_width_step
+            )
         elif self.parameter_generation == "deterministic":
             if self.curr_iteration == self.num_iterations:
                 self.curr_iteration = 0
@@ -116,23 +125,25 @@ class HuskyVCC:
             parameters["glitch_width"] = self.curr_glitch_width
             self.curr_iteration += 1
         else:
-            raise Exception("HuskyVCC only supports random/deterministic parameter generation")
+            raise Exception(
+                "HuskyVCC only supports random/deterministic parameter generation"
+            )
 
         # Randomly generate the trigger delay for both cases.
-        parameters["trigger_delay"] = random_float_range(self.trigger_delay_min,
-                                                         self.trigger_delay_max,
-                                                         self.trigger_step)
+        parameters["trigger_delay"] = random_float_range(
+            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
+        )
         return parameters
 
     def reset(self) -> None:
-        """ Initialize husky.
+        """Initialize husky.
 
         If the target crashes, Husky needs to be again initialized.
         """
         self.init_husky()
 
     def get_num_fault_injections(self) -> int:
-        """ Get number of fault injections.
+        """Get number of fault injections.
 
         Returns: The total number of fault injections performed with the Husky
                  glitcher.
@@ -140,7 +151,10 @@ class HuskyVCC:
         if self.parameter_generation == "random":
             return self.num_iterations
         elif self.parameter_generation == "deterministic":
-            return ((self.glitch_width_max - self.glitch_width_min) /
-                    self.glitch_width_step) * self.num_iterations
+            return (
+                (self.glitch_width_max - self.glitch_width_min) / self.glitch_width_step
+            ) * self.num_iterations
         else:
-            raise Exception("HuskyVCC only supports random/deterministic parameter generation")
+            raise Exception(
+                "HuskyVCC only supports random/deterministic parameter generation"
+            )

@@ -9,6 +9,8 @@ import json
 import time
 from typing import Optional
 
+from target.communication import common_library
+
 
 class OTFIRng:
     def __init__(self, target) -> None:
@@ -19,53 +21,96 @@ class OTFIRng:
         self.target.write(json.dumps("RngFi").encode("ascii"))
         time.sleep(0.01)
 
-    def init(self, enable_icache: bool, enable_dummy_instr: bool,
-             enable_jittery_clock: bool, enable_sram_readback: bool) -> list:
-        """ Initialize the RNG FI code on the chip.
+    def init(
+        self,
+        test,
+        core_config: dict = common_library.default_core_config,
+        sensor_config: dict = common_library.default_sensor_config,
+        alert_config: dict = common_library.default_alert_config,
+    ) -> tuple:
+        """Initialize the RNG FI code on the chip.
         Args:
-            enable_icache: If true, enable the iCache.
-            enable_dummy_instr:  If true, enable the dummy instructions.
-            enable_jittery_clock: If true, enable the jittery clock.
-            enable_sram_readback: If true, enable the SRAM readback feature.
+            test: The selected test.
+
         Returns:
-            The device ID and countermeasure config of the device.
+            Device id
+            The owner info page
+            The boot log
+            The boot measurements
+            The testOS version
         """
+
         # RngFi command.
         self._ujson_rng_cmd()
         # Init command.
         time.sleep(0.01)
-        self.target.write(json.dumps("Init").encode("ascii"))
-        # Configure device and countermeasures.
-        time.sleep(0.01)
-        data = {"enable_icache": enable_icache, "enable_dummy_instr": enable_dummy_instr,
-                "enable_jittery_clock": enable_jittery_clock,
-                "enable_sram_readback": enable_sram_readback}
-        self.target.write(json.dumps(data).encode("ascii"))
-        # Read back device ID and countermeasure configuration from device.
-        device_config = self.read_response(max_tries=30)
-        # Read flash owner page.
-        device_config += self.read_response(max_tries=30)
-        # Read boot log.
-        device_config += self.read_response(max_tries=30)
-        # Read boot measurements.
-        device_config += self.read_response(max_tries=30)
-        # Read pentest framework version.
-        device_config += self.read_response(max_tries=30)
-        return device_config
+        if "csrng" in test:
+            self.target.write(json.dumps("CsrngInit").encode("ascii"))
+        else:
+            self.target.write(json.dumps("EdnInit").encode("ascii"))
 
-    def rng_csrng_bias(self) -> None:
-        """ Starts the rng_csrng_bias test.
-        """
+        # Write each configuration block to the target.
+        self.target.write(json.dumps(core_config).encode("ascii"))
+        self.target.write(json.dumps(sensor_config).encode("ascii"))
+        self.target.write(json.dumps(alert_config).encode("ascii"))
+
+        device_id = self.target.read_response()
+        sensors = self.target.read_response()
+        alerts = self.target.read_response()
+        owner_page = self.target.read_response()
+        boot_log = self.target.read_response()
+        boot_measurements = self.target.read_response()
+        version = self.target.read_response()
+        return (
+            device_id,
+            sensors,
+            alerts,
+            owner_page,
+            boot_log,
+            boot_measurements,
+            version,
+        )
+
+    def rng_csrng_bias(self, trigger: int) -> None:
+        """Starts the rng_csrng_bias test."""
         # RngFi command.
         time.sleep(0.05)
         self._ujson_rng_cmd()
         # CsrngBias command.
         time.sleep(0.05)
         self.target.write(json.dumps("CsrngBias").encode("ascii"))
+        if trigger == 0:
+            mode = {
+                "start_trigger": True,
+                "valid_trigger": False,
+                "read_trigger": False,
+                "all_trigger": False,
+            }
+        elif trigger == 1:
+            mode = {
+                "start_trigger": False,
+                "valid_trigger": True,
+                "read_trigger": False,
+                "all_trigger": False,
+            }
+        elif trigger == 2:
+            mode = {
+                "start_trigger": False,
+                "valid_trigger": False,
+                "read_trigger": True,
+                "all_trigger": False,
+            }
+        elif trigger == 3:
+            mode = {
+                "start_trigger": False,
+                "valid_trigger": False,
+                "read_trigger": False,
+                "all_trigger": True,
+            }
+        self.target.write(json.dumps(mode).encode("ascii"))
 
     def rng_edn_resp_ack(self) -> None:
-        """ Starts the rng_edn_resp_ack test.
-        """
+        """Starts the rng_edn_resp_ack test."""
         # RngFi command.
         time.sleep(0.05)
         self._ujson_rng_cmd()
@@ -74,8 +119,7 @@ class OTFIRng:
         self.target.write(json.dumps("EdnRespAck").encode("ascii"))
 
     def rng_edn_bias(self) -> None:
-        """ Starts the rng_edn_bias test.
-        """
+        """Starts the rng_edn_bias test."""
         # RngFi command.
         time.sleep(0.05)
         self._ujson_rng_cmd()
@@ -83,13 +127,19 @@ class OTFIRng:
         time.sleep(0.05)
         self.target.write(json.dumps("EdnBias").encode("ascii"))
 
-    def rng_fw_overwrite(self, init: Optional[bool] = False,
-                         disable_health_check: Optional[bool] = False) -> None:
-        """ Starts the rng_fw_overwrite test.
+    def rng_entropy_bias(self) -> None:
+        """Starts the entropy_src_bias test."""
+        # RngFi command.
+        time.sleep(0.05)
+        self._ujson_rng_cmd()
+        # EntropySrcBias command.
+        time.sleep(0.05)
+        self.target.write(json.dumps("EntropySrcBias").encode("ascii"))
+
+    def rng_fw_overwrite(self, disable_health_check: Optional[bool] = False) -> None:
+        """Starts the rng_fw_overwrite test.
 
         Args:
-            init: Using disable_health_check is only possible at the very first
-              rng_fw_overwrite test. Afterwards this option cannot be switched.
             disable_health_check: Turn the health check on or off.
         """
         # RngFi command.
@@ -98,34 +148,19 @@ class OTFIRng:
         # FWOverride command.
         time.sleep(0.05)
         self.target.write(json.dumps("FWOverride").encode("ascii"))
-        if init:
-            data = {"disable_health_check": disable_health_check}
-            self.target.write(json.dumps(data).encode("ascii"))
+        data = {"disable_health_check": disable_health_check}
+        self.target.write(json.dumps(data).encode("ascii"))
 
-    def start_test(self, cfg: dict) -> None:
-        """ Start the selected test.
+    def start_test(self, cfg: dict, *args, **kwargs) -> None:
+        """Start the selected test.
 
         Call the function selected in the config file. Uses the getattr()
         construct to call the function.
 
         Args:
             cfg: Config dict containing the selected test.
+            *args: Variable length argument list to be passed to the test function.
+            **kwargs: Arbitrary keyword arguments to be passed to the test function.
         """
         test_function = getattr(self, cfg["test"]["which_test"])
-        test_function()
-
-    def read_response(self, max_tries: Optional[int] = 1) -> str:
-        """ Read response from RNG FI framework.
-        Args:
-            max_tries: Maximum number of attempts to read from UART.
-
-        Returns:
-            The JSON response of OpenTitan.
-        """
-        it = 0
-        while it != max_tries:
-            read_line = str(self.target.readline())
-            if "RESP_OK" in read_line:
-                return read_line.split("RESP_OK:")[1].split(" CRC:")[0]
-            it += 1
-        return ""
+        test_function(*args, **kwargs)

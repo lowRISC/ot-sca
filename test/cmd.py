@@ -11,18 +11,18 @@ from typing import Union
 class Args:
     """Command-line arguments"""
 
-    def __init__(self, cmd: Union[str, 'list[str]']):
+    def __init__(self, cmd: Union[str, "list[str]"]):
         """Construct arguments from a string or from a list of strings.
 
         If a single string is given, split the string on spaces to form separate arguments.  If a
         list of strings is given, take each string in the list as one argument.
         """
         if isinstance(cmd, str):
-            self._args = cmd.split(' ')
+            self._args = cmd.split(" ")
         else:
             self._args = cmd
 
-    def __add__(self, other: 'Args') -> 'Args':
+    def __add__(self, other: "Args") -> "Args":
         """Concatenate two argument lists and return the result."""
         return Args(list(self) + list(other))
 
@@ -56,26 +56,30 @@ class Cmd:
     def __repr__(self) -> str:
         return f"Cmd({self._args})"
 
-    def run(self) -> 'Cmd':
+    def run(self) -> "Cmd":
         """Run the command as subprocess and capture its stdout and stderr.
 
         If the expected returncode is not None, assert that it matches the actual returncode.
         """
-        self._proc = subprocess.Popen(self._args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self._proc = subprocess.Popen(
+            self._args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         self._stdout, self._stderr = self._proc.communicate()
         self._returncode = self._proc.returncode
 
         if self._exp_returncode is not None:
             assert self._returncode == self._exp_returncode, (
                 f"{self._args} returned {self._returncode} instead of {self._exp_returncode}, "
-                f"with the following stderr:\n{self.stderr_utf8()}")
+                f"with the following stderr:\n{self.stderr_utf8()}"
+            )
 
         return self
 
-    def set_exp_returncode(self, exp_returncode) -> 'Cmd':
+    def set_exp_returncode(self, exp_returncode) -> "Cmd":
         """Set the expected returncode.
 
-        To disable any assertions on the returncode, set the expected returncode to None."""
+        To disable any assertions on the returncode, set the expected returncode to None.
+        """
         self._exp_returncode = exp_returncode
         return self
 

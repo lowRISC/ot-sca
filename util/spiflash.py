@@ -17,58 +17,64 @@ class SpiProgrammer:
 
     Initializes pins, resets OpenTitan, assert strap pins, and programs the flash.
     """
+
     # Pin mappings for CW305/CW310 boards.
-    PinMapping = namedtuple('PinMapping', [
-        'sck',
-        'sdi',
-        'sdo',
-        'cs',
-        'trst',
-        'srst',
-        'sw_strap0',
-        'sw_strap1',
-        'sw_strap2',
-        'tap_strap0',
-        'tap_strap1',
-    ])
+    PinMapping = namedtuple(
+        "PinMapping",
+        [
+            "sck",
+            "sdi",
+            "sdo",
+            "cs",
+            "trst",
+            "srst",
+            "sw_strap0",
+            "sw_strap1",
+            "sw_strap2",
+            "tap_strap0",
+            "tap_strap1",
+        ],
+    )
     PIN_MAPPINGS = {}
     PIN_MAPPINGS[id(CW305)] = PinMapping(
-        sck='USB_A9',
-        sdi='USB_A10',
-        sdo='USB_A11',
-        cs='USB_A12',
-        trst='USB_A13',
-        srst='USB_A14',
-        sw_strap0='USB_A15',
-        sw_strap1='USB_A16',
-        sw_strap2='USB_A17',
-        tap_strap0='USB_A18',
-        tap_strap1='USB_A19',
+        sck="USB_A9",
+        sdi="USB_A10",
+        sdo="USB_A11",
+        cs="USB_A12",
+        trst="USB_A13",
+        srst="USB_A14",
+        sw_strap0="USB_A15",
+        sw_strap1="USB_A16",
+        sw_strap2="USB_A17",
+        tap_strap0="USB_A18",
+        tap_strap1="USB_A19",
     )
     PIN_MAPPINGS[id(CW310)] = PinMapping(
-        sck='USB_SPI_SCK',
-        sdi='USB_SPI_COPI',
-        sdo='USB_SPI_CIPO',
-        cs='USB_SPI_CS',
-        trst='USB_A13',
-        srst='USB_A14',
-        sw_strap0='USB_A15',
-        sw_strap1='USB_A16',
-        sw_strap2='USB_A17',
-        tap_strap0='USB_A18',
-        tap_strap1='USB_A19',
+        sck="USB_SPI_SCK",
+        sdi="USB_SPI_COPI",
+        sdo="USB_SPI_CIPO",
+        cs="USB_SPI_CS",
+        trst="USB_A13",
+        srst="USB_A14",
+        sw_strap0="USB_A15",
+        sw_strap1="USB_A16",
+        sw_strap2="USB_A17",
+        tap_strap0="USB_A18",
+        tap_strap1="USB_A19",
     )
-    INITIAL_VALUES = PinMapping(sck=0,
-                                sdi=0,
-                                sdo=0,
-                                cs=0,
-                                trst=1,
-                                srst=1,
-                                sw_strap0=0,
-                                sw_strap1=0,
-                                sw_strap2=0,
-                                tap_strap0=0,
-                                tap_strap1=0)
+    INITIAL_VALUES = PinMapping(
+        sck=0,
+        sdi=0,
+        sdo=0,
+        cs=0,
+        trst=1,
+        srst=1,
+        sw_strap0=0,
+        sw_strap1=0,
+        sw_strap2=0,
+        tap_strap0=0,
+        tap_strap1=0,
+    )
 
     RESET_DELAY = 0.1
     BUSY_POLL_DELAY = 0.01
@@ -90,10 +96,9 @@ class SpiProgrammer:
             self.io.pin_set_output(mapped_to)
             self.io.pin_set_state(mapped_to, getattr(self.INITIAL_VALUES, pin))
         # Initialize SPI pins
-        self.io.spi1_setpins(sck=self.pins.sck,
-                             sdo=self.pins.sdi,
-                             sdi=self.pins.sdo,
-                             cs=self.pins.cs)
+        self.io.spi1_setpins(
+            sck=self.pins.sck, sdo=self.pins.sdi, sdi=self.pins.sdo, cs=self.pins.cs
+        )
         self.io.spi1_enable(True)
 
     def reset(self):
@@ -132,7 +137,7 @@ class SpiProgrammer:
 
     def read_status(self):
         """Reads the SPI Flash status register."""
-        return self.transceive(bytes([0x05, 0xff]))[1]
+        return self.transceive(bytes([0x05, 0xFF]))[1]
 
     def write_enable(self):
         """Sends the write enable command."""
@@ -144,7 +149,7 @@ class SpiProgrammer:
         Also handles enabling writes and busy polling.
         """
         self.write_enable()
-        self.transceive(bytes([0xc7]))
+        self.transceive(bytes([0xC7]))
         self.busy_poll()
 
     def write_enable_and_page_program(self, addr, data):
@@ -153,8 +158,7 @@ class SpiProgrammer:
         Also handles enabling writes and busy polling.
         """
         self.write_enable()
-        packet = bytes([0x02]) + addr.to_bytes(
-            3, byteorder="big", signed=False) + data
+        packet = bytes([0x02]) + addr.to_bytes(3, byteorder="big", signed=False) + data
         self.transceive(packet)
         self.busy_poll()
 
@@ -171,16 +175,14 @@ class SpiProgrammer:
 
     def bootstrap(self, binary):
         """Bootstraps OpenTitan with the given binary."""
-        with open(binary, mode='rb') as f:
+        with open(binary, mode="rb") as f:
             with self.bootstrapper() as _:
                 self.write_enable_and_chip_erase()
                 # Read fixed-size blocks from the firmware image.
                 # Note: The second argument ``b''`` to ``iter`` below is the sentinel value that
                 # ends the loop, i.e. the value returned by ``f.read`` at EOF.
                 addr = 0
-                for data in iter(partial(f.read, self.PAYLOAD_SIZE), b''):
-                    print(
-                        f'Programming {len(data)} bytes at address 0x{addr:08x}.'
-                    )
+                for data in iter(partial(f.read, self.PAYLOAD_SIZE), b""):
+                    print(f"Programming {len(data)} bytes at address 0x{addr:08x}.")
                     self.write_enable_and_page_program(addr, data)
                     addr += len(data)

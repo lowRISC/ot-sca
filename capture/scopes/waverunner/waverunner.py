@@ -115,21 +115,23 @@ class WaveRunner:
         # https://cdn.teledynelecroy.com/files/manuals/maui-remote-control-and-automation-manual.pdf
         # Note: Scope error log under Utilities/Remote/Show Remote Control Log
         # Note: Beware of numbering; idx starts at 0
-        error_msg = ["OK.",
-                     "Unrecognized command/query header.",
-                     "Illegal header path.",
-                     "Illegal number.",
-                     "Illegal number suffix.",
-                     "Unrecognized keyword.",
-                     "String error.",
-                     "GET embedded in another message.",
-                     "",
-                     "",
-                     "Arbitrary data block expected.",
-                     "Non-digit character in byte count field of arbitrary data block.",
-                     "EOI detected during definite length data block transfer.",
-                     "Extra bytes detected during definite length data block transfer"]
-        return_code = int((re.findall(r'\d+', self._ask("CMR?")))[0])
+        error_msg = [
+            "OK.",
+            "Unrecognized command/query header.",
+            "Illegal header path.",
+            "Illegal number.",
+            "Illegal number suffix.",
+            "Unrecognized keyword.",
+            "String error.",
+            "GET embedded in another message.",
+            "",
+            "",
+            "Arbitrary data block expected.",
+            "Non-digit character in byte count field of arbitrary data block.",
+            "EOI detected during definite length data block transfer.",
+            "Extra bytes detected during definite length data block transfer",
+        ]
+        return_code = int((re.findall(r"\d+", self._ask("CMR?")))[0])
         if return_code > 13 or return_code in [8, 9]:
             return_msg = f"{return_code} Unkown error code"
         else:
@@ -166,7 +168,7 @@ class WaveRunner:
         self._get_and_print_cmd_error()
         # remove echoed command characters from beginning
         setup_data = setup_data[5:]
-        local_file = open(file_name_local, "w", encoding='utf-8')
+        local_file = open(file_name_local, "w", encoding="utf-8")
         local_file.write(setup_data)
         local_file.close()
 
@@ -174,7 +176,7 @@ class WaveRunner:
         # Note: Preserve line endings so that lenght matches
         # File probably received/stored from Windows scope with \r\n
         print("WAVERUNNER: Loading setup from " + file_name_local)
-        local_file = open(file_name_local, "r", newline='', encoding='utf-8')
+        local_file = open(file_name_local, "r", newline="", encoding="utf-8")
         data_read_from_file = local_file.read()
         file_name_scope = "'D:\\Temporary_setup.lss'"
         self._write_to_file_on_scope(file_name_scope, data_read_from_file)
@@ -196,12 +198,17 @@ class WaveRunner:
     def _print_device_info(self):
         def print_info(manufacturer, model, serial, version, opts):
             # TODO: logging
-            print(f"WAVERUNNER: Connected to {manufacturer} {model} (ip: "
-                  f"{self._ip_addr}, serial: {serial}, "
-                  f"version: {version}, options: {opts})")
+            print(
+                f"WAVERUNNER: Connected to {manufacturer} {model} (ip: "
+                f"{self._ip_addr}, serial: {serial}, "
+                f"version: {version}, options: {opts})"
+            )
             if opts == "WARNING : CURRENT REMOTE CONTROL INTERFACE IS TCPIP":
-                print("ERROR: WAVERUNNER: Must set remote control to VXI11 on scope under: "
-                      "Utilities > Utilities Setup > Remote")
+                print(
+                    "ERROR: WAVERUNNER: Must set remote control to VXI11 on scope under: "
+                    "Utilities > Utilities Setup > Remote"
+                )
+
         print_info(**self._device_info)
 
     def _default_setup(self):
@@ -239,9 +246,13 @@ class WaveRunner:
             f"{self.acqu_channel}:OFST 105MV",
         ]
         self._write(";".join(commands))
-        self._write(f"vbs 'app.Acquisition.{self.acqu_channel}.BandwidthLimit = \"200MHz\"'")
+        self._write(
+            f"vbs 'app.Acquisition.{self.acqu_channel}.BandwidthLimit = \"200MHz\"'"
+        )
         # Noise filtering - reduces bandwidth.
-        self._write(f"vbs 'app.Acquisition.{self.acqu_channel}.EnhanceResType = \"2.5bits\"'")
+        self._write(
+            f"vbs 'app.Acquisition.{self.acqu_channel}.EnhanceResType = \"2.5bits\"'"
+        )
 
     def _configure_trigger_channel(self):
         # Note this is a default configuration and might not be meaningfull always
@@ -303,16 +314,15 @@ class WaveRunner:
         ]
         self._write(";".join(commands))
 
-    def configure_waveform_transfer_general(self,
-                                            num_segments,
-                                            sparsing,
-                                            num_samples,
-                                            first_point,
-                                            acqu_channel):
+    def configure_waveform_transfer_general(
+        self, num_segments, sparsing, num_samples, first_point, acqu_channel
+    ):
         """Configures the oscilloscope for acqu with given parameters."""
-        print(f"WAVERUNNER: Configuring with num_segments={num_segments}, "
-              f"sparsing={sparsing}, num_samples={num_samples}, "
-              f"first_point={first_point}, acqu_channel=" + acqu_channel)
+        print(
+            f"WAVERUNNER: Configuring with num_segments={num_segments}, "
+            f"sparsing={sparsing}, num_samples={num_samples}, "
+            f"first_point={first_point}, acqu_channel=" + acqu_channel
+        )
         self.num_samples = num_samples
         self.num_segments = num_segments
         self.acqu_channel = acqu_channel
@@ -378,11 +388,15 @@ class WaveRunner:
         # Note: We use frombufer to minimize processing overhead.
         waves = np.frombuffer(data, dtype, len_, 22)
         # Reshape
-        waves = waves.reshape((self.num_segments, int(waves.shape[0] / self.num_segments)))
+        waves = waves.reshape(
+            (self.num_segments, int(waves.shape[0] / self.num_segments))
+        )
         if waves.shape[1] != self.num_samples:
-            print("WAVERUNNER: ERROR: scope returned too many samples per trace or segment")
+            print(
+                "WAVERUNNER: ERROR: scope returned too many samples per trace or segment"
+            )
             # Truncate, but means scope returns more samples than expected!
-            waves = waves[:, 0:self.num_samples]
+            waves = waves[:, 0: self.num_samples]
         return waves
 
     def capture_and_transfer_waves(self):

@@ -36,7 +36,7 @@ The capture configs stored in `configs/` follow the following structure:
 - capture
 - test
 
-The target entry specifies the target. Currently, only the `cw310` or `cw305`
+The target entry specifies the target. Currently, only the `cw310`
 FGPA boards are supported. The scope entry defines (indirectly) the sampling
 rate as well as the scope gain and cycle offset. With the capture entry, the
 user can select the corresponding scope, configure the trace plot, and select
@@ -51,6 +51,3 @@ a template. The template follows the following structure:
 - Configure the cipher and establish the communication interface
 - Capture traces
 - Print traces
-
-The communication interface (e.g., the individual simpleserial commands) for
-each cipher needs to be added to `lib/ot_communication.py`.

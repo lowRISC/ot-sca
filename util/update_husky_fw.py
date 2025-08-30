@@ -9,7 +9,7 @@ import chipwhisperer as cw
 
 
 def parse_arguments(argv):
-    """ Command line argument parsing.
+    """Command line argument parsing.
 
     Args:
         argv: The command line arguments.
@@ -18,12 +18,14 @@ def parse_arguments(argv):
         The parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Parse")
-    parser.add_argument("-s",
-                        "--sn",
-                        dest="sn",
-                        type=int,
-                        required=False,
-                        help="Serial number of CW Husky")
+    parser.add_argument(
+        "-s",
+        "--sn",
+        dest="sn",
+        type=int,
+        required=False,
+        help="Serial number of CW Husky",
+    )
 
     args = parser.parse_args(argv)
 
@@ -31,7 +33,7 @@ def parse_arguments(argv):
 
 
 def update_fw(argv=None) -> None:
-    """ Check ChipWhisperer API version.
+    """Check ChipWhisperer API version.
 
     Read CW API version and compare against expected version.
 

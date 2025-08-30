@@ -83,7 +83,7 @@ def ap_check_dir_exists(path: str) -> Path:
 
 
 def parse_arguments(argv):
-    """ Command line argument parsing.
+    """Command line argument parsing.
 
     Args:
         argv: The command line arguments.
@@ -92,36 +92,46 @@ def parse_arguments(argv):
         The parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Parse")
-    parser.add_argument("-c",
-                        "--capture_config",
-                        dest="cfg",
-                        type=ap_check_file_exists,
-                        required=True,
-                        help="Path of the attack config file")
-    parser.add_argument("-p",
-                        "--project",
-                        dest="project",
-                        type=ap_check_dir_exists,
-                        required=True,
-                        help="Path of the output project directory")
-    parser.add_argument("-n",
-                        "--note",
-                        dest="notes",
-                        type=str,
-                        required=False,
-                        help="Notes to be stored in the project database")
-    parser.add_argument("-b",
-                        "--save_bitstream",
-                        dest="save_bitstream",
-                        type=bool,
-                        required=False,
-                        help="Save bitstream into project database")
-    parser.add_argument("-f",
-                        "--save_binary",
-                        dest="save_binary",
-                        type=bool,
-                        required=False,
-                        help="Save binary into project database")
+    parser.add_argument(
+        "-c",
+        "--capture_config",
+        dest="cfg",
+        type=ap_check_file_exists,
+        required=True,
+        help="Path of the attack config file",
+    )
+    parser.add_argument(
+        "-p",
+        "--project",
+        dest="project",
+        type=ap_check_dir_exists,
+        required=True,
+        help="Path of the output project directory",
+    )
+    parser.add_argument(
+        "-n",
+        "--note",
+        dest="notes",
+        type=str,
+        required=False,
+        help="Notes to be stored in the project database",
+    )
+    parser.add_argument(
+        "-b",
+        "--save_bitstream",
+        dest="save_bitstream",
+        type=bool,
+        required=False,
+        help="Save bitstream into project database",
+    )
+    parser.add_argument(
+        "-f",
+        "--save_binary",
+        dest="save_binary",
+        type=bool,
+        required=False,
+        help="Save binary into project database",
+    )
 
     args = parser.parse_args(argv)
 

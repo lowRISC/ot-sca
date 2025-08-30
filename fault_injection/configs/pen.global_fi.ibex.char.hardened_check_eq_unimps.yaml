@@ -1,0 +1,215 @@
+target:
+  target_type: cw310
+  fpga_bitstream: "../objs/lowrisc_systems_chip_earlgrey_cw310_0.1.bit"
+  force_program_bitstream: False
+  fw_bin: "../objs/fi_ujson_fpga_cw310.bin"
+  opentitantool: "../objs/opentitantool"
+  # You can specify the port or leave it empty to find it automatically.
+  target_clk_mult: 0.24
+  target_freq: 24000000
+  baudrate: 115200
+fisetup:
+  fi_gear: "husky"
+  fi_type: "voltage_glitch"
+  # Voltage glitch width in cycles.
+  glitch_width_min: 5
+  glitch_width_max: 150
+  glitch_width_step: 3
+  # Range for trigger delay in cycles.
+  trigger_delay_min: 0
+  trigger_delay_max: 500
+  trigger_step: 10
+  # Number of iterations for the parameter sweep.
+  num_iterations: 10000
+fiproject:
+  # Project database type and memory threshold.
+  project_db: "ot_fi_project"
+  project_mem_threshold: 10000
+  # Store FI plot.
+  show_plot: True
+  num_plots: 100
+  plot_x_axis: "trigger_delay"
+  plot_x_axis_legend: "[cycles]"
+  plot_y_axis: "glitch_width"
+  plot_y_axis_legend: "[cycles]"
+test:
+  which_test: "ibex_char_hardened_check_eq_unimp"
+  # which_test: "ibex_char_hardened_check_eq_2_unimps"
+  # which_test: "ibex_char_hardened_check_eq_3_unimps"
+  # which_test: "ibex_char_hardened_check_eq_4_unimps"
+  # which_test: "ibex_char_hardened_check_eq_5_unimps"
+  # which_test: "ibex_char_hardened_check_eq_complement_branch"
+  # For this test, the expected result is actually a crash of the system. On
+  # a successful FI attack, this could be one result:
+  expected_result: '{"result1":0,"result2":1,"err_status":0,"alerts":0}'
+  # Set to true if the test should ignore alerts returned by the test. As the
+  # alert handler on the device could sometime fire alerts that are not
+  # related to the FI, ignoring is by default set to true. A manual analysis
+  # still can be performed as the alerts are stored in the database.
+  ignore_alerts: True
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }
+  alert_config: {
+    "alert_classes": [
+        2,  # "uart0_fatal_fault",
+        2,  # "uart1_fatal_fault",
+        2,  # "uart2_fatal_fault",
+        2,  # "uart3_fatal_fault",
+        0,  # "gpio_fatal_fault",
+        0,  # "spi_device_fatal_fault",
+        2,  # "i2c0_fatal_fault",
+        2,  # "i2c1_fatal_fault",
+        2,  # "i2c2_fatal_fault",
+        2,  # "pattgen_fatal_fault",
+        0,  # "rv_timer_fatal_fault",
+        0,  # "otp_ctrl_fatal_macro_error",
+        0,  # "otp_ctrl_fatal_check_error",
+        0,  # "otp_ctrl_fatal_bus_integ_error",
+        0,  # "otp_ctrl_fatal_prim_otp_alert",
+        1,  # "otp_ctrl_recov_prim_otp_alert",
+        0,  # "lc_ctrl_fatal_prog_error",
+        0,  # "lc_ctrl_fatal_state_error",
+        0,  # "lc_ctrl_fatal_bus_integ_error",
+        2,  # "spi_host0_fatal_fault",
+        2,  # "spi_host1_fatal_fault",
+        2,  # "usbdev_fatal_fault",
+        0,  # "pwrmgr_aon_fatal_fault",
+        0,  # "rstmgr_aon_fatal_fault",
+        0,  # "rstmgr_aon_fatal_cnsty_fault",
+        1,  # "clkmgr_aon_recov_fault",
+        0,  # "clkmgr_aon_fatal_fault",
+        2,  # "sysrst_ctrl_aon_fatal_fault",
+        2,  # "adc_ctrl_aon_fatal_fault",
+        2,  # "pwm_aon_fatal_fault",
+        2,  # "pinmux_aon_fatal_fault",
+        0,  # "aon_timer_aon_fatal_fault",
+        1,  # "sensor_ctrl_recov_alert",
+        0,  # "sensor_ctrl_fatal_alert",
+        0,  # "sram_ctrl_ret_aon_fatal_error",
+        1,  # "flash_ctrl_recov_err",
+        0,  # "flash_ctrl_fatal_std_err",
+        0,  # "flash_ctrl_fatal_err",
+        0,  # "flash_ctrl_fatal_prim_flash_alert",
+        1,  # "flash_ctrl_recov_prim_flash_alert",
+        0,  # "rv_dm_fatal_fault",
+        0,  # "rv_plic_fatal_fault",
+        1,  # "aes_recov_ctrl_update_err",
+        0,  # "aes_fatal_fault",
+        0,  # "hmac_fatal_fault",
+        1,  # "kmac_recov_operation_err",
+        0,  # "kmac_fatal_fault_err",
+        0,  # "otbn_fatal",
+        1,  # "otbn_recov",
+        1,  # "keymgr_recov_operation_err",
+        0,  # "keymgr_fatal_fault_err",
+        1,  # "csrng_recov_alert",
+        0,  # "csrng_fatal_alert",
+        1,  # "entropy_src_recov_alert",
+        0,  # "entropy_src_fatal_alert",
+        1,  # "edn0_recov_alert",
+        0,  # "edn0_fatal_alert",
+        1,  # "edn1_recov_alert",
+        0,  # "edn1_fatal_alert",
+        0,  # "sram_ctrl_main_fatal_error",
+        0,  # "rom_ctrl_fatal",
+        0,  # "rv_core_ibex_fatal_sw_err",
+        1,  # "rv_core_ibex_recov_sw_err",
+        0,  # "rv_core_ibex_fatal_hw_err",
+        1,  # "rv_core_ibex_recov_hw_err"
+    ],
+    "enable_alerts": [
+        True,  # "uart0_fatal_fault",
+        True,  # "uart1_fatal_fault",
+        True,  # "uart2_fatal_fault",
+        True,  # "uart3_fatal_fault",
+        True,  # "gpio_fatal_fault",
+        True,  # "spi_device_fatal_fault",
+        True,  # "i2c0_fatal_fault",
+        True,  # "i2c1_fatal_fault",
+        True,  # "i2c2_fatal_fault",
+        True,  # "pattgen_fatal_fault",
+        True,  # "rv_timer_fatal_fault",
+        True,  # "otp_ctrl_fatal_macro_error",
+        True,  # "otp_ctrl_fatal_check_error",
+        True,  # "otp_ctrl_fatal_bus_integ_error",
+        True,  # "otp_ctrl_fatal_prim_otp_alert",
+        True,  # "otp_ctrl_recov_prim_otp_alert",
+        True,  # "lc_ctrl_fatal_prog_error",
+        True,  # "lc_ctrl_fatal_state_error",
+        True,  # "lc_ctrl_fatal_bus_integ_error",
+        True,  # "spi_host0_fatal_fault",
+        True,  # "spi_host1_fatal_fault",
+        True,  # "usbdev_fatal_fault",
+        True,  # "pwrmgr_aon_fatal_fault",
+        True,  # "rstmgr_aon_fatal_fault",
+        True,  # "rstmgr_aon_fatal_cnsty_fault",
+        True,  # "clkmgr_aon_recov_fault",
+        True,  # "clkmgr_aon_fatal_fault",
+        True,  # "sysrst_ctrl_aon_fatal_fault",
+        True,  # "adc_ctrl_aon_fatal_fault",
+        True,  # "pwm_aon_fatal_fault",
+        True,  # "pinmux_aon_fatal_fault",
+        True,  # "aon_timer_aon_fatal_fault",
+        True,  # "sensor_ctrl_recov_alert",
+        True,  # "sensor_ctrl_fatal_alert",
+        True,  # "sram_ctrl_ret_aon_fatal_error",
+        # On FPGA, changing the flash alerts causes an alert itself
+        False,  # "flash_ctrl_recov_err",
+        False,  # "flash_ctrl_fatal_std_err",
+        False,  # "flash_ctrl_fatal_err",
+        False,  # "flash_ctrl_fatal_prim_flash_alert",
+        False,  # "flash_ctrl_recov_prim_flash_alert",
+        True,  # "rv_dm_fatal_fault",
+        True,  # "rv_plic_fatal_fault",
+        True,  # "aes_recov_ctrl_update_err",
+        True,  # "aes_fatal_fault",
+        True,  # "hmac_fatal_fault",
+        True,  # "kmac_recov_operation_err",
+        True,  # "kmac_fatal_fault_err",
+        True,  # "otbn_fatal",
+        True,  # "otbn_recov",
+        True,  # "keymgr_recov_operation_err",
+        True,  # "keymgr_fatal_fault_err",
+        True,  # "csrng_recov_alert",
+        True,  # "csrng_fatal_alert",
+        True,  # "entropy_src_recov_alert",
+        True,  # "entropy_src_fatal_alert",
+        True,  # "edn0_recov_alert",
+        True,  # "edn0_fatal_alert",
+        True,  # "edn1_recov_alert",
+        True,  # "edn1_fatal_alert",
+        True,  # "sram_ctrl_main_fatal_error",
+        True,  # "rom_ctrl_fatal",
+        True,  # "rv_core_ibex_fatal_sw_err",
+        True,  # "rv_core_ibex_recov_sw_err",
+        True,  # "rv_core_ibex_fatal_hw_err",
+        True,  # "rv_core_ibex_recov_hw_err"
+    ],
+    "enable_classes": [True, True, False, False],
+    "accumulation_thresholds": [2, 2, 2, 2],
+    "signals": [4294967295, 0, 2, 3],
+    "duration_cycles": [0, 7200, 48, 48],
+    "ping_timeout": 1200,
+  }

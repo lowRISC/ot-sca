@@ -1,15 +1,13 @@
 target:
   target_type: chip
   fw_bin: "../objs/sca_ujson_chip_signed.img"
+  opentitantool: "../objs/opentitantool"
+  # You can specify the port or leave it empty to find it automatically.
   target_clk_mult: 1
   target_freq: 100000000
   baudrate: 115200
-  output_len_bytes: 16
-  protocol: "ujson"
-  port: "/dev/ttyUSB1"
 waverunner:
   waverunner_ip: 192.168.33.128
-  num_segments: 1
   # cycles will only be used if not given in samples
   num_cycles: 100
   # Do not capture 100 nops that are inserted to give the trigger time to rise.
@@ -19,41 +17,62 @@ waverunner:
   channel: C1
   sparsing: 0
 capture:
-  scope_select: waverunner
+  # scope_select: husky, waverunner, none
+  scope_select: none
+  num_segments: 10
   num_traces: 101
   show_plot: True
   plot_traces: 20
   trace_db: ot_trace_library
   trace_threshold: 50
 test:
+  # which_test: ibex_sca_combi_operations_batch_fvsr
+  # which_test: ibex_sca_combi_operations_batch
   # which_test: ibex_sca_tl_write_batch_fvsr
   # which_test: ibex_sca_tl_write_batch_fvsr_fix_address
   # which_test: ibex_sca_tl_write_batch_random
   # which_test: ibex_sca_tl_write_batch_random_fix_address
-  # which_test: ibex_sca_tl_write_fvsr
-  # which_test: ibex_sca_tl_write_random
+  # which_test: ibex_sca_tl_write
   # which_test: ibex_sca_tl_read_batch_fvsr
   # which_test: ibex_sca_tl_read_batch_fvsr_fix_address
   # which_test: ibex_sca_tl_read_batch_random
   # which_test: ibex_sca_tl_read_batch_random_fix_address
-  # which_test: ibex_sca_tl_read_fvsr
-  # which_test: ibex_sca_tl_read_random
+  # which_test: ibex_sca_tl_read
   # which_test: ibex_sca_register_file_write_batch_fvsr
   # which_test: ibex_sca_register_file_write_batch_random
-  # which_test: ibex_sca_register_file_write_fvsr
-  # which_test: ibex_sca_register_file_write_random
+  # which_test: ibex_sca_register_file_write
   # which_test: ibex_sca_register_file_read_batch_fvsr
   # which_test: ibex_sca_register_file_read_batch_random
-  # which_test: ibex_sca_register_file_read_fvsr
-  which_test: ibex_sca_register_file_read_random
+  # which_test: ibex_sca_register_file_read
+  which_test: ibex_sca_register_file_read
+  # Combi test uses the first two values of the fixed input.
+  input_fixed:  [0xABBABABE, 0xABADCAFE, 0xBAAAAAAD, 0xBAD22222, 0xBBADBEEF, 0xBEBEBEBE, 0xBEEFCACE, 0xC00010FF]
+  # Trigger for the combi test, 12-bit value, each bit sets the trigger for one of the 12 trigger windows.
+  trigger: 0
   # seed for PRNG to generate sequence of plaintexts and keys; Python random
   # class on host, Mersenne twister implementation on OT SW.
   batch_prng_seed: 0
-  # When True, the instruction cache is enabled.
-  enable_icache: True
-  # When True, the dummy instructions are enabled.
-  enable_dummy_instr: False
-  # When True, enable the jittery clock.
-  enable_jittery_clock: False
-  # When True, enable the SRAM readback feature.
-  sram_readback_enable: False
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }

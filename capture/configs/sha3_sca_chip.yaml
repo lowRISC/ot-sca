@@ -1,0 +1,76 @@
+target:
+  target_type: chip
+  fw_bin: "../objs/sca_ujson_chip_signed.img"
+  opentitantool: "../objs/opentitantool"
+  # You can specify the port or leave it empty to find it automatically.
+  target_clk_mult: 1
+  target_freq: 100000000
+  baudrate: 115200
+  # Trigger source.
+  # hw: Precise, hardware-generated trigger - FPGA only.
+  # sw: Fully software-controlled trigger.
+  trigger: "sw"
+waverunner:
+  waverunner_ip: 192.168.33.128
+  # num_samples: 6000
+  # offset_samples: 0
+  # cycles will only be used if not given in samples
+  num_cycles: 60
+  offset_cycles: 0
+  # sampling rate needed for cycle to sample conversion
+  sampling_rate: 2500000000
+  channel: C1
+  sparsing: 0
+capture:
+  # scope_select: husky, waverunner, none
+  scope_select: none
+  num_segments: 20
+  num_traces: 100
+  show_plot: True
+  plot_traces: 100
+  trace_db: ot_trace_library
+  trace_threshold: 10000
+test:
+  #which_test: single_absorb
+  #which_test: batch_absorb
+  which_test: single_absorb
+  # Switch the masking on or off. When off, messages aren't masked upon loading
+  # into the SHA3 core and the PRNG isn't advanced during SHA3 processing.
+  # Works for SHA3 only. Doesn't work when processing key material.
+  masks_off: true
+  text_fixed: [0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA]
+  # 32-bit seed for SW key masking. Key masks are generated using an LFSR.
+  # For unprotected implemetation, lfsr_seed should be set to 0. This will
+  # effectively switch off the masking. For masked implementation, any seed
+  # other than 0 should be used.
+  # w/o DOM
+  #lfsr_seed: 0
+  # w/ DOM
+  # 32-bit LFSR seed - Currently not used by the target for SHA3 captures.
+  lfsr_seed: 0xdeadbeef
+  # seed for PRNG to generate sequence of plaintexts and keys; Python random class on host, Mersenne twister implementation on OT SW
+  batch_prng_seed: 0
+  core_config: {
+    "enable_icache": True,
+    "enable_dummy_instr": True,
+    "dummy_instr_count": 3,
+    "enable_jittery_clock": True,
+    "enable_sram_readback": True,
+    "enable_data_ind_timing": True,
+  }
+  sensor_config: {
+      "sensor_ctrl_enable": True,
+      "sensor_ctrl_en_fatal": [
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+          False,
+      ],
+  }

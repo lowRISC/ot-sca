@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Copyright lowRISC contributors.
+# Copyright lowRISC contributors (OpenTitan project).
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
 """Lint Python for lowRISC rules"""
@@ -9,7 +9,8 @@ import os
 import subprocess
 import sys
 
-import pkg_resources
+from typing import List
+import importlib.metadata
 
 # A map from tool name to the tuple (check, fix). These are two commands which
 # should be run to check for and fix errors, respectively. If the tool doesn't
@@ -22,7 +23,7 @@ _KNOWN_TOOLS = {
 
 
 # include here because in hook case don't want to import reggen
-def show_and_exit(clitool, packages):
+def show_and_exit(clitool: str, packages: List[str]) -> None:
     util_path = os.path.dirname(os.path.realpath(clitool))
     os.chdir(util_path)
     ver = subprocess.check_output(
@@ -32,7 +33,7 @@ def show_and_exit(clitool, packages):
         ver = 'not found (not in Git repository?)'
     sys.stderr.write(clitool + " Git version " + ver + '\n')
     for p in packages:
-        sys.stderr.write(p + ' ' + pkg_resources.require(p)[0].version + '\n')
+        sys.stderr.write(p + ' ' + importlib.metadata.version(p) + '\n')
     sys.exit(0)
 
 

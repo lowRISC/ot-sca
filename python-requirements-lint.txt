@@ -5,4 +5,4 @@
 # Linters
 flake8==7.2.0
 isort==5.13.2
-yapf==0.32.0
+yapf==0.43.0

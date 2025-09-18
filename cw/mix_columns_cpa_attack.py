@@ -35,12 +35,7 @@ if key_guess != known_key:
         if known_key_bytes[i] == key_guess_bytes[i]:
             num_bytes_match += 1
     print("FAILED: key_guess != known_key")
-    print(
-        "        " +
-        str(num_bytes_match) +
-        "/" +
-        str(len(known_key_bytes)) +
-        " bytes guessed correctly."
-    )
+    print("        " + str(num_bytes_match) + "/" + str(len(known_key_bytes)) +
+          " bytes guessed correctly.")
 else:
     print("SUCCESS!")

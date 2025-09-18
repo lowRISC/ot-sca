@@ -14,6 +14,7 @@ from target.communication import common_library
 
 
 class OTSHA3:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -76,7 +77,8 @@ class OTSHA3:
                             )
                         return status
                 except Exception:
-                    raise Exception("Acknowledge error: Device and host not in sync")
+                    raise Exception(
+                        "Acknowledge error: Device and host not in sync")
             else:
                 read_counter += 1
         raise Exception("Acknowledge error: Device and host not in sync")

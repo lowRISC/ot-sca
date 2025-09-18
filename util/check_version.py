@@ -22,8 +22,7 @@ def check_cw(cw_version_exp: str) -> None:
     if cw_version != cw_version_exp:
         raise RuntimeError(
             f"Please update the Python requirements. CW version: \
-            {cw_version}, expected CW version: {cw_version_exp}"
-        )  # noqa: E501
+            {cw_version}, expected CW version: {cw_version_exp}")  # noqa: E501
 
 
 def check_husky(husky_fw_exp: str, sn: Optional[str] = None) -> None:
@@ -44,5 +43,4 @@ def check_husky(husky_fw_exp: str, sn: Optional[str] = None) -> None:
     if husky_fw != husky_fw_exp:
         raise RuntimeError(
             f"Please update the Husky firmware. FW version: {husky_fw}, \
-                expected FW version: {husky_fw_exp}"
-        )  # noqa: E501
+                expected FW version: {husky_fw_exp}")  # noqa: E501

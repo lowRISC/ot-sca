@@ -12,6 +12,7 @@ from target.communication import common_library
 
 
 class OTFIIbex:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -49,7 +50,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharUnrolledRegOpLoopChain command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharUnrolledRegOpLoopChain").encode("ascii"))
+        self.target.write(
+            json.dumps("CharUnrolledRegOpLoopChain").encode("ascii"))
 
     def ibex_char_mem_op_loop(self) -> None:
         """Starts the ibex.char.mem_op_loop test."""
@@ -101,7 +103,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharSramWriteStaticUnrolled command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharSramWriteStaticUnrolled").encode("ascii"))
+        self.target.write(
+            json.dumps("CharSramWriteStaticUnrolled").encode("ascii"))
 
     def ibex_char_sram_write_read(self) -> None:
         """Starts the ibex.char.sram_write_read test."""
@@ -262,8 +265,7 @@ class OTFIIbex:
         # CharHardenedCheckComplementBranch command.
         time.sleep(0.01)
         self.target.write(
-            json.dumps("CharHardenedCheckComplementBranch").encode("ascii")
-        )
+            json.dumps("CharHardenedCheckComplementBranch").encode("ascii"))
 
     def ibex_char_register_file(self) -> None:
         """Starts the ibex.char.register_file test."""
@@ -400,7 +402,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharHardenedCheck2Unimps command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharHardenedCheck2Unimps").encode("ascii"))
+        self.target.write(
+            json.dumps("CharHardenedCheck2Unimps").encode("ascii"))
 
     def ibex_char_hardened_check_eq_3_unimps(self) -> None:
         """Starts the ibex.fi.char.hardened_check_eq_3_unimps test."""
@@ -408,7 +411,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharHardenedCheck3Unimps command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharHardenedCheck3Unimps").encode("ascii"))
+        self.target.write(
+            json.dumps("CharHardenedCheck3Unimps").encode("ascii"))
 
     def ibex_char_hardened_check_eq_4_unimps(self) -> None:
         """Starts the ibex.fi.char.hardened_check_eq_4_unimps test."""
@@ -416,7 +420,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharHardenedCheck4Unimps command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharHardenedCheck4Unimps").encode("ascii"))
+        self.target.write(
+            json.dumps("CharHardenedCheck4Unimps").encode("ascii"))
 
     def ibex_char_hardened_check_eq_5_unimps(self) -> None:
         """Starts the ibex.fi.char.hardened_check_eq_5_unimps test."""
@@ -424,7 +429,8 @@ class OTFIIbex:
         self._ujson_ibex_fi_cmd()
         # CharHardenedCheck5Unimps command.
         time.sleep(0.01)
-        self.target.write(json.dumps("CharHardenedCheck5Unimps").encode("ascii"))
+        self.target.write(
+            json.dumps("CharHardenedCheck5Unimps").encode("ascii"))
 
     def ibex_char_combi(self) -> None:
         """Starts the ibex.fi.char.combi test."""

@@ -96,9 +96,10 @@ class SpiProgrammer:
             self.io.pin_set_output(mapped_to)
             self.io.pin_set_state(mapped_to, getattr(self.INITIAL_VALUES, pin))
         # Initialize SPI pins
-        self.io.spi1_setpins(
-            sck=self.pins.sck, sdo=self.pins.sdi, sdi=self.pins.sdo, cs=self.pins.cs
-        )
+        self.io.spi1_setpins(sck=self.pins.sck,
+                             sdo=self.pins.sdi,
+                             sdi=self.pins.sdo,
+                             cs=self.pins.cs)
         self.io.spi1_enable(True)
 
     def reset(self):
@@ -158,7 +159,8 @@ class SpiProgrammer:
         Also handles enabling writes and busy polling.
         """
         self.write_enable()
-        packet = bytes([0x02]) + addr.to_bytes(3, byteorder="big", signed=False) + data
+        packet = bytes([0x02]) + addr.to_bytes(
+            3, byteorder="big", signed=False) + data
         self.transceive(packet)
         self.busy_poll()
 
@@ -183,6 +185,8 @@ class SpiProgrammer:
                 # ends the loop, i.e. the value returned by ``f.read`` at EOF.
                 addr = 0
                 for data in iter(partial(f.read, self.PAYLOAD_SIZE), b""):
-                    print(f"Programming {len(data)} bytes at address 0x{addr:08x}.")
+                    print(
+                        f"Programming {len(data)} bytes at address 0x{addr:08x}."
+                    )
                     self.write_enable_and_page_program(addr, data)
                     addr += len(data)

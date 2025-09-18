@@ -12,6 +12,7 @@ from target.communication import common_library
 
 
 class OTFIOtp:
+
     def __init__(self, target) -> None:
         self.target = target
 

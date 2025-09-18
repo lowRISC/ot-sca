@@ -72,14 +72,15 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="""Calculate Pearson correlation between golden
             traces and captured traces. Failes when correlation
-            coefficient is below user threshold."""
-    )
-    parser.add_argument(
-        "-f", "--file_proj", required=True, help="chipwhisperer project file"
-    )
-    parser.add_argument(
-        "-g", "--file_gold_proj", required=True, help="chipwhisperergolden project file"
-    )
+            coefficient is below user threshold.""")
+    parser.add_argument("-f",
+                        "--file_proj",
+                        required=True,
+                        help="chipwhisperer project file")
+    parser.add_argument("-g",
+                        "--file_gold_proj",
+                        required=True,
+                        help="chipwhisperergolden project file")
     parser.add_argument(
         "-c",
         "--corr_coeff",

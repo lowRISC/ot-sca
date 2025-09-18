@@ -131,9 +131,8 @@ def main(argv=None):
     )
 
     trace_end = 0
-    for trace_it in tqdm(
-        range(0, num_traces, args.max_traces_mem), desc="Converting trace"
-    ):
+    for trace_it in tqdm(range(0, num_traces, args.max_traces_mem),
+                         desc="Converting trace"):
         trace_end += args.max_traces_mem
         # Fetch trace, plaintext, ciphertext, and key from DB.
         in_traces = np.array(project_in.get_waves(trace_it, trace_end))

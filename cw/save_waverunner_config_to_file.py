@@ -2,7 +2,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
 """Save WaveRunner to file for later use by script."""
 
 from datetime import datetime

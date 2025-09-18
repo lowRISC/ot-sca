@@ -1,7 +1,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
 """Utilities to run command-line programs and interpret and validate their results."""
 
 import subprocess
@@ -61,17 +60,16 @@ class Cmd:
 
         If the expected returncode is not None, assert that it matches the actual returncode.
         """
-        self._proc = subprocess.Popen(
-            self._args, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        self._proc = subprocess.Popen(self._args,
+                                      stdout=subprocess.PIPE,
+                                      stderr=subprocess.PIPE)
         self._stdout, self._stderr = self._proc.communicate()
         self._returncode = self._proc.returncode
 
         if self._exp_returncode is not None:
             assert self._returncode == self._exp_returncode, (
                 f"{self._args} returned {self._returncode} instead of {self._exp_returncode}, "
-                f"with the following stderr:\n{self.stderr_utf8()}"
-            )
+                f"with the following stderr:\n{self.stderr_utf8()}")
 
         return self
 

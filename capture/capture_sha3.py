@@ -76,9 +76,8 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = (
-        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
-    )
+    cfg["target"]["pll_frequency"] = (cfg["target"]["target_freq"] /
+                                      cfg["target"]["target_clk_mult"])
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
@@ -99,23 +98,23 @@ def setup(cfg: dict, project: Path):
         port=cfg["target"].get("port"),
         usb_serial=cfg["target"].get("usb_serial"),
         interface=cfg["target"].get("interface"),
-        husky_serial = cfg["husky"].get("usb_serial"),
+        husky_serial=cfg["husky"].get("usb_serial"),
         opentitantool=cfg["target"]["opentitantool"],
     )
     target = Target(target_cfg)
 
     if scope_type != "none":
         # Determine sampling rate, if necessary.
-        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(
+            cfg, scope_type)
         # Convert number of cycles into number of samples, if necessary.
         cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
         # Convert offset in cycles into offset in samples, if necessary.
-        cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+        cfg[scope_type]["offset_samples"] = convert_offset_cycles(
+            cfg, scope_type)
 
-        logger.info(
-            f"Initializing scope {scope_type} with a sampling rate of \
-            {cfg[scope_type]['sampling_rate']}..."
-        )  # noqa: E501
+        logger.info(f"Initializing scope {scope_type} with a sampling rate of \
+            {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
 
         # Determine if we are in batch mode or not.
         batch = True
@@ -204,8 +203,8 @@ def configure_cipher(cfg, ot_sha3, ot_prng):
         fpga_mode_bit = 1
     # Initialize KMAC on the target.
     device_id, owner_page, boot_log, boot_measurements, version = ot_sha3.init(
-        fpga_mode_bit, cfg["test"]["core_config"], cfg["test"]["sensor_config"]
-    )
+        fpga_mode_bit, cfg["test"]["core_config"],
+        cfg["test"]["sensor_config"])
 
     if cfg["test"]["masks_off"] is True:
         logger.info("Configure device to use constant, fast entropy!")
@@ -277,11 +276,11 @@ def check_digest(received_output, expected_output):
     assert received_output == expected_output, (
         f"Incorrect encryption result!\n"
         f"actual:   {received_output}\n"
-        f"expected: {expected_output}"
-    )
+        f"expected: {expected_output}")
 
 
-def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target, text_fixed):
+def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target,
+                text_fixed):
     """Initializes the target.
 
     Establish a communication interface with the target and configure the cipher.
@@ -300,8 +299,7 @@ def init_target(cfg: dict, capture_cfg: CaptureConfig, target: Target, text_fixe
 
     # Configure cipher.
     device_id, owner_page, boot_log, boot_measurements, version = configure_cipher(
-        cfg, ot_sha3, ot_prng
-    )
+        cfg, ot_sha3, ot_prng)
 
     # Configure trigger source.
     # 0 for HW, 1 for SW.
@@ -353,16 +351,16 @@ def capture(
 
     # Initialize target.
     ot_sha3, device_id, owner_page, boot_log, boot_measurements, version = init_target(
-        cfg, capture_cfg, target, text_fixed
-    )
+        cfg, capture_cfg, target, text_fixed)
 
     # Register ctrl-c handler to store traces on abort.
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(
-        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
-    ) as pbar:
+    with tqdm(total=remaining_num_traces,
+              desc="Capturing",
+              ncols=80,
+              unit=" traces") as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
             if scope is not None:
@@ -410,7 +408,8 @@ def capture(
 
             # Memory allocation optimization for CW trace library.
             if scope is not None:
-                num_segments_storage = project.optimize_capture(num_segments_storage)
+                num_segments_storage = project.optimize_capture(
+                    num_segments_storage)
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -429,7 +428,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         config: The capture configuration.
         file: The output file path.
     """
-    if config["capture"]["show_plot"] and config["capture"]["scope_select"] != "none":
+    if config["capture"]["show_plot"] and config["capture"][
+            "scope_select"] != "none":
         plot.save_plot_to_file(
             project.get_waves(0, config["capture"]["plot_traces"]),
             set_indices=None,
@@ -437,10 +437,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
             outfile=file,
             add_mean_stddev=True,
         )
-        print(
-            f'Created plot with {config["capture"]["plot_traces"]} traces: '
-            f'{Path(str(file) + ".html").resolve()}'
-        )
+        print(f'Created plot with {config["capture"]["plot_traces"]} traces: '
+              f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -474,8 +472,7 @@ def main(argv=None):
 
     # Capture traces.
     device_id, owner_page, boot_log, boot_measurements, version = capture(
-        scope, cfg, capture_cfg, project, target
-    )
+        scope, cfg, capture_cfg, project, target)
 
     # Print plot.
     print_plot(project, cfg, args.project)
@@ -500,17 +497,16 @@ def main(argv=None):
         metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
         if cfg["target"].get("fpga_bitstream") is not None:
             metadata["fpga_bitstream_crc"] = helpers.file_crc(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         if args.save_bitstream:
             metadata["fpga_bitstream"] = helpers.get_binary_blob(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         # Store binary information.
         metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
         metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
         if args.save_binary:
-            metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+            metadata["fw_bin"] = helpers.get_binary_blob(
+                cfg["target"]["fw_bin"])
         # Store user provided notes.
         metadata["notes"] = args.notes
         # Store the Git hash.

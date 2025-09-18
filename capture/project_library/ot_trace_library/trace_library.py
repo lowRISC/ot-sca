@@ -48,9 +48,11 @@ class TraceLibrary:
     database after reaching a trace memory threshold.
     """
 
-    def __init__(
-        self, db_name, trace_threshold, wave_datatype=np.uint16, overwrite=False
-    ):
+    def __init__(self,
+                 db_name,
+                 trace_threshold,
+                 wave_datatype=np.uint16,
+                 overwrite=False):
         # If .db extension is not provided, add it to the file.
         if not db_name.endswith(".db"):
             db_name = db_name + ".db"
@@ -66,7 +68,10 @@ class TraceLibrary:
         self.traces_table = db.Table(
             "traces",
             self.metadata,
-            db.Column("trace_id", db.Integer, primary_key=True, autoincrement=True),
+            db.Column("trace_id",
+                      db.Integer,
+                      primary_key=True,
+                      autoincrement=True),
             db.Column("wave", db.LargeBinary),
             db.Column("plaintext", db.LargeBinary),
             db.Column("ciphertext", db.LargeBinary),
@@ -74,9 +79,8 @@ class TraceLibrary:
             db.Column("x_pos", db.Integer),
             db.Column("y_pos", db.Integer),
         )
-        self.metadata_table = db.Table(
-            "metadata", self.metadata, db.Column("data", db.PickleType)
-        )
+        self.metadata_table = db.Table("metadata", self.metadata,
+                                       db.Column("data", db.PickleType))
         self.metadata.create_all(self.engine, checkfirst=True)
         self.trace_mem = []
         self.trace_mem_thr = trace_threshold
@@ -118,7 +122,9 @@ class TraceLibrary:
         if len(self.trace_mem) >= self.trace_mem_thr:
             self.flush_to_disk()
 
-    def get_traces(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_traces(self,
+                   start: Optional[int] = None,
+                   end: Optional[int] = None):
         """Get traces from database and stored into RAM.
 
         Fetch traces from start to end from database storage into RAM.
@@ -136,24 +142,23 @@ class TraceLibrary:
             start = start + 1
             query = db.select(self.traces_table).where(
                 (self.traces_table.c.trace_id >= start) &
-                (self.traces_table.c.trace_id <= end)
-            )
+                (self.traces_table.c.trace_id <= end))
         elif start is not None:
             # SQL ID starts at 1.
             start = start + 1
-            query = db.select(self.traces_table).where(
-                self.traces_table.c.trace_id == start
-            )
+            query = db.select(
+                self.traces_table).where(self.traces_table.c.trace_id == start)
         else:
             query = db.select(self.traces_table)
 
         return [
-            Trace(**trace._mapping) for trace in self.session.execute(query).fetchall()
+            Trace(**trace._mapping)
+            for trace in self.session.execute(query).fetchall()
         ]
 
-    def get_waves_bytearray(
-        self, start: Optional[int] = None, end: Optional[int] = None
-    ):
+    def get_waves_bytearray(self,
+                            start: Optional[int] = None,
+                            end: Optional[int] = None):
         """Get all waves from the database.
 
         Returns:
@@ -161,7 +166,9 @@ class TraceLibrary:
         """
         return [trace.wave for trace in self.get_traces(start, end)]
 
-    def get_waves(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_waves(self,
+                  start: Optional[int] = None,
+                  end: Optional[int] = None):
         """Get all waves from the database in the trace array format.
 
         Returns:
@@ -176,40 +183,34 @@ class TraceLibrary:
         else:
             return waves
 
-    def get_plaintexts(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_plaintexts(self,
+                       start: Optional[int] = None,
+                       end: Optional[int] = None):
         """Get all plaintexts between start and end from the database in the
         int8 array format.
 
         Returns:
             The int plaintexts from the database.
         """
-        plaintexts = [
-            (
-                None
-                if trace.plaintext is None
-                else np.frombuffer(trace.plaintext, np.uint8)
-            )
-            for trace in self.get_traces(start, end)
-        ]
+        plaintexts = [(None if trace.plaintext is None else np.frombuffer(
+            trace.plaintext, np.uint8))
+                      for trace in self.get_traces(start, end)]  # noqa: E126
         if len(plaintexts) == 1:
             return plaintexts[0]
         else:
             return plaintexts
 
-    def get_ciphertexts(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_ciphertexts(self,
+                        start: Optional[int] = None,
+                        end: Optional[int] = None):
         """Get all ciphertexts between start and end from the database in the
         int8 array format.
         Returns:
             The int ciphertexts from the database.
         """
-        ciphertexts = [
-            (
-                None
-                if trace.ciphertext is None
-                else np.frombuffer(trace.ciphertext, np.uint8)
-            )
-            for trace in self.get_traces(start, end)
-        ]
+        ciphertexts = [(None if trace.ciphertext is None else np.frombuffer(
+            trace.ciphertext, np.uint8))
+                       for trace in self.get_traces(start, end)]  # noqa: E126
         if len(ciphertexts) == 1:
             return ciphertexts[0]
         else:
@@ -254,5 +255,6 @@ class TraceLibrary:
             The metadata from the database.
         """
         query = db.select(self.metadata_table)
-        metadata = Metadata(**self.session.execute(query).fetchall()[0]._mapping)
+        metadata = Metadata(
+            **self.session.execute(query).fetchall()[0]._mapping)
         return pickle.loads(bytes(metadata.data, encoding="latin1"))

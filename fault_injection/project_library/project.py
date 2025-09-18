@@ -97,7 +97,9 @@ class FIProject:
             )
             self.project.write_to_buffer(firesult)
 
-    def get_firesults(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_firesults(self,
+                      start: Optional[int] = None,
+                      end: Optional[int] = None):
         """Get FI results from database and stored into RAM.
 
         Fetch FI results from start to end from database storage into RAM.

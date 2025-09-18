@@ -29,21 +29,34 @@ def gen_trs_headers(project, export_key):
       trs file header.
     """
     return {
-        trsfile.Header.LABEL_X: "s",
-        trsfile.Header.LABEL_Y: "V",
-        trsfile.Header.NUMBER_SAMPLES: len(project.waves[0]),
-        trsfile.Header.TRACE_TITLE: "title",
-        trsfile.Header.TRACE_OVERLAP: False,
-        trsfile.Header.GO_LAST_TRACE: False,
-        trsfile.Header.SAMPLE_CODING: trsfile.SampleCoding.FLOAT,
-        trsfile.Header.LENGTH_DATA: len(gen_trs_data(project.traces[0], export_key)),
+        trsfile.Header.LABEL_X:
+        "s",
+        trsfile.Header.LABEL_Y:
+        "V",
+        trsfile.Header.NUMBER_SAMPLES:
+        len(project.waves[0]),
+        trsfile.Header.TRACE_TITLE:
+        "title",
+        trsfile.Header.TRACE_OVERLAP:
+        False,
+        trsfile.Header.GO_LAST_TRACE:
+        False,
+        trsfile.Header.SAMPLE_CODING:
+        trsfile.SampleCoding.FLOAT,
+        trsfile.Header.LENGTH_DATA:
+        len(gen_trs_data(project.traces[0], export_key)),
         # TODO: Hardcoded to 200mV. Consider calculating the range directly from
         # the traces.
-        trsfile.Header.ACQUISITION_RANGE_OF_SCOPE: 0.200,
-        trsfile.Header.ACQUISITION_COUPLING_OF_SCOPE: 1,
-        trsfile.Header.ACQUISITION_OFFSET_OF_SCOPE: 0.0,
-        trsfile.Header.ACQUISITION_DEVICE_ID: b"CWHusky",
-        trsfile.Header.ACQUISITION_TYPE_FILTER: 0,
+        trsfile.Header.ACQUISITION_RANGE_OF_SCOPE:
+        0.200,
+        trsfile.Header.ACQUISITION_COUPLING_OF_SCOPE:
+        1,
+        trsfile.Header.ACQUISITION_OFFSET_OF_SCOPE:
+        0.0,
+        trsfile.Header.ACQUISITION_DEVICE_ID:
+        b"CWHusky",
+        trsfile.Header.ACQUISITION_TYPE_FILTER:
+        0,
     }
 
 
@@ -63,19 +76,18 @@ def calc_data_offsets(trace, export_key, header):
     key_offset = output_offset + output_len
     key_len = len(trace.key)
 
-    header.update(
-        {
-            trsfile.Header.INPUT_OFFSET: input_offset,
-            trsfile.Header.INPUT_LENGTH: input_len,
-            trsfile.Header.OUTPUT_OFFSET: output_offset,
-            trsfile.Header.OUTPUT_LENGTH: output_len,
-        }
-    )
+    header.update({
+        trsfile.Header.INPUT_OFFSET: input_offset,
+        trsfile.Header.INPUT_LENGTH: input_len,
+        trsfile.Header.OUTPUT_OFFSET: output_offset,
+        trsfile.Header.OUTPUT_LENGTH: output_len,
+    })
 
     if export_key:
-        header.update(
-            {trsfile.Header.KEY_OFFSET: key_offset, trsfile.Header.KEY_LENGTH: key_len}
-        )
+        header.update({
+            trsfile.Header.KEY_OFFSET: key_offset,
+            trsfile.Header.KEY_LENGTH: key_len
+        })
 
 
 def gen_trs_data(trace, export_key):
@@ -117,28 +129,34 @@ def cw_project_to_trs(project_name, trs_filename, export_keys):
                 trsfile.SampleCoding.FLOAT,
                 trace.wave,
                 data=gen_trs_data(trace, export_keys),
-            )
-        )
+            ))
 
     print("Writing output file, this may take a while.")
-    with trsfile.trs_open(
-        trs_filename, "w", engine="TrsEngine", headers=h, live_update=True
-    ) as t:
+    with trsfile.trs_open(trs_filename,
+                          "w",
+                          engine="TrsEngine",
+                          headers=h,
+                          live_update=True) as t:
         t.extend(traces)
 
 
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input", "-i", type=str, required=True, help="Input ChipWhisperer project."
-    )
-    parser.add_argument(
-        "--output", "-o", type=str, required=True, help="Output trs filename."
-    )
-    parser.add_argument(
-        "--export-key", "-k", action="store_true", help="Include keys in data output."
-    )
+    parser.add_argument("--input",
+                        "-i",
+                        type=str,
+                        required=True,
+                        help="Input ChipWhisperer project.")
+    parser.add_argument("--output",
+                        "-o",
+                        type=str,
+                        required=True,
+                        help="Output trs filename.")
+    parser.add_argument("--export-key",
+                        "-k",
+                        action="store_true",
+                        help="Include keys in data output.")
     args = parser.parse_args()
     return args
 

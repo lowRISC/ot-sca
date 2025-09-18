@@ -7,4 +7,5 @@ import random
 
 def random_float_range(min: float, max: float, step: float) -> float:
     """Returns a random float between min and max with step."""
-    return round(random.randint(0, int(round((max - min) / step))) * step + min, 4)
+    return round(
+        random.randint(0, int(round((max - min) / step))) * step + min, 4)

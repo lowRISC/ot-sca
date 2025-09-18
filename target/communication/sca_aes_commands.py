@@ -13,6 +13,7 @@ from target.communication import common_library
 
 
 class OTAES:
+
     def __init__(self, target) -> None:
         self.target = target
 

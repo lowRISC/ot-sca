@@ -46,7 +46,8 @@ class FILibrary:
     one. FIResults are first written into memory and then flushed into the
     database after reaching a FIResults memory threshold.
     """
-    def __init__(self, db_name, fi_threshold, overwrite = False):
+
+    def __init__(self, db_name, fi_threshold, overwrite=False):
         if overwrite:
             fi_lib_file = Path(db_name + ".db")
             fi_lib_file.unlink(missing_ok=True)
@@ -57,7 +58,9 @@ class FILibrary:
         self.firesults_table = db.Table(
             "firesults",
             self.metadata,
-            db.Column("fi_id", db.Integer, primary_key=True,
+            db.Column("fi_id",
+                      db.Integer,
+                      primary_key=True,
                       autoincrement=True),
             db.Column("response", db.String),
             db.Column("fi_result", db.Integer),
@@ -67,11 +70,8 @@ class FILibrary:
             db.Column("x_pos", db.Integer),
             db.Column("y_pos", db.Integer),
         )
-        self.metadata_table = db.Table(
-            "metadata",
-            self.metadata,
-            db.Column("data", db.PickleType)
-        )
+        self.metadata_table = db.Table("metadata", self.metadata,
+                                       db.Column("data", db.PickleType))
         self.metadata.create_all(self.engine)
         self.fi_mem = []
         self.fi_mem_thr = fi_threshold
@@ -104,7 +104,8 @@ class FILibrary:
         if len(self.fi_mem) >= self.fi_mem_thr:
             self.flush_to_disk()
 
-    def get_firesults(self, start: Optional[int] = None,
+    def get_firesults(self,
+                      start: Optional[int] = None,
                       end: Optional[int] = None):
         """ Get FIResults from database and store into RAM.
 
@@ -132,8 +133,10 @@ class FILibrary:
         else:
             query = db.select(self.firesults_table)
 
-        return [FIResult(**firesult._mapping)
-                for firesult in self.session.execute(query).fetchall()]
+        return [
+            FIResult(**firesult._mapping)
+            for firesult in self.session.execute(query).fetchall()
+        ]
 
     def write_metadata(self, metadata):
         """ Write metadata into database.
@@ -153,5 +156,6 @@ class FILibrary:
             The metadata from the database.
         """
         query = db.select(self.metadata_table)
-        metadata = Metadata(**self.session.execute(query).fetchall()[0]._mapping)
+        metadata = Metadata(
+            **self.session.execute(query).fetchall()[0]._mapping)
         return pickle.loads(bytes(metadata.data, encoding="latin1"))

@@ -28,13 +28,15 @@ def compute_histograms_general(trace_resolution, traces, leakage):
         histograms[0, 0, :, i_sample, :] = np.histogram2d(
             leakage,
             traces[:, i_sample],
-            bins=[range(num_leakages + 1), range(trace_resolution + 1)],
+            bins=[range(num_leakages + 1),
+                  range(trace_resolution + 1)],
         )[0]
 
     return histograms
 
 
-def compute_histograms_aes_byte(trace_resolution, rnd_list, byte_list, traces, leakage):
+def compute_histograms_aes_byte(trace_resolution, rnd_list, byte_list, traces,
+                                leakage):
     """Building histograms for AES.
 
     For each time sample we make two histograms, one for Hamming weight of the sensitive variable
@@ -66,7 +68,8 @@ def compute_histograms_aes_byte(trace_resolution, rnd_list, byte_list, traces, l
     return histograms
 
 
-def compute_histograms_aes_bit(trace_resolution, rnd_list, bit_list, traces, leakage):
+def compute_histograms_aes_bit(trace_resolution, rnd_list, bit_list, traces,
+                               leakage):
     """Building histograms for AES.
 
     For each time sample we make two histograms, one for selected bit value = 0 (fixed set) and one
@@ -89,7 +92,10 @@ def compute_histograms_aes_bit(trace_resolution, rnd_list, bit_list, traces, lea
                 histograms[i_rnd, i_bit, :, i_sample, :] = np.histogram2d(
                     leakage[rnd_list[i_rnd], bit_list[i_bit], :],
                     traces[:, i_sample],
-                    bins=[range(num_leakages + 1), range(trace_resolution + 1)],
+                    bins=[
+                        range(num_leakages + 1),
+                        range(trace_resolution + 1)
+                    ],
                 )[0]
 
     return histograms

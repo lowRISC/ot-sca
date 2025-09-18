@@ -1,15 +1,15 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
-from fi_gear.utility import random_float_range
-
 """ Template for LFI gear.
 Acts as a template for laser FI gear with XY table.
 """
 
+from fi_gear.utility import random_float_range
+
 
 class DummyLFI:
+
     def __init__(
         self,
         x_position_min: int,
@@ -61,14 +61,12 @@ class DummyLFI:
         Args:
             A dict containing the FI parameters.
         """
-        print(
-            f"Arming DummyLFI trigger with"
-            f"x_position={fault_parameters['x_position']} "
-            f"y_position={fault_parameters['y_position']}, "
-            f"attenuation={fault_parameters['attenuation']}, "
-            f"pulse_width={fault_parameters['pulse_width']}, and "
-            f"trigger_delay={fault_parameters['trigger_delay']}"
-        )
+        print(f"Arming DummyLFI trigger with"
+              f"x_position={fault_parameters['x_position']} "
+              f"y_position={fault_parameters['y_position']}, "
+              f"attenuation={fault_parameters['attenuation']}, "
+              f"pulse_width={fault_parameters['pulse_width']}, and "
+              f"trigger_delay={fault_parameters['trigger_delay']}")
 
     def generate_fi_parameters(self) -> dict:
         """Generate LFI parameters within the provided limits.
@@ -79,11 +77,9 @@ class DummyLFI:
         parameters = {}
         if self.parameter_generation == "random":
             parameters["x_position"] = random_float_range(
-                self.x_position_min, self.x_position_max, self.x_position_step
-            )
+                self.x_position_min, self.x_position_max, self.x_position_step)
             parameters["y_position"] = random_float_range(
-                self.y_position_min, self.y_position_max, self.y_position_step
-            )
+                self.y_position_min, self.y_position_max, self.y_position_step)
         elif self.parameter_generation == "deterministic":
             if self.curr_iteration == self.num_iterations:
                 self.curr_iteration = 0
@@ -101,15 +97,14 @@ class DummyLFI:
                 "DummyLFI only supports random/deterministic parameter generation"
             )
 
-        parameters["attenuation"] = random_float_range(
-            self.attenuation_min, self.attenuation_max, self.attenuation_step
-        )
-        parameters["pulse_width"] = random_float_range(
-            self.pulse_width_min, self.pulse_width_max, self.pulse_width_step
-        )
+        parameters["attenuation"] = random_float_range(self.attenuation_min,
+                                                       self.attenuation_max,
+                                                       self.attenuation_step)
+        parameters["pulse_width"] = random_float_range(self.pulse_width_min,
+                                                       self.pulse_width_max,
+                                                       self.pulse_width_step)
         parameters["trigger_delay"] = random_float_range(
-            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
-        )
+            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step)
         return parameters
 
     def reset(self) -> None:
@@ -124,14 +119,10 @@ class DummyLFI:
         if self.parameter_generation == "random":
             return self.num_iterations
         elif self.parameter_generation == "deterministic":
-            return (
-                ((self.x_position_max - self.x_position_min + 1) / self.x_position_step) *
-                (
-                    (self.y_position_max - self.y_position_min + 1) /
-                    self.y_position_step
-                ) *
-                (self.num_iterations)
-            )
+            return (((self.x_position_max - self.x_position_min + 1) /
+                     self.x_position_step) *
+                    ((self.y_position_max - self.y_position_min + 1) /
+                     self.y_position_step) * (self.num_iterations))
         else:
             raise Exception(
                 "DummyEMFI only supports random/deterministic parameter generation"

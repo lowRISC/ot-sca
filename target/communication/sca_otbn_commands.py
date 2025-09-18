@@ -13,6 +13,7 @@ from target.communication import common_library
 
 
 class OTOTBN:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -96,7 +97,8 @@ class OTOTBN:
         self.target.write(json.dumps(data).encode("ascii"))
         time.sleep(0.01)
 
-    def ecdsa_p256_sign_batch(self, num_traces: int, masking_on: bool, msg, d0, k0):
+    def ecdsa_p256_sign_batch(self, num_traces: int, masking_on: bool, msg, d0,
+                              k0):
         """Starts the EcdsaP256SignBatch test on OTBN.
         Args:
             num_traces: Number of batch operations.
@@ -123,9 +125,8 @@ class OTOTBN:
         self.target.write(json.dumps(data).encode("ascii"))
         time.sleep(0.01)
 
-    def ecdsa_p256_sign_batch_fvsr(
-        self, num_traces: int, masking_on: bool, msg, d0, k0
-    ):
+    def ecdsa_p256_sign_batch_fvsr(self, num_traces: int, masking_on: bool,
+                                   msg, d0, k0):
         """Starts the EcdsaP256SignFvsrBatch test on OTBN.
         Args:
             num_traces: Number of batch operations.
@@ -152,9 +153,8 @@ class OTOTBN:
         self.target.write(json.dumps(data).encode("ascii"))
         time.sleep(0.01)
 
-    def start_combi_ops_batch(
-        self, num_iterations, fixed_data1, fixed_data2, print_flag, trigger
-    ):
+    def start_combi_ops_batch(self, num_iterations, fixed_data1, fixed_data2,
+                              print_flag, trigger):
         """Start the combi ops app in batch mode.
         Args:
             num_iterations: How many traces per batch.

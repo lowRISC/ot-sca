@@ -14,6 +14,7 @@ from target.communication import common_library
 
 
 class OTKMAC:
+
     def __init__(self, target) -> None:
         self.target = target
 

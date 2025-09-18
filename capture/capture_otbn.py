@@ -2,6 +2,17 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
+"""OTBN vertical SCA capture script.
+
+Captures power traces during OTBN operations.
+
+The data format of the crypto material (ciphertext, plaintext, and key) inside
+the script is stored in plain integer arrays.
+
+Typical usage:
+>>> ./capture_otbn.py -c configs/otbn_vertical_keygen_sca_cw310.yaml \
+        -p projects/otbn_vertical_sca_cw310_keygen
+"""
 
 import logging
 import random
@@ -29,23 +40,10 @@ from util import check_version
 from util import data_generator as dg
 from util import plot
 
-"""OTBN vertical SCA capture script.
-
-Captures power traces during OTBN operations.
-
-The data format of the crypto material (ciphertext, plaintext, and key) inside
-the script is stored in plain integer arrays.
-
-Typical usage:
->>> ./capture_otbn.py -c configs/otbn_vertical_keygen_sca_cw310.yaml \
-        -p projects/otbn_vertical_sca_cw310_keygen
-"""
-
 # Byte lengths of the text, key, and tag.
 plain_text_len_bytes = 40
 text_len_bytes = 40
 key_len_bytes = 40
-
 
 logger = logging.getLogger()
 
@@ -104,9 +102,8 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = (
-        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
-    )
+    cfg["target"]["pll_frequency"] = (cfg["target"]["target_freq"] /
+                                      cfg["target"]["target_clk_mult"])
 
     # Init scope.
     scope_type = cfg["capture"]["scope_select"]
@@ -127,18 +124,20 @@ def setup(cfg: dict, project: Path):
         port=cfg["target"].get("port"),
         usb_serial=cfg["target"].get("usb_serial"),
         interface=cfg["target"].get("interface"),
-        husky_serial = cfg["husky"].get("usb_serial"),
+        husky_serial=cfg["husky"].get("usb_serial"),
         opentitantool=cfg["target"]["opentitantool"],
     )
     target = Target(target_cfg)
 
     if scope_type != "none":
         # Determine sampling rate, if necessary.
-        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(
+            cfg, scope_type)
         # Convert number of cycles into number of samples, if necessary.
         cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
         # Convert offset in cycles into offset in samples, if necessary.
-        cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+        cfg[scope_type]["offset_samples"] = convert_offset_cycles(
+            cfg, scope_type)
 
         logger.info(
             f"Initializing scope {scope_type} with a sampling rate of {cfg[scope_type]['sampling_rate']}..."  # noqa: E501
@@ -220,9 +219,8 @@ def establish_communication(target):
     return ot_otbn_vert, ot_trig, ot_prng
 
 
-def configure_cipher(
-    cfg: dict, capture_cfg: CaptureConfig, ot_otbn_vert, ot_prng
-) -> OTOTBN:
+def configure_cipher(cfg: dict, capture_cfg: CaptureConfig, ot_otbn_vert,
+                     ot_prng) -> OTOTBN:
     """Configure the OTBN app.
 
     Establish communication with the OTBN keygen app and configure the seed.
@@ -247,7 +245,8 @@ def configure_cipher(
     if cfg["test"]["curve"] == "p256":
         # Create curve config object
         curve_cfg = CurveConfig(
-            curve_order_n=0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551,
+            curve_order_n=
+            0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551,
             key_bytes=256 // 8,
             seed_bytes=320 // 8,
             modinv_share_bytes=320 // 8,
@@ -263,7 +262,8 @@ def configure_cipher(
             modinv_mask_bytes=0,
         )
         # TODO: add support for P384
-        raise NotImplementedError(f'Curve {cfg["test"]["curve"]} is not supported')
+        raise NotImplementedError(
+            f'Curve {cfg["test"]["curve"]} is not supported')
 
     if capture_cfg.capture_mode == "keygen":
         if capture_cfg.batch_mode:
@@ -287,8 +287,7 @@ def configure_cipher(
                 seed_fixed_int = int.from_bytes(capture_cfg.C, byteorder='little') + \
                     int.from_bytes(fixed_number, byteorder='little')
                 capture_cfg.seed_fixed = seed_fixed_int.to_bytes(
-                    curve_cfg.seed_bytes, byteorder="little"
-                )
+                    curve_cfg.seed_bytes, byteorder="little")
             else:
                 # In fixed-vs-random SEED mode we use only one fixed constant:
                 #    1. seed_fixed - A 320 bit constant used to derive the fixed key
@@ -302,9 +301,8 @@ def configure_cipher(
             # Expected key is `seed mod n`, where n is the order of the curve and
             # `seed` is interpreted as little-endian.
             capture_cfg.expected_fixed_key = (
-                int.from_bytes(capture_cfg.seed_fixed, byteorder="little")
-                % curve_cfg.curve_order_n
-            )
+                int.from_bytes(capture_cfg.seed_fixed, byteorder="little") %
+                curve_cfg.curve_order_n)
     elif capture_cfg.capture_mode == "modinv":
         if capture_cfg.batch_mode:
             # TODO: add support for batch mode
@@ -316,23 +314,20 @@ def configure_cipher(
             # r1, r2, r3 = dg.get_random()
             # capture_cfg.k_fixed = (bytearray(r1) + bytearray(r2) +
             #                        bytearray(r3))[:curve_cfg.key_bytes]
-            capture_cfg.k_fixed = bytearray(
-                (
-                    0x2648D0D248B70944DFD84C2F85EA5793729112E7CAFA50ABDF7EF8B7594FA2A1
-                ).to_bytes(curve_cfg.key_bytes, "little")
-            )
-            k_fixed_int = int.from_bytes(capture_cfg.k_fixed, byteorder="little")
+            capture_cfg.k_fixed = bytearray((
+                0x2648D0D248B70944DFD84C2F85EA5793729112E7CAFA50ABDF7EF8B7594FA2A1
+            ).to_bytes(curve_cfg.key_bytes, "little"))
+            k_fixed_int = int.from_bytes(capture_cfg.k_fixed,
+                                         byteorder="little")
             # Expected fixed output is `(k)^(-1) mod n`, where n is the curve order n
-            capture_cfg.expected_fixed_output = pow(
-                k_fixed_int, -1, curve_cfg.curve_order_n
-            )
+            capture_cfg.expected_fixed_output = pow(k_fixed_int, -1,
+                                                    curve_cfg.curve_order_n)
 
     return curve_cfg
 
 
-def generate_ref_crypto_keygen(
-    cfg: dict, sample_fixed, curve_cfg: CurveConfig, capture_cfg: CaptureConfig
-):
+def generate_ref_crypto_keygen(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
+                               capture_cfg: CaptureConfig):
     """Generate cipher material for keygen application.
 
     Args:
@@ -405,9 +400,8 @@ def generate_ref_crypto_keygen(
     return seed_used, mask, expected_key, sample_fixed
 
 
-def generate_ref_crypto_modinv(
-    cfg: dict, sample_fixed, curve_cfg: CurveConfig, capture_cfg: CaptureConfig
-):
+def generate_ref_crypto_modinv(cfg: dict, sample_fixed, curve_cfg: CurveConfig,
+                               capture_cfg: CaptureConfig):
     """Generate cipher material for the modular inverse operation.
 
     Args:
@@ -442,14 +436,13 @@ def generate_ref_crypto_modinv(
             # adapt share k1 so that k = (k0 + k1) mod n
             k_tmp = (k0_fixed + k1_fixed) % curve_cfg.curve_order_n
             k_tmp_diff = (
-                int.from_bytes(capture_cfg.k_fixed, byteorder="little") - k_tmp
-            ) % curve_cfg.curve_order_n
+                int.from_bytes(capture_cfg.k_fixed, byteorder="little") -
+                k_tmp) % curve_cfg.curve_order_n
             k1_fixed += k_tmp_diff
             if k1_fixed >= pow(2, 320):
                 k1_fixed -= curve_cfg.curve_order_n
             input_k1_fixed = bytearray(
-                (k1_fixed).to_bytes(curve_cfg.modinv_share_bytes, "little")
-            )
+                (k1_fixed).to_bytes(curve_cfg.modinv_share_bytes, "little"))
             # Use the fixed input.
             input_k0_used = input_k0_fixed
             input_k1_used = input_k1_fixed
@@ -464,11 +457,11 @@ def generate_ref_crypto_modinv(
             input_k1_used = (bytearray(r1) + bytearray(r2) +
                              bytearray(r3))[:curve_cfg.modinv_share_bytes]
             # calculate the key from the shares
-            k_used_int = (
-                int.from_bytes(input_k0_used, byteorder="little") +
-                int.from_bytes(input_k1_used, byteorder="little")
-            ) % curve_cfg.curve_order_n
-            k_used = bytearray(k_used_int.to_bytes(curve_cfg.key_bytes, "little"))
+            k_used_int = (int.from_bytes(input_k0_used, byteorder="little") +
+                          int.from_bytes(input_k1_used, byteorder="little")
+                          ) % curve_cfg.curve_order_n
+            k_used = bytearray(
+                k_used_int.to_bytes(curve_cfg.key_bytes, "little"))
             expected_output = pow(k_used_int, -1, curve_cfg.curve_order_n)
 
         # The next sample is either fixed or random.
@@ -478,7 +471,8 @@ def generate_ref_crypto_modinv(
     return k_used, input_k0_used, input_k1_used, expected_output, sample_fixed
 
 
-def check_ciphertext_keygen(ot_otbn_vert: OTOTBN, expected_key, curve_cfg: CurveConfig):
+def check_ciphertext_keygen(ot_otbn_vert: OTOTBN, expected_key,
+                            curve_cfg: CurveConfig):
     """Compares the received with the generated key.
 
     Key shares are read from the device and compared against the pre-computed
@@ -507,18 +501,15 @@ def check_ciphertext_keygen(ot_otbn_vert: OTOTBN, expected_key, curve_cfg: Curve
     d1 = int.from_bytes(share1, byteorder="little")
     actual_key = (d0 + d1) % curve_cfg.curve_order_n
 
-    assert actual_key == expected_key, (
-        f"Incorrect encryption result!\n"
-        f"actual: {actual_key}\n"
-        f"expected: {expected_key}"
-    )
+    assert actual_key == expected_key, (f"Incorrect encryption result!\n"
+                                        f"actual: {actual_key}\n"
+                                        f"expected: {expected_key}")
 
     return share0, share1
 
 
-def check_ciphertext_modinv(
-    ot_otbn_vert: OTOTBN, expected_output, curve_cfg: CurveConfig
-):
+def check_ciphertext_modinv(ot_otbn_vert: OTOTBN, expected_output,
+                            curve_cfg: CurveConfig):
     """Compares the received modular inverse output with the generated output.
 
     Args:
@@ -538,17 +529,13 @@ def check_ciphertext_modinv(
         raise RuntimeError("alpha is none")
 
     # Actual result (kalpha_inv*alpha) mod n:
-    actual_output = (
-        int.from_bytes(kalpha_inv, byteorder="little") *
-        int.from_bytes(alpha, byteorder="little") %
-        curve_cfg.curve_order_n
-    )
+    actual_output = (int.from_bytes(kalpha_inv, byteorder="little") *
+                     int.from_bytes(alpha, byteorder="little") %
+                     curve_cfg.curve_order_n)
 
-    assert actual_output == expected_output, (
-        f"Incorrect modinv result!\n"
-        f"actual: {actual_output}\n"
-        f"expected: {expected_output}"
-    )
+    assert actual_output == expected_output, (f"Incorrect modinv result!\n"
+                                              f"actual: {actual_output}\n"
+                                              f"expected: {expected_output}")
 
     return actual_output
 
@@ -590,17 +577,17 @@ def capture_keygen(
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(
-        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
-    ) as pbar:
+    with tqdm(total=remaining_num_traces,
+              desc="Capturing",
+              ncols=80,
+              unit=" traces") as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
             if scope is not None:
                 scope.arm()
 
             seed_used, mask, expected_key, sample_fixed = generate_ref_crypto_keygen(
-                cfg, sample_fixed, curve_cfg, capture_cfg
-            )
+                cfg, sample_fixed, curve_cfg, capture_cfg)
 
             # Trigger encryption.
             if capture_cfg.batch_mode:
@@ -622,8 +609,7 @@ def capture_keygen(
 
                 # Compare received key with generated key.
                 share0, share1 = check_ciphertext_keygen(
-                    ot_otbn_vert, expected_key, curve_cfg
-                )
+                    ot_otbn_vert, expected_key, curve_cfg)
 
                 # Store trace into database.
                 if scope is not None:
@@ -636,7 +622,8 @@ def capture_keygen(
 
             # Memory allocation optimization for CW trace library.
             if scope is not None:
-                num_segments_storage = project.optimize_capture(num_segments_storage)
+                num_segments_storage = project.optimize_capture(
+                    num_segments_storage)
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -678,17 +665,18 @@ def capture_modinv(
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(
-        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
-    ) as pbar:
+    with tqdm(total=remaining_num_traces,
+              desc="Capturing",
+              ncols=80,
+              unit=" traces") as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
             if scope is not None:
                 scope.arm()
 
             k_used, input_k0_used, input_k1_used, expected_output, sample_fixed = (
-                generate_ref_crypto_modinv(cfg, sample_fixed, curve_cfg, capture_cfg)
-            )
+                generate_ref_crypto_modinv(cfg, sample_fixed, curve_cfg,
+                                           capture_cfg))
 
             # Trigger encryption.
             if capture_cfg.batch_mode:
@@ -705,8 +693,7 @@ def capture_modinv(
 
                 # Compare received key with generated key.
                 actual_output = check_ciphertext_modinv(
-                    ot_otbn_vert, expected_output, curve_cfg
-                )
+                    ot_otbn_vert, expected_output, curve_cfg)
 
                 # Store trace into database.
                 if scope is not None:
@@ -714,14 +701,15 @@ def capture_modinv(
                         wave=waves[0, :],
                         plaintext=k_used,
                         ciphertext=bytearray(
-                            actual_output.to_bytes(curve_cfg.key_bytes, "little")
-                        ),
+                            actual_output.to_bytes(curve_cfg.key_bytes,
+                                                   "little")),
                         key=k_used,
                     )
 
             # Memory allocation optimization for CW trace library.
             if scope is not None:
-                num_segments_storage = project.optimize_capture(num_segments_storage)
+                num_segments_storage = project.optimize_capture(
+                    num_segments_storage)
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -738,7 +726,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         config: The capture configuration.
         file: The output file path.
     """
-    if config["capture"]["show_plot"] and config["capture"]["scope_select"] != "none":
+    if config["capture"]["show_plot"] and config["capture"][
+            "scope_select"] != "none":
         plot.save_plot_to_file(
             project.get_waves(0, config["capture"]["plot_traces"]),
             set_indices=None,
@@ -748,8 +737,7 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         )
         logger.info(
             f'Created plot with {config["capture"]["plot_traces"]} traces: '
-            f'{Path(str(file) + ".html").resolve()}'
-        )
+            f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -805,13 +793,11 @@ def main(argv=None):
 
     # Capture traces.
     if mode == "keygen":
-        capture_keygen(
-            cfg, scope, ot_otbn_vert, capture_cfg, curve_cfg, project, target
-        )
+        capture_keygen(cfg, scope, ot_otbn_vert, capture_cfg, curve_cfg,
+                       project, target)
     elif mode == "modinv":
-        capture_modinv(
-            cfg, scope, ot_otbn_vert, capture_cfg, curve_cfg, project, target
-        )
+        capture_modinv(cfg, scope, ot_otbn_vert, capture_cfg, curve_cfg,
+                       project, target)
     else:
         # TODO: add support for modinv app
         raise NotImplementedError("Cofigured OTBN app not yet supported.")
@@ -828,9 +814,8 @@ def main(argv=None):
         metadata["offset_samples"] = scope.scope_cfg.offset_samples
         metadata["scope_gain"] = scope.scope_cfg.scope_gain
         if cfg["capture"]["scope_select"] == "husky":
-            metadata["sampling_rate"] = (
-                scope.scope.scope.clock.adc_freq / scope.scope.scope.adc.decimate
-            )
+            metadata["sampling_rate"] = (scope.scope.scope.clock.adc_freq /
+                                         scope.scope.scope.adc.decimate)
             metadata["samples_trigger_high"] = scope.scope.scope.adc.trig_count
         else:
             metadata["sampling_rate"] = scope.scope_cfg.sampling_rate
@@ -840,17 +825,16 @@ def main(argv=None):
         metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
         if cfg["target"].get("fpga_bitstream") is not None:
             metadata["fpga_bitstream_crc"] = helpers.file_crc(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         if args.save_bitstream:
             metadata["fpga_bitstream"] = helpers.get_binary_blob(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         # Store binary information.
         metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
         metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
         if args.save_binary:
-            metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+            metadata["fw_bin"] = helpers.get_binary_blob(
+                cfg["target"]["fw_bin"])
         # Store user provided notes.
         metadata["notes"] = args.notes
         # Store the Git hash.

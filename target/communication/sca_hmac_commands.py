@@ -12,6 +12,7 @@ from target.communication import common_library
 
 
 class OTHMAC:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -204,9 +205,8 @@ class OTHMAC:
             }
         self.target.write(json.dumps(mode).encode("ascii"))
 
-    def daisy_chain(
-        self, text: list[int], key: list[int], num_segments: int, trigger: int
-    ):
+    def daisy_chain(self, text: list[int], key: list[int], num_segments: int,
+                    trigger: int):
         """Start num_segments HMAC operations in daisy chain mode.
         Args:
             text: The input message

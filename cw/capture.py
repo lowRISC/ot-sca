@@ -39,14 +39,12 @@ app_capture = typer.Typer()
 app.add_typer(app_capture, name="capture", help="Capture traces for SCA")
 # Shared options for capture commands
 opt_force_program_bitstream = typer.Option(
-    None, help=("Force program FPGA with the bitstream.")
-)
+    None, help=("Force program FPGA with the bitstream."))
 opt_num_traces = typer.Option(None, help="Number of traces to capture.")
 opt_plot_traces = typer.Option(None, help="Number of traces to plot.")
 opt_scope_type = typer.Option(ScopeType.cw, help=("Scope type"))
 opt_ciphertexts_store = typer.Option(
-    False, help=("Store all ciphertexts for batch capture.")
-)
+    False, help=("Store all ciphertexts for batch capture."))
 
 
 def create_waverunner(ot, capture_cfg):
@@ -85,7 +83,8 @@ def abort_handler(project, sig, frame):
     sys.exit(0)
 
 
-def save_metadata(project, device_cfg, capture_cfg, trigger_cycles, sample_rate):
+def save_metadata(project, device_cfg, capture_cfg, trigger_cycles,
+                  sample_rate):
     # Save metadata to project file
     if sample_rate is not None:
         project.settingsDict["sample_rate"] = sample_rate
@@ -98,7 +97,8 @@ def save_metadata(project, device_cfg, capture_cfg, trigger_cycles, sample_rate)
     # store last number of cycles where the trigger signal was high to metadata
     if trigger_cycles is not None:
         project.settingsDict["samples_trigger_high"] = trigger_cycles
-    project.settingsDict["datetime"] = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    project.settingsDict["datetime"] = datetime.now().strftime(
+        "%m/%d/%Y, %H:%M:%S")
 
 
 # Note: initialize_capture and plot_results are also used by other scripts.
@@ -123,7 +123,8 @@ def initialize_capture(device_cfg, capture_cfg):
     ping_cnt = 0
     while not version:
         if ping_cnt == 3:
-            raise RuntimeError(f"No response from the target (attempts: {ping_cnt}).")
+            raise RuntimeError(
+                f"No response from the target (attempts: {ping_cnt}).")
         ot.target.write("v" + "\n")
         ping_cnt += 1
         time.sleep(0.5)
@@ -136,24 +137,12 @@ def check_range(waves, bits_per_sample):
     """The ADC output is in the interval [0, 2**bits_per_sample-1]. Check that the recorded
     traces are within [1, 2**bits_per_sample-2] to ensure the ADC doesn't saturate."""
     adc_range = np.array([0, 2**bits_per_sample])
-    if not (
-        np.all(np.greater(waves[:], adc_range[0])) and
-        np.all(np.less(waves[:], adc_range[1] - 1))
-    ):
-        print(
-            "\nWARNING: Some samples are outside the range [" +
-            str(adc_range[0] + 1) +
-            ", " +
-            str(adc_range[1] - 2) +
-            "]."
-        )
-        print(
-            "The ADC has a max range of [" +
-            str(adc_range[0]) +
-            ", " +
-            str(adc_range[1] - 1) +
-            "] and might saturate."
-        )
+    if not (np.all(np.greater(waves[:], adc_range[0])) and
+            np.all(np.less(waves[:], adc_range[1] - 1))):
+        print("\nWARNING: Some samples are outside the range [" +
+              str(adc_range[0] + 1) + ", " + str(adc_range[1] - 2) + "].")
+        print("The ADC has a max range of [" + str(adc_range[0]) + ", " +
+              str(adc_range[1] - 1) + "] and might saturate.")
         print("It is recommended to reduce the scope gain (see device.py).")
 
 
@@ -165,13 +154,10 @@ def plot_results(plot_cfg, project_name):
         print("Project contains no traces. Did the capture fail?")
         return
 
-    plot.save_plot_to_file(
-        project.waves, None, plot_cfg["num_traces"], plot_cfg["trace_image_filename"]
-    )
-    print(
-        f'Created plot with {plot_cfg["num_traces"]} traces: '
-        f'{Path(plot_cfg["trace_image_filename"]).resolve()}'
-    )
+    plot.save_plot_to_file(project.waves, None, plot_cfg["num_traces"],
+                           plot_cfg["trace_image_filename"])
+    print(f'Created plot with {plot_cfg["num_traces"]} traces: '
+          f'{Path(plot_cfg["trace_image_filename"]).resolve()}')
 
 
 @app.command()
@@ -217,7 +203,8 @@ def capture_loop(trace_gen, ot, capture_cfg, device_cfg):
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing", ncols=80):
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing",
+                  ncols=80):
         traces = next(trace_gen)
         check_range(traces.wave, ot.scope.adc.bits_per_sample)
         project.traces.append(traces, dtype=np.uint16)
@@ -242,52 +229,53 @@ def capture_aes_static(ot):
     Args:
       ot: Initialized OpenTitan target.
     """
-    key = bytearray(
-        [
-            0x81,
-            0x1E,
-            0x37,
-            0x31,
-            0xB0,
-            0x12,
-            0x0A,
-            0x78,
-            0x42,
-            0x78,
-            0x1E,
-            0x22,
-            0xB2,
-            0x5C,
-            0xDD,
-            0xF9,
-        ]
-    )
-    text = bytearray(
-        [
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-        ]
-    )
+    key = bytearray([
+        0x81,
+        0x1E,
+        0x37,
+        0x31,
+        0xB0,
+        0x12,
+        0x0A,
+        0x78,
+        0x42,
+        0x78,
+        0x1E,
+        0x22,
+        0xB2,
+        0x5C,
+        0xDD,
+        0xF9,
+    ])
+    text = bytearray([
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+    ])
 
     tqdm.write(f"Fixed key: {binascii.b2a_hex(bytes(key))}")
 
     while True:
         cipher = AES.new(bytes(key), AES.MODE_ECB)
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
+        ret = cw.capture_trace(ot.scope,
+                               ot.target,
+                               text,
+                               key,
+                               ack=False,
+                               as_int=True)
         if not ret:
             raise RuntimeError("Capture failed.")
         expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -332,7 +320,12 @@ def capture_aes_random(ot, ktp):
     ot.target.simpleserial_write("t", bytearray([0x00]))
     while True:
         _, text = ktp.next()
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
+        ret = cw.capture_trace(ot.scope,
+                               ot.target,
+                               text,
+                               key,
+                               ack=False,
+                               as_int=True)
         if not ret:
             raise RuntimeError("Capture failed.")
         expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -377,19 +370,21 @@ def optimize_cw_capture(project, num_segments_storage):
     # - https://github.com/newaetech/chipwhisperer/issues/344
     if num_segments_storage != len(project.segments):
         if num_segments_storage >= 2:
-            project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2, False)
+            project.traces.tm.setTraceSegmentStatus(num_segments_storage - 2,
+                                                    False)
         num_segments_storage = len(project.segments)
     return num_segments_storage
 
 
 def check_ciphertext(ot, expected_last_ciphertext, ciphertext_len):
     """Check the first word of the last ciphertext in a batch to make sure we are in sync."""
-    actual_last_ciphertext = ot.target.simpleserial_read("r", ciphertext_len, ack=False)
-    assert actual_last_ciphertext == expected_last_ciphertext[0:ciphertext_len], (
-        f"Incorrect encryption result!\n"
-        f"actual: {actual_last_ciphertext}\n"
-        f"expected: {expected_last_ciphertext}"
-    )
+    actual_last_ciphertext = ot.target.simpleserial_read("r",
+                                                         ciphertext_len,
+                                                         ack=False)
+    assert actual_last_ciphertext == expected_last_ciphertext[
+        0:ciphertext_len], (f"Incorrect encryption result!\n"
+                            f"actual: {actual_last_ciphertext}\n"
+                            f"expected: {expected_last_ciphertext}")
 
 
 def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
@@ -411,8 +406,7 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     ot.target.simpleserial_write("k", key)
     # Seed the target's PRNG
     ot.target.simpleserial_write(
-        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-    )
+        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Create the ChipWhisperer project.
     project = cw.create_project(capture_cfg["project_name"], overwrite=True)
@@ -426,7 +420,8 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80,
+              unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
             scope.num_segments = min(rem_num_traces, scope.num_segments_max)
@@ -434,8 +429,7 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
             # Start batch encryption.
             ot.target.simpleserial_write(
-                "b", scope.num_segments_actual.to_bytes(4, "little")
-            )
+                "b", scope.num_segments_actual.to_bytes(4, "little"))
 
             # Transfer traces
             waves = scope.capture_and_transfer_waves()
@@ -444,20 +438,22 @@ def capture_aes_random_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             check_range(waves, ot.scope.adc.bits_per_sample)
 
             # Generate plaintexts and ciphertexts to compare with the batch encryption results.
-            plaintexts = [ktp.next()[1] for _ in range(scope.num_segments_actual)]
+            plaintexts = [
+                ktp.next()[1] for _ in range(scope.num_segments_actual)
+            ]
             ciphertexts = [
-                bytearray(c)
-                for c in scared.aes.base.encrypt(
-                    np.asarray(plaintexts), np.asarray(key)
-                )
+                bytearray(c) for c in scared.aes.base.encrypt(
+                    np.asarray(plaintexts), np.asarray(key))
             ]
 
             check_ciphertext(ot, ciphertexts[-1], 4)
 
-            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+            num_segments_storage = optimize_cw_capture(project,
+                                                       num_segments_storage)
 
             # Add traces of this batch to the project.
-            for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
+            for wave, plaintext, ciphertext in zip(waves, plaintexts,
+                                                   ciphertexts):
                 project.traces.append(
                     cw.common.traces.Trace(wave, plaintext, ciphertext, key),
                     dtype=np.uint16,
@@ -512,107 +508,97 @@ def capture_aes_fvsr_key(ot):
     Args:
       ot: Initialized OpenTitan target.
     """
-    key_generation = bytearray(
-        [
-            0x12,
-            0x34,
-            0x56,
-            0x78,
-            0x9A,
-            0xBC,
-            0xDE,
-            0xF1,
-            0x23,
-            0x45,
-            0x67,
-            0x89,
-            0xAB,
-            0xCD,
-            0xE0,
-            0xF0,
-        ]
-    )
+    key_generation = bytearray([
+        0x12,
+        0x34,
+        0x56,
+        0x78,
+        0x9A,
+        0xBC,
+        0xDE,
+        0xF1,
+        0x23,
+        0x45,
+        0x67,
+        0x89,
+        0xAB,
+        0xCD,
+        0xE0,
+        0xF0,
+    ])
     cipher_gen = AES.new(bytes(key_generation), AES.MODE_ECB)
-    text_fixed = bytearray(
-        [
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-        ]
-    )
-    text_random = bytearray(
-        [
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-        ]
-    )
-    key_fixed = bytearray(
-        [
-            0x81,
-            0x1E,
-            0x37,
-            0x31,
-            0xB0,
-            0x12,
-            0x0A,
-            0x78,
-            0x42,
-            0x78,
-            0x1E,
-            0x22,
-            0xB2,
-            0x5C,
-            0xDD,
-            0xF9,
-        ]
-    )
-    key_random = bytearray(
-        [
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-        ]
-    )
+    text_fixed = bytearray([
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+    ])
+    text_random = bytearray([
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+    ])
+    key_fixed = bytearray([
+        0x81,
+        0x1E,
+        0x37,
+        0x31,
+        0xB0,
+        0x12,
+        0x0A,
+        0x78,
+        0x42,
+        0x78,
+        0x1E,
+        0x22,
+        0xB2,
+        0x5C,
+        0xDD,
+        0xF9,
+    ])
+    key_random = bytearray([
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+    ])
 
     tqdm.write(f"Fixed key: {binascii.b2a_hex(bytes(key_fixed))}")
 
@@ -628,7 +614,12 @@ def capture_aes_fvsr_key(ot):
         sample_fixed = random.randint(0, 1)
 
         cipher = AES.new(bytes(key), AES.MODE_ECB)
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
+        ret = cw.capture_trace(ot.scope,
+                               ot.target,
+                               text,
+                               key,
+                               ack=False,
+                               as_int=True)
         if not ret:
             raise RuntimeError("Capture failed.")
         expected = binascii.b2a_hex(cipher.encrypt(bytes(text)))
@@ -656,9 +647,8 @@ def aes_fvsr_key(
     capture_end(ctx.obj.cfg)
 
 
-def capture_aes_fvsr_key_batch(
-    ot, ktp, capture_cfg, scope_type, gen_ciphertexts, device_cfg
-):
+def capture_aes_fvsr_key_batch(ot, ktp, capture_cfg, scope_type,
+                               gen_ciphertexts, device_cfg):
     """A generator for capturing AES traces for fixed vs random key test in batch mode.
     The data collection method is based on the derived test requirements (DTR) for TVLA:
     https://www.rambus.com/wp-content/uploads/2015/08/TVLA-DTR-with-AES.pdf
@@ -677,35 +667,33 @@ def capture_aes_fvsr_key_batch(
     # TODO: Replace this with a dedicated PRNG to avoid other packages breaking our code.
     random.seed(capture_cfg["batch_prng_seed"])
     # Seed the target's PRNGs
-    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
     ot.target.simpleserial_write(
-        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-    )
+        "l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write(
+        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Set and transfer the fixed key.
     # Without the sleep statement, the CW305 seems to fail to configure the batch PRNG
     # seed and/or the fixed key and then gets completely out of sync.
     time.sleep(0.5)
-    key_fixed = bytearray(
-        [
-            0x81,
-            0x1E,
-            0x37,
-            0x31,
-            0xB0,
-            0x12,
-            0x0A,
-            0x78,
-            0x42,
-            0x78,
-            0x1E,
-            0x22,
-            0xB2,
-            0x5C,
-            0xDD,
-            0xF9,
-        ]
-    )
+    key_fixed = bytearray([
+        0x81,
+        0x1E,
+        0x37,
+        0x31,
+        0xB0,
+        0x12,
+        0x0A,
+        0x78,
+        0x42,
+        0x78,
+        0x1E,
+        0x22,
+        0xB2,
+        0x5C,
+        0xDD,
+        0xF9,
+    ])
     tqdm.write(f"Fixed key: {binascii.b2a_hex(bytes(key_fixed))}")
     ot.target.simpleserial_write("f", key_fixed)
 
@@ -723,7 +711,8 @@ def capture_aes_fvsr_key_batch(
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80,
+              unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
             scope.num_segments = min(rem_num_traces, scope.num_segments_max)
@@ -734,12 +723,10 @@ def capture_aes_fvsr_key_batch(
             # when this script is getting waves from the scope.
             if is_first_batch:
                 ot.target.simpleserial_write(
-                    "g", scope.num_segments_actual.to_bytes(4, "little")
-                )
+                    "g", scope.num_segments_actual.to_bytes(4, "little"))
                 is_first_batch = False
             ot.target.simpleserial_write(
-                "e", scope.num_segments_actual.to_bytes(4, "little")
-            )
+                "e", scope.num_segments_actual.to_bytes(4, "little"))
 
             # Transfer traces.
             waves = scope.capture_and_transfer_waves()
@@ -760,19 +747,20 @@ def capture_aes_fvsr_key_batch(
                 keys.append(key)
                 plaintexts.append(plaintext)
                 if gen_ciphertexts:
-                    ciphertext = np.asarray(scared.aes.base.encrypt(plaintext, key))
+                    ciphertext = np.asarray(
+                        scared.aes.base.encrypt(plaintext, key))
                     ciphertexts.append(ciphertext)
                 sample_fixed = plaintext[0] & 0x1
             if gen_ciphertexts:
                 expected_last_ciphertext = ciphertexts[-1]
             else:
                 expected_last_ciphertext = np.asarray(
-                    scared.aes.base.encrypt(plaintext, key)
-                )
+                    scared.aes.base.encrypt(plaintext, key))
 
             check_ciphertext(ot, expected_last_ciphertext, 4)
 
-            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+            num_segments_storage = optimize_cw_capture(project,
+                                                       num_segments_storage)
 
             # Add traces of this batch to the project. By default we don't store the ciphertexts as
             # generating them on the host as well as transferring them over from the target
@@ -780,10 +768,10 @@ def capture_aes_fvsr_key_batch(
             # absolutely needed.
             if gen_ciphertexts:
                 for wave, plaintext, ciphertext, key in zip(
-                    waves, plaintexts, ciphertexts, keys
-                ):
+                        waves, plaintexts, ciphertexts, keys):
                     project.traces.append(
-                        cw.common.traces.Trace(wave, plaintext, ciphertext, key),
+                        cw.common.traces.Trace(wave, plaintext, ciphertext,
+                                               key),
                         dtype=np.uint16,
                     )
             else:
@@ -886,14 +874,18 @@ def capture_sha3_random(ot, ktp, capture_cfg):
 
     ack_ret = ot.target.simpleserial_wait_ack(5000)
     if ack_ret is None:
-        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+        raise Exception(
+            "Batch mode acknowledge error: Device and host not in sync")
 
     tqdm.write("No key used, as we are doing sha3 hashing")
     while True:
         _, text = ktp.next()
-        ret = cw.capture_trace(
-            ot.scope, ot.target, text, key=None, ack=False, as_int=True
-        )
+        ret = cw.capture_trace(ot.scope,
+                               ot.target,
+                               text,
+                               key=None,
+                               ack=False,
+                               as_int=True)
         if not ret:
             raise RuntimeError("Capture failed.")
         sha3 = SHA3_256.new(text)
@@ -928,29 +920,28 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
     ack_ret = ot.target.simpleserial_wait_ack(5000)
     if ack_ret is None:
-        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+        raise Exception(
+            "Batch mode acknowledge error: Device and host not in sync")
 
     # Value defined under Section 5.3 in the derived test requirements (DTR) for TVLA.
-    plaintext_fixed = bytearray(
-        [
-            0xDA,
-            0x39,
-            0xA3,
-            0xEE,
-            0x5E,
-            0x6B,
-            0x4B,
-            0x0D,
-            0x32,
-            0x55,
-            0xBF,
-            0xEF,
-            0x95,
-            0x60,
-            0x18,
-            0x90,
-        ]
-    )
+    plaintext_fixed = bytearray([
+        0xDA,
+        0x39,
+        0xA3,
+        0xEE,
+        0x5E,
+        0x6B,
+        0x4B,
+        0x0D,
+        0x32,
+        0x55,
+        0xBF,
+        0xEF,
+        0x95,
+        0x60,
+        0x18,
+        0x90,
+    ])
 
     # Note that - at least on FPGA - the DTR value above may lead to "fake" leakage as for the
     # fixed trace set, the number of bits set in the first (37) and second 64-bit word (31), as
@@ -974,10 +965,10 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
 
     plaintext = plaintext_fixed
     random.seed(capture_cfg["batch_prng_seed"])
-    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
     ot.target.simpleserial_write(
-        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-    )
+        "l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write(
+        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Create the ChipWhisperer project.
     project_file = capture_cfg["project_name"]
@@ -992,7 +983,8 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80,
+              unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
             scope.num_segments = min(rem_num_traces, scope.num_segments_max)
@@ -1000,8 +992,7 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             scope.arm()
             # Start batch encryption.
             ot.target.simpleserial_write(
-                "b", scope.num_segments_actual.to_bytes(4, "little")
-            )
+                "b", scope.num_segments_actual.to_bytes(4, "little"))
             # This wait ist crucial to be in sync with the device
             ack_ret = ot.target.simpleserial_wait_ack(5000)
             if ack_ret is None:
@@ -1027,11 +1018,8 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 sha3 = SHA3_256.new(plaintext)
                 ciphertext = sha3.digest()
 
-                batch_digest = (
-                    ciphertext
-                    if batch_digest is None
-                    else bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest))
-                )
+                batch_digest = (ciphertext if batch_digest is None else bytes(
+                    a ^ b for (a, b) in zip(ciphertext, batch_digest)))
                 plaintexts.append(plaintext)
                 ciphertexts.append(binascii.b2a_hex(ciphertext))
                 sample_fixed = dummy_plaintext[0] & 1
@@ -1045,14 +1033,15 @@ def capture_sha3_fvsr_data_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             # Check the batch digest to make sure we are in sync.
             check_ciphertext(ot, batch_digest, 32)
 
-            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+            num_segments_storage = optimize_cw_capture(project,
+                                                       num_segments_storage)
 
             # Add traces of this batch to the project.
-            for wave, plaintext, ciphertext in zip(waves, plaintexts, ciphertexts):
+            for wave, plaintext, ciphertext in zip(waves, plaintexts,
+                                                   ciphertexts):
                 project.traces.append(
-                    cw.common.traces.Trace(
-                        wave, plaintext, bytearray(ciphertext), None
-                    ),
+                    cw.common.traces.Trace(wave, plaintext,
+                                           bytearray(ciphertext), None),
                     dtype=np.uint16,
                 )
             # Update the loop variable and the progress bar.
@@ -1101,67 +1090,61 @@ def capture_sha3_fvsr_data(ot, capture_cfg):
     """
 
     # we are using AES in ECB mode for generating random texts
-    key_generation = bytearray(
-        [
-            0x12,
-            0x34,
-            0x56,
-            0x78,
-            0x9A,
-            0xBC,
-            0xDE,
-            0xF1,
-            0x23,
-            0x45,
-            0x67,
-            0x89,
-            0xAB,
-            0xCD,
-            0xE0,
-            0xF0,
-        ]
-    )
+    key_generation = bytearray([
+        0x12,
+        0x34,
+        0x56,
+        0x78,
+        0x9A,
+        0xBC,
+        0xDE,
+        0xF1,
+        0x23,
+        0x45,
+        0x67,
+        0x89,
+        0xAB,
+        0xCD,
+        0xE0,
+        0xF0,
+    ])
     cipher = AES.new(bytes(key_generation), AES.MODE_ECB)
-    text_fixed = bytearray(
-        [
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-        ]
-    )
-    text_random = bytearray(
-        [
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-        ]
-    )
+    text_fixed = bytearray([
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+    ])
+    text_random = bytearray([
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+    ])
 
     sha3 = SHA3_256.new(text_fixed)
     digest_fixed = binascii.b2a_hex(sha3.digest())
@@ -1176,27 +1159,35 @@ def capture_sha3_fvsr_data(ot, capture_cfg):
 
     ack_ret = ot.target.simpleserial_wait_ack(5000)
     if ack_ret is None:
-        raise Exception("Batch mode acknowledge error: Device and host not in sync")
+        raise Exception(
+            "Batch mode acknowledge error: Device and host not in sync")
 
     tqdm.write("No key used, as we are doing sha3 hashing")
-    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write(
+        "l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
 
     # Start sampling with the fixed key.
     sample_fixed = 1
     while True:
         if sample_fixed:
-            ret = cw.capture_trace(
-                ot.scope, ot.target, text_fixed, key=None, ack=False, as_int=True
-            )
+            ret = cw.capture_trace(ot.scope,
+                                   ot.target,
+                                   text_fixed,
+                                   key=None,
+                                   ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError("Capture failed.")
             expected = digest_fixed
             got = binascii.b2a_hex(ret.textout)
         else:
             text_random = bytearray(cipher.encrypt(text_random))
-            ret = cw.capture_trace(
-                ot.scope, ot.target, text_random, key=None, ack=False, as_int=True
-            )
+            ret = cw.capture_trace(ot.scope,
+                                   ot.target,
+                                   text_random,
+                                   key=None,
+                                   ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError("Capture failed.")
             sha3 = SHA3_256.new(text_random)
@@ -1258,7 +1249,12 @@ def capture_kmac_random(ot, ktp):
     tqdm.write(f"Using key: {binascii.b2a_hex(bytes(key))}")
     while True:
         _, text = ktp.next()
-        ret = cw.capture_trace(ot.scope, ot.target, text, key, ack=False, as_int=True)
+        ret = cw.capture_trace(ot.scope,
+                               ot.target,
+                               text,
+                               key,
+                               ack=False,
+                               as_int=True)
         if not ret:
             raise RuntimeError("Capture failed.")
         mac = KMAC128.new(key=key, mac_len=32)
@@ -1287,33 +1283,31 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
       scope_type: cw or waverunner as a scope for batch capture.
     """
 
-    key_fixed = bytearray(
-        [
-            0x81,
-            0x1E,
-            0x37,
-            0x31,
-            0xB0,
-            0x12,
-            0x0A,
-            0x78,
-            0x42,
-            0x78,
-            0x1E,
-            0x22,
-            0xB2,
-            0x5C,
-            0xDD,
-            0xF9,
-        ]
-    )
+    key_fixed = bytearray([
+        0x81,
+        0x1E,
+        0x37,
+        0x31,
+        0xB0,
+        0x12,
+        0x0A,
+        0x78,
+        0x42,
+        0x78,
+        0x1E,
+        0x22,
+        0xB2,
+        0x5C,
+        0xDD,
+        0xF9,
+    ])
     ot.target.simpleserial_write("f", key_fixed)
     key = key_fixed
     random.seed(capture_cfg["batch_prng_seed"])
-    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
     ot.target.simpleserial_write(
-        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-    )
+        "l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write(
+        "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
 
     # Create the ChipWhisperer project.
     project_file = capture_cfg["project_name"]
@@ -1328,7 +1322,8 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
-    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces") as pbar:
+    with tqdm(total=rem_num_traces, desc="Capturing", ncols=80,
+              unit=" traces") as pbar:
         while rem_num_traces > 0:
             # Determine the number of traces for this batch and arm the oscilloscope.
             scope.num_segments = min(rem_num_traces, scope.num_segments_max)
@@ -1336,8 +1331,7 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             scope.arm()
             # Start batch encryption.
             ot.target.simpleserial_write(
-                "b", scope.num_segments_actual.to_bytes(4, "little")
-            )
+                "b", scope.num_segments_actual.to_bytes(4, "little"))
 
             plaintexts = []
             ciphertexts = []
@@ -1357,11 +1351,8 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 mac = KMAC128.new(key=key, mac_len=32)
                 mac.update(plaintext)
                 ciphertext = bytearray.fromhex(mac.hexdigest())
-                batch_digest = (
-                    ciphertext
-                    if batch_digest is None
-                    else bytes(a ^ b for (a, b) in zip(ciphertext, batch_digest))
-                )
+                batch_digest = (ciphertext if batch_digest is None else bytes(
+                    a ^ b for (a, b) in zip(ciphertext, batch_digest)))
                 plaintexts.append(plaintext)
                 ciphertexts.append(binascii.b2a_hex(ciphertext))
                 keys.append(key)
@@ -1376,14 +1367,15 @@ def capture_kmac_fvsr_key_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             # Check the batch digest to make sure we are in sync.
             check_ciphertext(ot, batch_digest, 32)
 
-            num_segments_storage = optimize_cw_capture(project, num_segments_storage)
+            num_segments_storage = optimize_cw_capture(project,
+                                                       num_segments_storage)
 
             # Add traces of this batch to the project.
             for wave, plaintext, ciphertext, key in zip(
-                waves, plaintexts, ciphertexts, keys
-            ):
+                    waves, plaintexts, ciphertexts, keys):
                 project.traces.append(
-                    cw.common.traces.Trace(wave, plaintext, bytearray(ciphertext), key),
+                    cw.common.traces.Trace(wave, plaintext,
+                                           bytearray(ciphertext), key),
                     dtype=np.uint16,
                 )
             # Update the loop variable and the progress bar.
@@ -1433,119 +1425,113 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
       ot: Initialized OpenTitan target.
     """
 
-    key_generation = bytearray(
-        [
-            0x12,
-            0x34,
-            0x56,
-            0x78,
-            0x9A,
-            0xBC,
-            0xDE,
-            0xF1,
-            0x23,
-            0x45,
-            0x67,
-            0x89,
-            0xAB,
-            0xCD,
-            0xE0,
-            0xF0,
-        ]
-    )
+    key_generation = bytearray([
+        0x12,
+        0x34,
+        0x56,
+        0x78,
+        0x9A,
+        0xBC,
+        0xDE,
+        0xF1,
+        0x23,
+        0x45,
+        0x67,
+        0x89,
+        0xAB,
+        0xCD,
+        0xE0,
+        0xF0,
+    ])
     cipher = AES.new(bytes(key_generation), AES.MODE_ECB)
-    text_fixed = bytearray(
-        [
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-            0xAA,
-        ]
-    )
-    text_random = bytearray(
-        [
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-            0xCC,
-        ]
-    )
-    key_fixed = bytearray(
-        [
-            0x81,
-            0x1E,
-            0x37,
-            0x31,
-            0xB0,
-            0x12,
-            0x0A,
-            0x78,
-            0x42,
-            0x78,
-            0x1E,
-            0x22,
-            0xB2,
-            0x5C,
-            0xDD,
-            0xF9,
-        ]
-    )
-    key_random = bytearray(
-        [
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-            0x53,
-        ]
-    )
+    text_fixed = bytearray([
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+        0xAA,
+    ])
+    text_random = bytearray([
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+        0xCC,
+    ])
+    key_fixed = bytearray([
+        0x81,
+        0x1E,
+        0x37,
+        0x31,
+        0xB0,
+        0x12,
+        0x0A,
+        0x78,
+        0x42,
+        0x78,
+        0x1E,
+        0x22,
+        0xB2,
+        0x5C,
+        0xDD,
+        0xF9,
+    ])
+    key_random = bytearray([
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+        0x53,
+    ])
 
     tqdm.write(f"Using fixed key: {binascii.b2a_hex(bytes(key_fixed))}")
-    ot.target.simpleserial_write("l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
+    ot.target.simpleserial_write(
+        "l", capture_cfg["lfsr_seed"].to_bytes(4, "little"))
 
     # Start sampling with the fixed key.
     sample_fixed = 1
     while True:
         if sample_fixed:
             text_fixed = bytearray(cipher.encrypt(text_fixed))
-            ret = cw.capture_trace(
-                ot.scope, ot.target, text_fixed, key_fixed, ack=False, as_int=True
-            )
+            ret = cw.capture_trace(ot.scope,
+                                   ot.target,
+                                   text_fixed,
+                                   key_fixed,
+                                   ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError("Capture failed.")
             mac = KMAC128.new(key=key_fixed, mac_len=32)
@@ -1556,9 +1542,12 @@ def capture_kmac_fvsr_key(ot, capture_cfg):
         else:
             text_random = bytearray(cipher.encrypt(text_random))
             key_random = bytearray(cipher.encrypt(key_random))
-            ret = cw.capture_trace(
-                ot.scope, ot.target, text_random, key_random, ack=False, as_int=True
-            )
+            ret = cw.capture_trace(ot.scope,
+                                   ot.target,
+                                   text_random,
+                                   key_random,
+                                   ack=False,
+                                   as_int=True)
             if not ret:
                 raise RuntimeError("Capture failed.")
             mac = KMAC128.new(key=key_random, mac_len=32)
@@ -1610,7 +1599,8 @@ def kmac_fvsr_key_batch(
     capture_end(ctx.obj.cfg)
 
 
-def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cfg):
+def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg,
+                          device_cfg):
     """Capture traces for ECDSA P256/P384 secret key generation
     and modular inverse computation.
 
@@ -1652,15 +1642,15 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
     # Initialize some curve-dependent parameters.
     if capture_cfg["curve"] == "p256":
         curve_order_n = (
-            0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
-        )
+            0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551)
         key_bytes = 256 // 8
         seed_bytes = 320 // 8
         modinv_share_bytes = 320 // 8
         modinv_mask_bytes = 128 // 8
     else:
         # TODO: add support for P384
-        raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
+        raise NotImplementedError(
+            f'Curve {capture_cfg["curve"]} is not supported')
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -1671,8 +1661,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         if ktp.keyLen() != seed_bytes:
             raise ValueError(
                 f"Unexpected seed length: {ktp.keyLen()}.\n"
-                f"Hint: set key len={seed_bytes} in the configuration file."
-            )
+                f"Hint: set key len={seed_bytes} in the configuration file.")
         if ktp.textLen() != seed_bytes:
             raise ValueError(
                 f"Unexpected mask length: {ktp.textLen()}.\n"
@@ -1697,8 +1686,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
             C = ktp.next_key()
             if len(C) != seed_bytes:
                 raise ValueError(
-                    f"Fixed seed length is {len(C)}, expected {seed_bytes}"
-                )
+                    f"Fixed seed length is {len(C)}, expected {seed_bytes}")
             ktp.key_len = key_bytes
             fixed_number = ktp.next_key()
             if len(fixed_number) != key_bytes:
@@ -1707,10 +1695,11 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                 )
             ktp.key_len = seed_bytes
 
-            seed_fixed_int = int.from_bytes(C, byteorder="little") + int.from_bytes(
-                fixed_number, byteorder="little"
-            )
-            seed_fixed = seed_fixed_int.to_bytes(seed_bytes, byteorder="little")
+            seed_fixed_int = int.from_bytes(
+                C, byteorder="little") + int.from_bytes(fixed_number,
+                                                        byteorder="little")
+            seed_fixed = seed_fixed_int.to_bytes(seed_bytes,
+                                                 byteorder="little")
         else:
             # In fixed-vs-random SEED mode we use only one fixed constant:
             #    1. seed_fixed - A 320 bit constant used to derive the fixed key
@@ -1725,19 +1714,21 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
 
         # Expected key is `seed mod n`, where n is the order of the curve and
         # `seed` is interpreted as little-endian.
-        expected_fixed_key = (
-            int.from_bytes(seed_fixed, byteorder="little") % curve_order_n
-        )
+        expected_fixed_key = (int.from_bytes(seed_fixed, byteorder="little") %
+                              curve_order_n)
 
         sample_fixed = 1
         # Loop to collect each power trace
-        for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing", ncols=80):
+        for _ in tqdm(range(capture_cfg["num_traces"]),
+                      desc="Capturing",
+                      ncols=80):
 
             ot.scope.adc.offset = ot.offset_samples
 
             if capture_cfg["masks_off"] is True:
                 # Use a constant mask for each trace
-                mask = bytearray(capture_cfg["plain_text_len_bytes"])  # all zeros
+                mask = bytearray(
+                    capture_cfg["plain_text_len_bytes"])  # all zeros
             else:
                 # Generate a new random mask for each trace.
                 mask = ktp.next_text()
@@ -1761,12 +1752,13 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                     random_number = ktp.next_key()
                     ktp.key_len = seed_bytes
                     seed_used_int = int.from_bytes(
-                        C, byteorder="little"
-                    ) + int.from_bytes(random_number, byteorder="little")
-                    seed_used = seed_used_int.to_bytes(seed_bytes, byteorder="little")
+                        C, byteorder="little") + int.from_bytes(
+                            random_number, byteorder="little")
+                    seed_used = seed_used_int.to_bytes(seed_bytes,
+                                                       byteorder="little")
                     expected_key = (
-                        int.from_bytes(seed_used, byteorder="little") % curve_order_n
-                    )
+                        int.from_bytes(seed_used, byteorder="little") %
+                        curve_order_n)
             else:
                 # In fixed-vs-random SEED mode, the fixed set of measurements is
                 # generated using the fixed 320 bit seed. The random set of
@@ -1779,8 +1771,8 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                 else:
                     seed_used = ktp.next_key()
                     expected_key = (
-                        int.from_bytes(seed_used, byteorder="little") % curve_order_n
-                    )
+                        int.from_bytes(seed_used, byteorder="little") %
+                        curve_order_n)
 
             # Decide for next round if we use the fixed or a random seed.
             sample_fixed = random.randint(0, 1)
@@ -1831,11 +1823,9 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
             tqdm.write(f"share1 = {share1.hex()}")
 
             if actual_key != expected_key:
-                raise RuntimeError(
-                    "Bad generated key:\n"
-                    f"Expected: {hex(expected_key)}\n"
-                    f"Actual:   {hex(actual_key)}"
-                )
+                raise RuntimeError("Bad generated key:\n"
+                                   f"Expected: {hex(expected_key)}\n"
+                                   f"Actual:   {hex(actual_key)}")
 
             # Create a chipwhisperer trace object and save it to the project
             # Args/fields of Trace object: waves, textin, textout, key
@@ -1865,10 +1855,8 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
         # you want a random fixed key or a hardcoded fixed key)
         # k_fixed_barray = ktp.next_key()[:256]
         k_fixed_barray = bytearray(
-            (
-                0x2648D0D248B70944DFD84C2F85EA5793729112E7CAFA50ABDF7EF8B7594FA2A1
-            ).to_bytes(key_bytes, "little")
-        )
+            (0x2648D0D248B70944DFD84C2F85EA5793729112E7CAFA50ABDF7EF8B7594FA2A1
+             ).to_bytes(key_bytes, "little"))
         k_fixed = int.from_bytes(k_fixed_barray, byteorder="little")
 
         print("Fixed input:")
@@ -1879,7 +1867,9 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
 
         sample_fixed = 1
         # Loop to collect each power trace
-        for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing", ncols=80):
+        for _ in tqdm(range(capture_cfg["num_traces"]),
+                      desc="Capturing",
+                      ncols=80):
 
             ot.scope.adc.offset = ot.offset_samples
 
@@ -1897,8 +1887,7 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                 if k1_fixed >= pow(2, 320):
                     k1_fixed -= curve_order_n
                 input_k1_fixed = bytearray(
-                    (k1_fixed).to_bytes(modinv_share_bytes, "little")
-                )
+                    (k1_fixed).to_bytes(modinv_share_bytes, "little"))
                 # Use the fixed input.
                 input_k0_used = input_k0_fixed
                 input_k1_used = input_k1_fixed
@@ -1909,14 +1898,17 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
                 input_k0_used = ktp.next_key()
                 input_k1_used = ktp.next_key()
                 # calculate the key from the shares
-                k_used = (
-                    int.from_bytes(input_k0_used, byteorder="little") +
-                    int.from_bytes(input_k1_used, byteorder="little")
-                ) % curve_order_n
+                k_used = (int.from_bytes(input_k0_used, byteorder="little") +
+                          int.from_bytes(input_k1_used,
+                                         byteorder="little")) % curve_order_n
                 expected_output = pow(k_used, -1, curve_order_n)
 
-            tqdm.write(f'k0 = {hex(int.from_bytes(input_k0_used, byteorder="little"))}')
-            tqdm.write(f'k1 = {hex(int.from_bytes(input_k1_used, byteorder="little"))}')
+            tqdm.write(
+                f'k0 = {hex(int.from_bytes(input_k0_used, byteorder="little"))}'
+            )
+            tqdm.write(
+                f'k1 = {hex(int.from_bytes(input_k1_used, byteorder="little"))}'
+            )
 
             # Decide for next round if we use the fixed or a random seed.
             sample_fixed = random.randint(0, 1)
@@ -1942,25 +1934,23 @@ def capture_otbn_vertical(ot, ktp, fw_bin, pll_frequency, capture_cfg, device_cf
             kalpha_inv = ot.target.simpleserial_read("r", key_bytes, ack=False)
             if kalpha_inv is None:
                 raise RuntimeError("Modinv device output (k*alpha)^-1 is none")
-            alpha = ot.target.simpleserial_read("r", modinv_mask_bytes, ack=False)
+            alpha = ot.target.simpleserial_read("r",
+                                                modinv_mask_bytes,
+                                                ack=False)
             if alpha is None:
                 raise RuntimeError("Modinv device output alpha is none")
 
             # Actual result (kalpha_inv*alpha) mod n:
-            actual_output = (
-                int.from_bytes(kalpha_inv, byteorder="little") *
-                int.from_bytes(alpha, byteorder="little") %
-                curve_order_n
-            )
+            actual_output = (int.from_bytes(kalpha_inv, byteorder="little") *
+                             int.from_bytes(alpha, byteorder="little") %
+                             curve_order_n)
 
             tqdm.write(f"k^-1  = {hex(actual_output)}\n")
 
             if actual_output != expected_output:
-                raise RuntimeError(
-                    "Bad computed modinv output:\n"
-                    f"Expected: {hex(expected_output)}\n"
-                    f"Actual:   {hex(actual_output)}"
-                )
+                raise RuntimeError("Bad computed modinv output:\n"
+                                   f"Expected: {hex(expected_output)}\n"
+                                   f"Actual:   {hex(actual_output)}")
 
             # Create a chipwhisperer trace object and save it to the project
             # Args/fields of Trace object: waves, textin, textout, key
@@ -2008,7 +1998,9 @@ def otbn_vertical(
     print(
         f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"] / 1000000} MHz'
     )
-    print(f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s")
+    print(
+        f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s"
+    )
 
     # Call the capture loop
     capture_otbn_vertical(
@@ -2056,13 +2048,13 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
     # Initialize some curve-dependent parameters.
     if capture_cfg["curve"] == "p256":
         curve_order_n = (
-            0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551
-        )
+            0xFFFFFFFF00000000FFFFFFFFFFFFFFFFBCE6FAADA7179E84F3B9CAC2FC632551)
         key_bytes = 256 // 8
         seed_bytes = 320 // 8
     else:
         # TODO: add support for P384
-        raise NotImplementedError(f'Curve {capture_cfg["curve"]} is not supported')
+        raise NotImplementedError(
+            f'Curve {capture_cfg["curve"]} is not supported')
 
     # Capture traces.
     rem_num_traces = capture_cfg["num_traces"]
@@ -2083,7 +2075,9 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         scope._scope.adc.decimate = capture_cfg["decimate"]
 
     # Print final scope parameter
-    print(f"Scope setup with final sampling rate of {scope._scope.clock.adc_freq} S/s")
+    print(
+        f"Scope setup with final sampling rate of {scope._scope.clock.adc_freq} S/s"
+    )
 
     # register ctrl-c handler to not lose already recorded traces if measurement is aborted
     signal.signal(signal.SIGINT, partial(abort_handler, project))
@@ -2094,8 +2088,7 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         if ktp.keyLen() != seed_bytes:
             raise ValueError(
                 f"Unexpected seed length: {ktp.keyLen()}.\n"
-                f"Hint: set key len={seed_bytes} in the configuration file."
-            )
+                f"Hint: set key len={seed_bytes} in the configuration file.")
         if ktp.textLen() != seed_bytes:
             raise ValueError(
                 f"Unexpected mask length: {ktp.textLen()}.\n"
@@ -2110,8 +2103,7 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         # running this function with the same batch_prng_seed
         random.seed(capture_cfg["batch_prng_seed"])
         ot.target.simpleserial_write(
-            "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-        )
+            "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
         time.sleep(0.3)
 
         # Generate fixed constants for all traces of the keygen operation.
@@ -2126,8 +2118,7 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
             C = ktp.next_key()
             if len(C) != seed_bytes:
                 raise ValueError(
-                    f"Fixed seed length is {len(C)}, expected {seed_bytes}"
-                )
+                    f"Fixed seed length is {len(C)}, expected {seed_bytes}")
             ktp.key_len = key_bytes
             fixed_number = ktp.next_key()
             if len(fixed_number) != key_bytes:
@@ -2136,8 +2127,10 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 )
             ktp.key_len = seed_bytes
             C_int = int.from_bytes(C, byteorder="little")
-            seed_fixed_int = C_int + int.from_bytes(fixed_number, byteorder="little")
-            seed_fixed = seed_fixed_int.to_bytes(seed_bytes, byteorder="little")
+            seed_fixed_int = C_int + int.from_bytes(fixed_number,
+                                                    byteorder="little")
+            seed_fixed = seed_fixed_int.to_bytes(seed_bytes,
+                                                 byteorder="little")
 
             print("Constant redundancy:")
             print(binascii.b2a_hex(C))
@@ -2173,27 +2166,26 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
         if capture_cfg["test_type"] == "KEY":
             random.seed(capture_cfg["batch_prng_seed"])
             ot.target.simpleserial_write(
-                "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little")
-            )
+                "s", capture_cfg["batch_prng_seed"].to_bytes(4, "little"))
             time.sleep(0.3)
 
-        with tqdm(
-            total=rem_num_traces, desc="Capturing", ncols=80, unit=" traces"
-        ) as pbar:
+        with tqdm(total=rem_num_traces,
+                  desc="Capturing",
+                  ncols=80,
+                  unit=" traces") as pbar:
             while rem_num_traces > 0:
                 # Determine the number of traces for this batch and arm the oscilloscope.
-                scope.num_segments = min(rem_num_traces, scope.num_segments_max)
+                scope.num_segments = min(rem_num_traces,
+                                         scope.num_segments_max)
 
                 scope.arm()
                 # Start batch keygen
                 if capture_cfg["test_type"] == "KEY":
                     ot.target.simpleserial_write(
-                        "e", scope.num_segments_actual.to_bytes(4, "little")
-                    )
+                        "e", scope.num_segments_actual.to_bytes(4, "little"))
                 else:
                     ot.target.simpleserial_write(
-                        "b", scope.num_segments_actual.to_bytes(4, "little")
-                    )
+                        "b", scope.num_segments_actual.to_bytes(4, "little"))
 
                 # Transfer traces
                 waves = scope.capture_and_transfer_waves()
@@ -2221,11 +2213,9 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                             random_number = ktp.next_key()
                             ktp.key_len = seed_bytes
                             seed_barray_int = C_int + int.from_bytes(
-                                random_number, byteorder="little"
-                            )
+                                random_number, byteorder="little")
                             seed_barray = seed_barray_int.to_bytes(
-                                seed_bytes, byteorder="little"
-                            )
+                                seed_bytes, byteorder="little")
                             seed = seed_barray_int
                     else:
                         if sample_fixed:
@@ -2236,7 +2226,8 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                             seed = int.from_bytes(seed_barray, "little")
 
                     if capture_cfg["masks_off"] is True:
-                        mask_barray = bytearray(capture_cfg["plain_text_len_bytes"])
+                        mask_barray = bytearray(
+                            capture_cfg["plain_text_len_bytes"])
                         mask = int.from_bytes(mask_barray, "little")
                     else:
                         mask_barray = ktp.next_text()
@@ -2269,12 +2260,12 @@ def capture_otbn_vertical_batch(ot, ktp, capture_cfg, scope_type, device_cfg):
                 )
 
                 num_segments_storage = optimize_cw_capture(
-                    project, num_segments_storage
-                )
+                    project, num_segments_storage)
 
                 # Create a chipwhisperer trace object and save it to the project
                 # Args/fields of Trace object: waves, textin, textout, key
-                for wave, seed, mask, d0, d1 in zip(waves, seeds, masks, d0s, d1s):
+                for wave, seed, mask, d0, d1 in zip(waves, seeds, masks, d0s,
+                                                    d1s):
                     d = d0 + d1
                     trace = cw.common.traces.Trace(wave, d, mask, seed)
                     project.traces.append(trace, dtype=np.uint16)
@@ -2319,9 +2310,8 @@ def otbn_vertical_batch(
     capture_end(ctx.obj.cfg)
 
 
-def capture_ecdsa_sections(
-    ot, fw_bin, pll_frequency, num_sections, secret_k, priv_key_d, msg
-):
+def capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections, secret_k,
+                           priv_key_d, msg):
     """A utility function to collect the full OTBN trace section by section
 
     ECDSA is a long operation (e.g, ECDSA-256 takes ~7M samples) that doesn't fit
@@ -2375,7 +2365,8 @@ def capture_ecdsa_sections(
         print("Observed number of cycles: %d" % cycles)
 
         # Append the section into the waves array
-        tmp_buffer = np.append(tmp_buffer, ot.scope.get_last_trace(as_int=True))
+        tmp_buffer = np.append(tmp_buffer,
+                               ot.scope.get_last_trace(as_int=True))
     return tmp_buffer
 
 
@@ -2424,7 +2415,8 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
     # Loop to collect each power trace
-    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing", ncols=80):
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing",
+                  ncols=80):
 
         # This part can be modified to create a new command.
         # For example, a random secret scalar can be set using the following
@@ -2436,363 +2428,347 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
         # ECDSA-384
         if capture_cfg["key_len_bytes"] == 48:
             # Set two shares of the private key d
-            priv_key_d0 = bytearray(
-                [
-                    0x6B,
-                    0x9D,
-                    0x3D,
-                    0xAD,
-                    0x2E,
-                    0x1B,
-                    0x8C,
-                    0x1C,
-                    0x05,
-                    0xB1,
-                    0x98,
-                    0x75,
-                    0xB6,
-                    0x65,
-                    0x9F,
-                    0x4D,
-                    0xE2,
-                    0x3C,
-                    0x3B,
-                    0x66,
-                    0x7B,
-                    0xF2,
-                    0x97,
-                    0xBA,
-                    0x9A,
-                    0xA4,
-                    0x77,
-                    0x40,
-                    0x78,
-                    0x71,
-                    0x37,
-                    0xD8,
-                    0x96,
-                    0xD5,
-                    0x72,
-                    0x4E,
-                    0x4C,
-                    0x70,
-                    0xA8,
-                    0x25,
-                    0xF8,
-                    0x72,
-                    0xC9,
-                    0xEA,
-                    0x60,
-                    0xD2,
-                    0xED,
-                    0xF5,
-                ]
-            )
-            priv_key_d1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            priv_key_d0 = bytearray([
+                0x6B,
+                0x9D,
+                0x3D,
+                0xAD,
+                0x2E,
+                0x1B,
+                0x8C,
+                0x1C,
+                0x05,
+                0xB1,
+                0x98,
+                0x75,
+                0xB6,
+                0x65,
+                0x9F,
+                0x4D,
+                0xE2,
+                0x3C,
+                0x3B,
+                0x66,
+                0x7B,
+                0xF2,
+                0x97,
+                0xBA,
+                0x9A,
+                0xA4,
+                0x77,
+                0x40,
+                0x78,
+                0x71,
+                0x37,
+                0xD8,
+                0x96,
+                0xD5,
+                0x72,
+                0x4E,
+                0x4C,
+                0x70,
+                0xA8,
+                0x25,
+                0xF8,
+                0x72,
+                0xC9,
+                0xEA,
+                0x60,
+                0xD2,
+                0xED,
+                0xF5,
+            ])
+            priv_key_d1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
             # Set two shares of the scalar secret_k
-            secret_k0 = bytearray(
-                [
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
-            secret_k1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            secret_k0 = bytearray([
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
+            secret_k1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
         # ECDSA-256
         elif capture_cfg["key_len_bytes"] == 32:
             # Set two shares of the private key d
-            priv_key_d0 = bytearray(
-                [
-                    0xCD,
-                    0xB4,
-                    0x57,
-                    0xAF,
-                    0x1C,
-                    0x9F,
-                    0x4C,
-                    0x74,
-                    0x02,
-                    0x0C,
-                    0x7E,
-                    0x8B,
-                    0xE9,
-                    0x93,
-                    0x3E,
-                    0x28,
-                    0x0C,
-                    0xF0,
-                    0x18,
-                    0x0D,
-                    0xF4,
-                    0x6C,
-                    0x0B,
-                    0xDA,
-                    0x7A,
-                    0xBB,
-                    0xE6,
-                    0x8F,
-                    0xB7,
-                    0xA0,
-                    0x45,
-                    0x55,
-                ]
-            )
-            priv_key_d1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            priv_key_d0 = bytearray([
+                0xCD,
+                0xB4,
+                0x57,
+                0xAF,
+                0x1C,
+                0x9F,
+                0x4C,
+                0x74,
+                0x02,
+                0x0C,
+                0x7E,
+                0x8B,
+                0xE9,
+                0x93,
+                0x3E,
+                0x28,
+                0x0C,
+                0xF0,
+                0x18,
+                0x0D,
+                0xF4,
+                0x6C,
+                0x0B,
+                0xDA,
+                0x7A,
+                0xBB,
+                0xE6,
+                0x8F,
+                0xB7,
+                0xA0,
+                0x45,
+                0x55,
+            ])
+            priv_key_d1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
             # Set two shares of the scalar secret_k
-            secret_k0 = bytearray(
-                [
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
-            secret_k1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            secret_k0 = bytearray([
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
+            secret_k1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
         else:
             raise RuntimeError("priv_key_d must be either 32B or 48B")
 
@@ -2802,18 +2778,17 @@ def capture_ecdsa_simple(ot, fw_bin, pll_frequency, capture_cfg):
 
         # Create a clean array to keep the collected traces
         waves = np.array([])
-        waves = capture_ecdsa_sections(
-            ot, fw_bin, pll_frequency, num_sections, secret_k, priv_key_d, msg
-        )
+        waves = capture_ecdsa_sections(ot, fw_bin, pll_frequency, num_sections,
+                                       secret_k, priv_key_d, msg)
 
         # Read 32 bytes of signature_r and signature_s back from the device
-        sig_r = ot.target.simpleserial_read(
-            "r", capture_cfg["output_len_bytes"], ack=False
-        )
+        sig_r = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
         print(f"sig_r = {''.join('{:02x}'.format(x) for x in sig_r)}")
-        sig_s = ot.target.simpleserial_read(
-            "r", capture_cfg["output_len_bytes"], ack=False
-        )
+        sig_s = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
         print(f"sig_s = {''.join('{:02x}'.format(x) for x in sig_s)}")
 
         # Create a chipwhisperer trace object and save it to the project
@@ -2855,7 +2830,9 @@ def ecdsa_simple(
     print(
         f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"] / 1000000} MHz'
     )
-    print(f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s")
+    print(
+        f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s"
+    )
 
     # Call the capture loop
     capture_ecdsa_simple(
@@ -2905,7 +2882,8 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
     signal.signal(signal.SIGINT, partial(abort_handler, project))
 
     # Loop to collect traces
-    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing", ncols=80):
+    for _ in tqdm(range(capture_cfg["num_traces"]), desc="Capturing",
+                  ncols=80):
         # This part can be modified to create a new command.
         # For example, a random secret scalar can be set using the following
         #   from numpy.random import default_rng
@@ -2916,363 +2894,347 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
         # ECDSA-384
         if capture_cfg["key_len_bytes"] == 48:
             # Set two shares of the private key d
-            priv_key_d0 = bytearray(
-                [
-                    0x6B,
-                    0x9D,
-                    0x3D,
-                    0xAD,
-                    0x2E,
-                    0x1B,
-                    0x8C,
-                    0x1C,
-                    0x05,
-                    0xB1,
-                    0x98,
-                    0x75,
-                    0xB6,
-                    0x65,
-                    0x9F,
-                    0x4D,
-                    0xE2,
-                    0x3C,
-                    0x3B,
-                    0x66,
-                    0x7B,
-                    0xF2,
-                    0x97,
-                    0xBA,
-                    0x9A,
-                    0xA4,
-                    0x77,
-                    0x40,
-                    0x78,
-                    0x71,
-                    0x37,
-                    0xD8,
-                    0x96,
-                    0xD5,
-                    0x72,
-                    0x4E,
-                    0x4C,
-                    0x70,
-                    0xA8,
-                    0x25,
-                    0xF8,
-                    0x72,
-                    0xC9,
-                    0xEA,
-                    0x60,
-                    0xD2,
-                    0xED,
-                    0xF5,
-                ]
-            )
-            priv_key_d1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            priv_key_d0 = bytearray([
+                0x6B,
+                0x9D,
+                0x3D,
+                0xAD,
+                0x2E,
+                0x1B,
+                0x8C,
+                0x1C,
+                0x05,
+                0xB1,
+                0x98,
+                0x75,
+                0xB6,
+                0x65,
+                0x9F,
+                0x4D,
+                0xE2,
+                0x3C,
+                0x3B,
+                0x66,
+                0x7B,
+                0xF2,
+                0x97,
+                0xBA,
+                0x9A,
+                0xA4,
+                0x77,
+                0x40,
+                0x78,
+                0x71,
+                0x37,
+                0xD8,
+                0x96,
+                0xD5,
+                0x72,
+                0x4E,
+                0x4C,
+                0x70,
+                0xA8,
+                0x25,
+                0xF8,
+                0x72,
+                0xC9,
+                0xEA,
+                0x60,
+                0xD2,
+                0xED,
+                0xF5,
+            ])
+            priv_key_d1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
             # Set two shares of the scalar secret_k
-            secret_k0 = bytearray(
-                [
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
-            secret_k1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            secret_k0 = bytearray([
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
+            secret_k1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
         # ECDSA-256
         elif capture_cfg["key_len_bytes"] == 32:
             # Set two shares of the private key d
-            priv_key_d0 = bytearray(
-                [
-                    0xCD,
-                    0xB4,
-                    0x57,
-                    0xAF,
-                    0x1C,
-                    0x9F,
-                    0x4C,
-                    0x74,
-                    0x02,
-                    0x0C,
-                    0x7E,
-                    0x8B,
-                    0xE9,
-                    0x93,
-                    0x3E,
-                    0x28,
-                    0x0C,
-                    0xF0,
-                    0x18,
-                    0x0D,
-                    0xF4,
-                    0x6C,
-                    0x0B,
-                    0xDA,
-                    0x7A,
-                    0xBB,
-                    0xE6,
-                    0x8F,
-                    0xB7,
-                    0xA0,
-                    0x45,
-                    0x55,
-                ]
-            )
-            priv_key_d1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            priv_key_d0 = bytearray([
+                0xCD,
+                0xB4,
+                0x57,
+                0xAF,
+                0x1C,
+                0x9F,
+                0x4C,
+                0x74,
+                0x02,
+                0x0C,
+                0x7E,
+                0x8B,
+                0xE9,
+                0x93,
+                0x3E,
+                0x28,
+                0x0C,
+                0xF0,
+                0x18,
+                0x0D,
+                0xF4,
+                0x6C,
+                0x0B,
+                0xDA,
+                0x7A,
+                0xBB,
+                0xE6,
+                0x8F,
+                0xB7,
+                0xA0,
+                0x45,
+                0x55,
+            ])
+            priv_key_d1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
             # Set two shares of the scalar secret_k
-            secret_k0 = bytearray(
-                [
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0xFF,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
-            secret_k1 = bytearray(
-                [
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                    0x00,
-                ]
-            )
+            secret_k0 = bytearray([
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0xFF,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
+            secret_k1 = bytearray([
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+                0x00,
+            ])
         else:
             raise RuntimeError("priv_key_d must be either 32B or 48B")
 
@@ -3313,13 +3275,13 @@ def capture_ecdsa_stream(ot, fw_bin, pll_frequency, capture_cfg):
         waves = np.append(waves, ot.scope.get_last_trace(as_int=True))
 
         # Read signature_r and signature_s back from the device
-        sig_r = ot.target.simpleserial_read(
-            "r", capture_cfg["output_len_bytes"], ack=False
-        )
+        sig_r = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
         print(f"sig_r = {''.join('{:02x}'.format(x) for x in sig_r)}")
-        sig_s = ot.target.simpleserial_read(
-            "r", capture_cfg["output_len_bytes"], ack=False
-        )
+        sig_s = ot.target.simpleserial_read("r",
+                                            capture_cfg["output_len_bytes"],
+                                            ack=False)
         print(f"sig_s = {''.join('{:02x}'.format(x) for x in sig_s)}")
 
         # Create a chipwhisperer trace object and save it to the project
@@ -3359,7 +3321,9 @@ def ecdsa_stream(
     print(
         f'Target setup with clock frequency {ctx.obj.cfg["device"]["pll_frequency"] / 1000000} MHz'
     )
-    print(f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s")
+    print(
+        f"Scope setup with sampling rate {ctx.obj.ot.scope.clock.adc_freq} S/s"
+    )
 
     capture_ecdsa_stream(
         ctx.obj.ot,
@@ -3376,7 +3340,8 @@ def plot_cmd(ctx: typer.Context, num_traces: int = opt_plot_traces):
 
     if num_traces is not None:
         ctx.obj.cfg["plot_capture"]["num_traces"] = num_traces
-    plot_results(ctx.obj.cfg["plot_capture"], ctx.obj.cfg["capture"]["project_name"])
+    plot_results(ctx.obj.cfg["plot_capture"],
+                 ctx.obj.cfg["capture"]["project_name"])
 
 
 @app.callback()

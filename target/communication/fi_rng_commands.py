@@ -13,6 +13,7 @@ from target.communication import common_library
 
 
 class OTFIRng:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -136,7 +137,8 @@ class OTFIRng:
         time.sleep(0.05)
         self.target.write(json.dumps("EntropySrcBias").encode("ascii"))
 
-    def rng_fw_overwrite(self, disable_health_check: Optional[bool] = False) -> None:
+    def rng_fw_overwrite(self,
+                         disable_health_check: Optional[bool] = False) -> None:
         """Starts the rng_fw_overwrite test.
 
         Args:

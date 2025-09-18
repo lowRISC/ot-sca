@@ -1,6 +1,8 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
+""" EMFI with the ChipShouter and the ChipShover XZY table.
+"""
 
 import sys
 import time
@@ -22,11 +24,9 @@ except ImportError:
 sys.path.append("../")
 from util import check_version  # noqa: E402
 
-""" EMFI with the ChipShouter and the ChipShover XZY table.
-"""
-
 
 class ChipShouterEMFI:
+
     def __init__(
         self,
         x_position_min: float,
@@ -89,7 +89,8 @@ class ChipShouterEMFI:
         print("Putting XZY table to home position.")
         self.shv.home()
         print("Putting XZY table to init position.")
-        self.shv.move(self.x_position_min, self.y_position_min, self.z_position)
+        self.shv.move(self.x_position_min, self.y_position_min,
+                      self.z_position)
 
         # Init ChipShouter.
         self.cs = ChipSHOUTER(chipshouter_port)
@@ -131,30 +132,26 @@ class ChipShouterEMFI:
         min_ns = int((1 / self.cwh.clock.clkgen_freq) * 1e9)
         print(min_ns)
         if self.pulse_width_min < min_ns:
-            raise RuntimeError(
-                "Min pulse width shorter than supported (" + str(min_ns) + " ns)"
-            )
+            raise RuntimeError("Min pulse width shorter than supported (" +
+                               str(min_ns) + " ns)")
         # Check pulse step.
-        if (self.pulse_width_min != self.pulse_width_max) and (
-            self.pulse_width_step % min_ns != 0
-        ):
-            raise RuntimeError(
-                "Only a pulse step width of " + str(min_ns) + " ns is supported"
-            )
+        if (self.pulse_width_min
+                != self.pulse_width_max) and (self.pulse_width_step % min_ns
+                                              != 0):
+            raise RuntimeError("Only a pulse step width of " + str(min_ns) +
+                               " ns is supported")
 
         # Check trigger delay min.
         if self.trigger_delay_min < min_ns:
-            raise RuntimeError(
-                "Min trigger delay shorter than supported (" + str(min_ns) + " ns)"
-            )
+            raise RuntimeError("Min trigger delay shorter than supported (" +
+                               str(min_ns) + " ns)")
 
         # Check trigger delay step.
-        if (self.trigger_delay_min != self.trigger_delay_max) and (
-            self.trigger_step % min_ns != 0
-        ):
-            raise RuntimeError(
-                "Only a trigger delay step  of " + str(min_ns) + " ns is supported"
-            )
+        if (self.trigger_delay_min
+                != self.trigger_delay_max) and (self.trigger_step % min_ns
+                                                != 0):
+            raise RuntimeError("Only a trigger delay step  of " + str(min_ns) +
+                               " ns is supported")
 
     def init_cs(self) -> None:
         time.sleep(1)
@@ -190,15 +187,12 @@ class ChipShouterEMFI:
             self.init_cs()
 
         # Move ChipShouter to XZY position.
-        if (
-            self.pos_y != fault_parameters["y_pos"] or
-            self.pos_x != fault_parameters["x_pos"]
-        ):
+        if (self.pos_y != fault_parameters["y_pos"] or
+                self.pos_x != fault_parameters["x_pos"]):
             self.pos_y = fault_parameters["y_pos"]
             self.pos_x = fault_parameters["x_pos"]
-            self.shv.move(
-                fault_parameters["x_pos"], fault_parameters["y_pos"], self.z_position
-            )
+            self.shv.move(fault_parameters["x_pos"], fault_parameters["y_pos"],
+                          self.z_position)
 
         # Set the EMFI voltage parameter.
         try:
@@ -208,12 +202,11 @@ class ChipShouterEMFI:
             self.init_cs()
 
         # Configure the glitch delay and length.
-        self.cwh.glitch.ext_offset = int(
-            fault_parameters["trigger_delay"] * 1e-9 / (1 / self.cwh.clock.clkgen_freq)
-        )
-        self.cwh.glitch.repeat = int(
-            fault_parameters["glitch_width"] * 1e-9 / (1 / self.cwh.clock.clkgen_freq)
-        )
+        self.cwh.glitch.ext_offset = int(fault_parameters["trigger_delay"] *
+                                         1e-9 /
+                                         (1 / self.cwh.clock.clkgen_freq))
+        self.cwh.glitch.repeat = int(fault_parameters["glitch_width"] * 1e-9 /
+                                     (1 / self.cwh.clock.clkgen_freq))
 
         # Arm the ChipWhisperer Husky.
         self.cwh.arm()
@@ -229,12 +222,12 @@ class ChipShouterEMFI:
         """
         parameters = {}
         if self.parameter_generation == "random":
-            parameters["x_pos"] = random_float_range(
-                self.x_position_min, self.x_position_max, self.x_position_step
-            )
-            parameters["y_pos"] = random_float_range(
-                self.y_position_min, self.y_position_max, self.y_position_step
-            )
+            parameters["x_pos"] = random_float_range(self.x_position_min,
+                                                     self.x_position_max,
+                                                     self.x_position_step)
+            parameters["y_pos"] = random_float_range(self.y_position_min,
+                                                     self.y_position_max,
+                                                     self.y_position_step)
         elif self.parameter_generation == "deterministic":
             if self.curr_iteration == self.num_iterations:
                 self.curr_iteration = 0
@@ -255,18 +248,14 @@ class ChipShouterEMFI:
         else:
             raise Exception(
                 "ChipShouter EMFI only supports random/deterministic"
-                "parameter generation"
-            )
+                "parameter generation")
 
         parameters["glitch_voltage"] = random_float_range(
-            self.voltage_min, self.voltage_max, self.voltage_step
-        )
+            self.voltage_min, self.voltage_max, self.voltage_step)
         parameters["glitch_width"] = random_float_range(
-            self.pulse_width_min, self.pulse_width_max, self.pulse_width_step
-        )
+            self.pulse_width_min, self.pulse_width_max, self.pulse_width_step)
         parameters["trigger_delay"] = random_float_range(
-            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
-        )
+            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step)
         return parameters
 
     def reset(self) -> None:
@@ -283,16 +272,11 @@ class ChipShouterEMFI:
         if self.parameter_generation == "random":
             return self.num_iterations
         elif self.parameter_generation == "deterministic":
-            return (
-                ((self.x_position_max - self.x_position_min + 1) / self.x_position_step) *
-                (
-                    (self.y_position_max - self.y_position_min + 1) /
-                    self.y_position_step
-                ) *
-                (self.num_iterations)
-            )
+            return (((self.x_position_max - self.x_position_min + 1) /
+                     self.x_position_step) *
+                    ((self.y_position_max - self.y_position_min + 1) /
+                     self.y_position_step) * (self.num_iterations))
         else:
             raise Exception(
                 "ChipShouter EMFI only supports random/deterministic"
-                "parameter generation"
-            )
+                "parameter generation")

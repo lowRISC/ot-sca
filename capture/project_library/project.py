@@ -46,8 +46,7 @@ class SCAProject:
         """
         if self.project_cfg.type == "cw":
             self.project = cw.create_project(
-                self.project_cfg.path, overwrite=self.project_cfg.overwrite
-            )
+                self.project_cfg.path, overwrite=self.project_cfg.overwrite)
         elif self.project_cfg.type == "ot_trace_library":
             self.project = TraceLibrary(
                 str(self.project_cfg.path),
@@ -57,8 +56,7 @@ class SCAProject:
             )
         else:
             raise RuntimeError(
-                "Only trace_db='cw' or trace_db='ot_trace_library' supported."
-            )
+                "Only trace_db='cw' or trace_db='ot_trace_library' supported.")
 
     def open_project(self) -> None:
         """Open project."""
@@ -92,14 +90,18 @@ class SCAProject:
         """Append trace to trace storage in project."""
         if self.project_cfg.type == "cw":
             trace = cw.Trace(wave, plaintext, ciphertext, key)
-            self.project.traces.append(trace, dtype=self.project_cfg.wave_dtype)
+            self.project.traces.append(trace,
+                                       dtype=self.project_cfg.wave_dtype)
         elif self.project_cfg.type == "ot_trace_library":
-            trace = Trace(
-                wave=wave.tobytes(), plaintext=plaintext, ciphertext=ciphertext, key=key
-            )
+            trace = Trace(wave=wave.tobytes(),
+                          plaintext=plaintext,
+                          ciphertext=ciphertext,
+                          key=key)
             self.project.write_to_buffer(trace)
 
-    def get_waves(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_waves(self,
+                  start: Optional[int] = None,
+                  end: Optional[int] = None):
         """Get waves from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
@@ -123,7 +125,9 @@ class SCAProject:
         elif self.project_cfg.type == "ot_trace_library":
             return self.project.get_keys(start, end)
 
-    def get_plaintexts(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_plaintexts(self,
+                       start: Optional[int] = None,
+                       end: Optional[int] = None):
         """Get plaintexts[start, end] from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
@@ -135,7 +139,9 @@ class SCAProject:
         elif self.project_cfg.type == "ot_trace_library":
             return self.project.get_plaintexts(start, end)
 
-    def get_ciphertexts(self, start: Optional[int] = None, end: Optional[int] = None):
+    def get_ciphertexts(self,
+                        start: Optional[int] = None,
+                        end: Optional[int] = None):
         """Get ciphertexts[start, end] from project."""
         if self.project_cfg.type == "cw":
             if (start is not None) and (end is not None):
@@ -170,7 +176,8 @@ class SCAProject:
         # See addWave() in chipwhisperer/common/traces/_base.py.
         if self.project_cfg.type == "cw":
             if self.project.traces.cur_seg.tracehint < self.project.traces.seg_len:
-                self.project.traces.cur_seg.setTraceHint(self.project.traces.seg_len)
+                self.project.traces.cur_seg.setTraceHint(
+                    self.project.traces.seg_len)
             # Only keep the latest two trace storage segments enabled. By default the ChipWhisperer
             # API keeps all segments enabled and after appending a new trace, the trace ranges are
             # updated for all segments. This leads to a decreasing capture rate after time.
@@ -183,8 +190,7 @@ class SCAProject:
             if num_segments_storage != len(self.project.segments):
                 if num_segments_storage >= 2:
                     self.project.traces.tm.setTraceSegmentStatus(
-                        num_segments_storage - 2, False
-                    )
+                        num_segments_storage - 2, False)
                 num_segments_storage = len(self.project.segments)
             return num_segments_storage
 

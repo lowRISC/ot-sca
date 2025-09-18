@@ -15,9 +15,12 @@ from bokeh.plotting import figure, show
 from fault_injection.project_library.project import FISuccess
 
 
-def save_plot_to_file(
-    traces, set_indices, num_traces, outfile, add_mean_stddev=False, ref_trace=None
-):
+def save_plot_to_file(traces,
+                      set_indices,
+                      num_traces,
+                      outfile,
+                      add_mean_stddev=False,
+                      ref_trace=None):
     """Save plot figure to file."""
     if set_indices is None:
         colors = itertools.cycle(palette)
@@ -49,9 +52,11 @@ def save_plot_to_file(
             )
 
     if ref_trace is not None:
-        plot.line(
-            xrange, ref_trace, line_color="firebrick", line_width=2, legend_label="mean"
-        )
+        plot.line(xrange,
+                  ref_trace,
+                  line_color="firebrick",
+                  line_width=2,
+                  legend_label="mean")
 
     if add_mean_stddev:
         # Add mean and std dev to figure
@@ -77,7 +82,11 @@ def save_plot_to_file(
             line_width=2,
             legend_label="std",
         )
-        plot.line(xrange, mean, line_color="black", line_width=2, legend_label="mean")
+        plot.line(xrange,
+                  mean,
+                  line_color="black",
+                  line_width=2,
+                  legend_label="mean")
 
     output_file(Path(str(outfile) + ".html"))
     show(plot)
@@ -98,11 +107,15 @@ def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
     y_axis = cfg["fiproject"]["plot_y_axis"]
     plot = figure(
         plot_width=800,
-        x_range=(cfg["fisetup"][x_axis + "_min"], cfg["fisetup"][x_axis + "_max"]),
-        y_range=(cfg["fisetup"][y_axis + "_min"], cfg["fisetup"][y_axis + "_max"]),
+        x_range=(cfg["fisetup"][x_axis + "_min"],
+                 cfg["fisetup"][x_axis + "_max"]),
+        y_range=(cfg["fisetup"][y_axis + "_min"],
+                 cfg["fisetup"][y_axis + "_max"]),
     )
-    plot.xaxis.axis_label = x_axis + " " + cfg["fiproject"]["plot_x_axis_legend"]
-    plot.yaxis.axis_label = y_axis + " " + cfg["fiproject"]["plot_y_axis_legend"]
+    plot.xaxis.axis_label = x_axis + " " + cfg["fiproject"][
+        "plot_x_axis_legend"]
+    plot.yaxis.axis_label = y_axis + " " + cfg["fiproject"][
+        "plot_y_axis_legend"]
 
     exp_x = []
     exp_y = []
@@ -139,8 +152,10 @@ def save_fi_plot_to_file(cfg: dict, fi_results: [], outfile: str) -> None:
             legend_label="Expected response",
         )
     if no_x:
-        plot.scatter(
-            no_x, no_y, line_color="red", fill_color="red", legend_label="No response"
-        )
+        plot.scatter(no_x,
+                     no_y,
+                     line_color="red",
+                     fill_color="red",
+                     legend_label="No response")
 
     show(plot)

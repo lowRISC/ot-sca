@@ -1,15 +1,15 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
-from fi_gear.utility import random_float_range
-
 """ Template for VCC glitching gear.
 Acts as a template for voltage glitching FI gear.
 """
 
+from fi_gear.utility import random_float_range
+
 
 class DummyVCC:
+
     def __init__(
         self,
         glitch_voltage_min: float,
@@ -42,12 +42,10 @@ class DummyVCC:
         Args:
             A dict containing the FI parameters.
         """
-        print(
-            f"Arming DummyVCC trigger with "
-            f"glitch_voltage={fault_parameters['glitch_voltage']}, "
-            f"glitch_width={fault_parameters['glitch_width']}, and "
-            f"trigger_delay={fault_parameters['trigger_delay']}"
-        )
+        print(f"Arming DummyVCC trigger with "
+              f"glitch_voltage={fault_parameters['glitch_voltage']}, "
+              f"glitch_width={fault_parameters['glitch_width']}, and "
+              f"trigger_delay={fault_parameters['trigger_delay']}")
 
     def generate_fi_parameters(self) -> dict:
         """Generate random voltage glitch parameters within the provided
@@ -64,13 +62,14 @@ class DummyVCC:
                 self.glitch_voltage_step,
             )
             parameters["glitch_width"] = random_float_range(
-                self.glitch_width_min, self.glitch_width_max, self.glitch_width_step
-            )
+                self.glitch_width_min, self.glitch_width_max,
+                self.glitch_width_step)
             parameters["trigger_delay"] = random_float_range(
-                self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
-            )
+                self.trigger_delay_min, self.trigger_delay_max,
+                self.trigger_step)
         else:
-            raise Exception("DummyVCC only supports random parameter generation")
+            raise Exception(
+                "DummyVCC only supports random parameter generation")
 
         return parameters
 
@@ -87,4 +86,5 @@ class DummyVCC:
         if self.parameter_generation == "random":
             return self.num_iterations
         else:
-            raise Exception("DummyVCC only supports random parameter generation")
+            raise Exception(
+                "DummyVCC only supports random parameter generation")

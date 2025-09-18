@@ -76,7 +76,8 @@ class CWFPGA(object):
                 self.fpga_type = cw.capture.targets.CW310()
             programmer = SpiProgrammer(self.fpga_type, self.usb_serial)
         else:
-            raise ValueError("Could not infer target board type from bistream name")
+            raise ValueError(
+                "Could not infer target board type from bistream name")
         # Initialize ChipWhisperer scope. This is needed to program the binary.
         # Note that the actual scope config for capturing traces is later
         # initialized.
@@ -85,15 +86,14 @@ class CWFPGA(object):
         # Initializing the scope twice seems to solve the problem.
         self.scope = cw.scope(sn=self.husky_serial)
 
-        self.fpga = self.initialize_fpga(
-            self.fpga_type, bitstream, force_programming, pll_frequency
-        )
+        self.fpga = self.initialize_fpga(self.fpga_type, bitstream,
+                                         force_programming, pll_frequency)
 
-        self.target = self.initialize_target(
-            programmer, firmware, baudrate, pll_frequency
-        )
+        self.target = self.initialize_target(programmer, firmware, baudrate,
+                                             pll_frequency)
 
-    def initialize_fpga(self, fpga, bitstream, force_programming, pll_frequency):
+    def initialize_fpga(self, fpga, bitstream, force_programming,
+                        pll_frequency):
         """Initializes FPGA bitstream and sets PLL frequency."""
         # Do not program the FPGA if it is already programmed.
         # Note: Set this to True to force programming the FPGA when using a new
@@ -159,7 +159,8 @@ class CWFPGA(object):
 
         time.sleep(0.5)
         target = cw.target(self.scope)
-        target.baud = int(self.baudrate * pll_frequency / PLL_FREQUENCY_DEFAULT)
+        target.baud = int(self.baudrate * pll_frequency /
+                          PLL_FREQUENCY_DEFAULT)
         target.flush()
 
         return target
@@ -193,9 +194,8 @@ class CWFPGA(object):
 
             self.scope = cw.scope(sn=self.husky_serial)
 
-            self.fpga = self.initialize_fpga(
-                self.fpga_type, self.bitstream, True, self.pll_frequency
-            )
+            self.fpga = self.initialize_fpga(self.fpga_type, self.bitstream,
+                                             True, self.pll_frequency)
 
             self.target = self.initialize_target(
                 programmer,

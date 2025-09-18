@@ -53,9 +53,8 @@ class Target:
         if target_cfg.baudrate is None:
             target_cfg.baudrate = 115200
 
-        self.com_interface = self._init_communication(
-            self.find_target_port(), self.target_cfg.baudrate
-        )
+        self.com_interface = self._init_communication(self.find_target_port(),
+                                                      self.target_cfg.baudrate)
 
         if target_cfg.fw_bin is not None:
             self.target = self._init_target()
@@ -66,10 +65,8 @@ class Target:
         Configure OpenTitan on CW FPGA or the discrete chip.
         """
         target = None
-        if (
-            self.target_cfg.target_type == "cw305" or
-            self.target_cfg.target_type == "cw310"
-        ):
+        if (self.target_cfg.target_type == "cw305" or
+                self.target_cfg.target_type == "cw310"):
             target = CWFPGA(
                 bitstream=self.target_cfg.bitstream,
                 force_programming=self.target_cfg.force_program_bitstream,
@@ -77,7 +74,7 @@ class Target:
                 pll_frequency=self.target_cfg.pll_frequency,
                 baudrate=self.target_cfg.baudrate,
                 usb_serial=self.target_cfg.usb_serial,
-                husky_serial = self.target_cfg.husky_serial,
+                husky_serial=self.target_cfg.husky_serial,
             )
         elif self.target_cfg.target_type == "chip":
             target = Chip(opentitantool_path=self.target_cfg.opentitantool)
@@ -133,8 +130,7 @@ class Target:
         self.target.reset_target()
         if com_reset:
             self.com_interface = self._init_communication(
-                self.find_target_port(), self.target_cfg.baudrate
-            )
+                self.find_target_port(), self.target_cfg.baudrate)
 
     def write(self, data, cmd: Optional[str] = ""):
         """Write data to the target."""
@@ -146,10 +142,8 @@ class Target:
 
     def is_done(self):
         """Check if target is done. Only for CWFPGA."""
-        if (
-            self.target_cfg.target_type == "cw305" or
-            self.target_cfg.target_type == "cw310"
-        ):
+        if (self.target_cfg.target_type == "cw305" or
+                self.target_cfg.target_type == "cw310"):
             return self.target.target.is_done()
         else:
             return True
@@ -188,7 +182,8 @@ class Target:
                 if "FAULT" in read_line:
                     return read_line, False
                 if "RESP_OK" in read_line:
-                    return read_line.split("RESP_OK:")[1].split(" CRC:")[0], True
+                    return read_line.split("RESP_OK:")[1].split(
+                        " CRC:")[0], True
                 it += 1
             except UnicodeDecodeError:
                 it += 1
@@ -211,7 +206,8 @@ class Target:
                 if "Chip flashed" in read_line:
                     return read_line, False
                 if "RESP_OK" in read_line:
-                    return read_line.split("RESP_OK:")[1].split(" CRC:")[0], True
+                    return read_line.split("RESP_OK:")[1].split(
+                        " CRC:")[0], True
                 it += 1
             except UnicodeDecodeError:
                 it += 1

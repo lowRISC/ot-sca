@@ -79,19 +79,17 @@ class Scope:
                 setup_data = scope._ask("PANEL_SETUP?")
                 scope._get_and_print_cmd_error()
                 tmp_sampling_rate = int(
-                    re.findall(r"SampleRate = \d+", setup_data)[0][13:]
-                )
+                    re.findall(r"SampleRate = \d+", setup_data)[0][13:])
                 # Sanitize inputs.
                 if self.scope_cfg.sampling_rate is not None:
                     if self.scope_cfg.sampling_rate != tmp_sampling_rate:
                         raise RuntimeError(
                             "WAVERUNNER: Error: WaveRunner sampling "
-                            "rate does not match given configuration!"
-                        )
+                            "rate does not match given configuration!")
                 if self.scope_cfg.num_segments is None:
                     raise RuntimeError(
-                        "WAVERUNNER: Error: num_segments needs to " "be provided!"
-                    )
+                        "WAVERUNNER: Error: num_segments needs to "
+                        "be provided!")
                 # Configure WaveRunner.
                 scope.configure_waveform_transfer_general(
                     num_segments=self.scope_cfg.num_segments,
@@ -113,10 +111,8 @@ class Scope:
         """
         if not self.scope_cfg.batch_mode and self.scope_cfg.num_segments != 1:
             self.scope_cfg.num_segments = 1
-            print(
-                "Warning: num_segments needs to be 1 in non-batch mode. "
-                "Setting num_segments=1."
-            )
+            print("Warning: num_segments needs to be 1 in non-batch mode. "
+                  "Setting num_segments=1.")
 
     def arm(self) -> None:
         """Arm the scope."""
@@ -146,9 +142,8 @@ def convert_num_cycles(cfg: dict, scope_type: str) -> int:
         The number of samples.
     """
     if cfg[scope_type].get("num_samples") is None:
-        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get(
-            "target_freq"
-        )
+        sampl_target_rat = cfg[scope_type].get(
+            "sampling_rate") / cfg["target"].get("target_freq")
         num_samples = int(cfg[scope_type].get("num_cycles") * sampl_target_rat)
 
         if scope_type == "husky":
@@ -171,9 +166,8 @@ def convert_offset_cycles(cfg: dict, scope_type: str) -> int:
         The offset in samples.
     """
     if cfg[scope_type].get("offset_samples") is None:
-        sampl_target_rat = cfg[scope_type].get("sampling_rate") / cfg["target"].get(
-            "target_freq"
-        )
+        sampl_target_rat = cfg[scope_type].get(
+            "sampling_rate") / cfg["target"].get("target_freq")
         return int(cfg[scope_type].get("offset_cycles") * sampl_target_rat)
     else:
         return cfg[scope_type].get("offset_samples")
@@ -204,7 +198,6 @@ def determine_sampling_rate(cfg: dict, scope_type: str) -> int:
             # Waverunner init not done yet, so cannot be read from WaveRunner.
             raise RuntimeError(
                 "WAVERUNNER: ERROR: Sampling rate for WaveRunner "
-                "not given in configuration."
-            )
+                "not given in configuration.")
     else:
         return cfg[scope_type].get("sampling_rate")

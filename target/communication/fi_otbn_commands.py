@@ -12,6 +12,7 @@ from target.communication import common_library
 
 
 class OTFIOtbn:
+
     def __init__(self, target) -> None:
         self.target = target
 
@@ -59,7 +60,8 @@ class OTFIOtbn:
         time.sleep(0.01)
         self.target.write(json.dumps("CharJal").encode("ascii"))
 
-    def otbn_char_mem(self, byte_offset, num_words, imem, dmem, first_call) -> None:
+    def otbn_char_mem(self, byte_offset, num_words, imem, dmem,
+                      first_call) -> None:
         """Starts the otbn.fi.char.mem test."""
         # OtbnFi command.
         self._ujson_otbn_fi_cmd()

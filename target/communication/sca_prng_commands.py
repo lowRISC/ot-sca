@@ -12,6 +12,7 @@ from typing import Optional
 
 
 class OTPRNG:
+
     def __init__(self, target) -> None:
         self.target = target
 

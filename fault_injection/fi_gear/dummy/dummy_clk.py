@@ -1,15 +1,15 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
-from fi_gear.utility import random_float_range
-
 """ Template for CLK glitching gear.
 Acts as a template for clock glitching FI gear.
 """
 
+from fi_gear.utility import random_float_range
+
 
 class DummyCLK:
+
     def __init__(
         self,
         glitch_width_min: int,
@@ -36,11 +36,9 @@ class DummyCLK:
         Args:
             A dict containing the FI parameters.
         """
-        print(
-            f"Arming DummyCLK trigger with"
-            f"glitch_width={fault_parameters['glitch_width']}, and "
-            f"trigger_delay={fault_parameters['trigger_delay']}"
-        )
+        print(f"Arming DummyCLK trigger with"
+              f"glitch_width={fault_parameters['glitch_width']}, and "
+              f"trigger_delay={fault_parameters['trigger_delay']}")
 
     def generate_fi_parameters(self) -> dict:
         """Generate clock glitching parameters within the provided limits.
@@ -50,11 +48,10 @@ class DummyCLK:
         """
         parameters = {}
         parameters["glitch_width"] = random_float_range(
-            self.glitch_width_min, self.glitch_width_max, self.glitch_width_step
-        )
+            self.glitch_width_min, self.glitch_width_max,
+            self.glitch_width_step)
         parameters["trigger_delay"] = random_float_range(
-            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
-        )
+            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step)
         return parameters
 
     def reset(self) -> None:
@@ -69,4 +66,5 @@ class DummyCLK:
         if self.parameter_generation == "random":
             return self.num_iterations
         else:
-            raise Exception("DummyCLK only supports random parameter generation")
+            raise Exception(
+                "DummyCLK only supports random parameter generation")

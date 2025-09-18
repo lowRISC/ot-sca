@@ -1,7 +1,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
 """Support for capturing traces using ChipWhisperer-Husky in segmented mode."""
 
 import time
@@ -121,10 +120,13 @@ class CwSegmented:
         self._num_samples_actual = num_samples
 
         if self.num_segments > self.num_segments_max:
-            print(f"Warning: Adjusting number of segments to {self.num_segments_max}.")
+            print(
+                f"Warning: Adjusting number of segments to {self.num_segments_max}."
+            )
             self.num_segments = self.num_segments_max
 
-    def _configure_scope(self, scope_gain, offset_samples, clkgen_freq, adc_mul):
+    def _configure_scope(self, scope_gain, offset_samples, clkgen_freq,
+                         adc_mul):
         self._scope.gain.db = scope_gain
         if offset_samples >= 0:
             self._scope.adc.offset = offset_samples
@@ -145,14 +147,10 @@ class CwSegmented:
         assert self._scope.clock.adc_locked, "ADC failed to lock"
 
     def _print_device_info(self):
-        print(
-            (
-                "Connected to ChipWhisperer ("
-                f"num_samples: {self.num_samples}, "
-                f"num_samples_actual: {self._num_samples_actual}, "
-                f"num_segments_actual: {self.num_segments_actual})"
-            )
-        )
+        print(("Connected to ChipWhisperer ("
+               f"num_samples: {self.num_samples}, "
+               f"num_samples_actual: {self._num_samples_actual}, "
+               f"num_segments_actual: {self.num_segments_actual})"))
 
     def arm(self):
         """Arms ChipWhisperer."""

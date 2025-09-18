@@ -116,8 +116,8 @@ class HuskyVCC:
         parameters = {}
         if self.parameter_generation == "random":
             parameters["glitch_width"] = random_float_range(
-                self.glitch_width_min, self.glitch_width_max, self.glitch_width_step
-            )
+                self.glitch_width_min, self.glitch_width_max,
+                self.glitch_width_step)
         elif self.parameter_generation == "deterministic":
             if self.curr_iteration == self.num_iterations:
                 self.curr_iteration = 0
@@ -131,8 +131,7 @@ class HuskyVCC:
 
         # Randomly generate the trigger delay for both cases.
         parameters["trigger_delay"] = random_float_range(
-            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step
-        )
+            self.trigger_delay_min, self.trigger_delay_max, self.trigger_step)
         return parameters
 
     def reset(self) -> None:
@@ -151,9 +150,8 @@ class HuskyVCC:
         if self.parameter_generation == "random":
             return self.num_iterations
         elif self.parameter_generation == "deterministic":
-            return (
-                (self.glitch_width_max - self.glitch_width_min) / self.glitch_width_step
-            ) * self.num_iterations
+            return ((self.glitch_width_max - self.glitch_width_min) /
+                    self.glitch_width_step) * self.num_iterations
         else:
             raise Exception(
                 "HuskyVCC only supports random/deterministic parameter generation"

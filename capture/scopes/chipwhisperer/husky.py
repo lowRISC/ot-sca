@@ -14,6 +14,7 @@ from util import check_version  # noqa: E402
 
 
 class Husky:
+
     def __init__(
         self,
         scope_gain,
@@ -37,8 +38,7 @@ class Husky:
         self.sampling_rate = sampling_rate
         if self.sampling_rate % self.clkgen_freq:
             raise RuntimeError(
-                "sampling_rate % (target_frequency / target_clk_mult) != 0"
-            )
+                "sampling_rate % (target_frequency / target_clk_mult) != 0")
         self.adc_mul = int(self.sampling_rate / self.clkgen_freq)
 
         self.offset_samples = offset_samples
@@ -79,7 +79,8 @@ class Husky:
         ping_cnt = 0
         while not scope.clock.adc_locked:
             if ping_cnt == 3:
-                raise RuntimeError(f"ADC failed to lock (attempts: {ping_cnt}).")
+                raise RuntimeError(
+                    f"ADC failed to lock (attempts: {ping_cnt}).")
             ping_cnt += 1
             time.sleep(0.5)
         self.scope = scope
@@ -96,27 +97,21 @@ class Husky:
             )
 
             # Determine max. possible number of segments.
-            num_segments_max = (
-                self.scope._scope.adc.oa.hwMaxSegmentSamples //
-                self.scope._scope.adc.samples
-            )
+            num_segments_max = (self.scope._scope.adc.oa.hwMaxSegmentSamples //
+                                self.scope._scope.adc.samples)
 
             # If num_segments is not provided in the config file, set it to
             # max. number of segments.
             if self.num_segments is None:
                 self.num_segments = num_segments_max
-                print(
-                    f"Info: num_segments not provided, setting to "
-                    f"num_segments_max={num_segments_max}."
-                )
+                print(f"Info: num_segments not provided, setting to "
+                      f"num_segments_max={num_segments_max}.")
             self.scope.num_segments = self.num_segments
             # Sanity check manually set num_segments. Check, if we can keep the
             # num_segements * num_samples in memory.
             if self.num_segments > num_segments_max:
-                raise RuntimeError(
-                    "num_segments too large, cannot keep\
-                                   samples in CW Husky sample memory."
-                )
+                raise RuntimeError("num_segments too large, cannot keep\
+                                   samples in CW Husky sample memory.")
 
     def arm(self):
         self.scope.arm()

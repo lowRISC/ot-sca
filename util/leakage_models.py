@@ -47,14 +47,16 @@ def compute_leakage_aes_byte(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
 
     if key_fixed:
         for j in range(11):
-            subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(keys[0], 0, j))
+            subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(
+                keys[0], 0, j))
         subkey = subkey.astype(int)
 
     for i in range(num_traces):
 
         if not key_fixed:
             for j in range(11):
-                subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(keys[i], 0, j))
+                subkey[j] = np.asarray(
+                    aes_funcs.key_schedule_rounds(keys[i], 0, j))
             subkey = subkey.astype(int)
 
         # Init
@@ -65,7 +67,8 @@ def compute_leakage_aes_byte(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
         state = np.bitwise_xor(state, subkey[0])
         for k in range(16):
             if leakage_model == "HAMMING_DISTANCE":
-                leakage[0][k][i] = bit_count(np.bitwise_xor(state[k], old_state[k]))
+                leakage[0][k][i] = bit_count(
+                    np.bitwise_xor(state[k], old_state[k]))
             else:
                 leakage[0][k][i] = bit_count(state[k])
 
@@ -79,7 +82,8 @@ def compute_leakage_aes_byte(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
             state = np.bitwise_xor(state, subkey[j])
             for k in range(16):
                 if leakage_model == "HAMMING_DISTANCE":
-                    leakage[j][k][i] = bit_count(np.bitwise_xor(state[k], old_state[k]))
+                    leakage[j][k][i] = bit_count(
+                        np.bitwise_xor(state[k], old_state[k]))
                 else:
                     leakage[j][k][i] = bit_count(state[k])
 
@@ -106,14 +110,16 @@ def compute_leakage_aes_bit(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
 
     if key_fixed:
         for j in range(11):
-            subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(keys[0], 0, j))
+            subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(
+                keys[0], 0, j))
         subkey = subkey.astype(int)
 
     for i in range(num_traces):
 
         if not key_fixed:
             for j in range(11):
-                subkey[j] = np.asarray(aes_funcs.key_schedule_rounds(keys[i], 0, j))
+                subkey[j] = np.asarray(
+                    aes_funcs.key_schedule_rounds(keys[i], 0, j))
             subkey = subkey.astype(int)
 
         # Init
@@ -127,7 +133,7 @@ def compute_leakage_aes_bit(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
                 vec8 = byte2bits(np.bitwise_xor(state[k], old_state[k]))
             else:
                 vec8 = byte2bits(state[k])
-            leakage[0][8 * k: 8 * k + 8, i] = vec8
+            leakage[0][8 * k:8 * k + 8, i] = vec8
 
         # Round 1 - 10
         for j in range(1, 11):
@@ -142,7 +148,7 @@ def compute_leakage_aes_bit(keys, plaintexts, leakage_model="HAMMING_WEIGHT"):
                     vec8 = byte2bits(np.bitwise_xor(state[k], old_state[k]))
                 else:
                     vec8 = byte2bits(state[k])
-                leakage[j][8 * k: 8 * k + 8, i] = vec8
+                leakage[j][8 * k:8 * k + 8, i] = vec8
 
     return leakage
 

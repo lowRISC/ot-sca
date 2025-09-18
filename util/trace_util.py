@@ -11,17 +11,8 @@ def check_range(waves, bits_per_sample):
     adc_range = np.array([0, 2**bits_per_sample])
     if not (np.all(np.greater(waves[:], adc_range[0])) and
             np.all(np.less(waves[:], adc_range[1] - 1))):
-        print(
-            "\nWARNING: Some samples are outside the range [" +
-            str(adc_range[0] + 1) +
-            ", " +
-            str(adc_range[1] - 2) +
-            "]."
-        )
-        print(
-            "The ADC has a max range of [" + str(adc_range[0]) +
-            ", " +
-            str(adc_range[1] - 1) +
-            "] and might saturate."
-        )
+        print("\nWARNING: Some samples are outside the range [" +
+              str(adc_range[0] + 1) + ", " + str(adc_range[1] - 2) + "].")
+        print("The ADC has a max range of [" + str(adc_range[0]) + ", " +
+              str(adc_range[1] - 1) + "] and might saturate.")
         print("It is recommended to reduce the scope gain.")

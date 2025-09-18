@@ -11,7 +11,8 @@ default_core_config = {
     "enable_data_ind_timing": True,
 }
 default_sensor_config = {
-    "sensor_ctrl_enable": True,
+    "sensor_ctrl_enable":
+    True,
     "sensor_ctrl_en_fatal": [
         False,
         False,
@@ -165,7 +166,8 @@ default_alert_config = {
     "accumulation_thresholds": [2, 2, 2, 2],
     "signals": [4294967295, 0, 2, 3],
     "duration_cycles": [0, 7200, 48, 48],
-    "ping_timeout": 1200,
+    "ping_timeout":
+    1200,
 }
 
 default_fpga_friendly_alert_config = {
@@ -307,5 +309,6 @@ default_fpga_friendly_alert_config = {
     "accumulation_thresholds": [2, 2, 2, 2],
     "signals": [4294967295, 0, 2, 3],
     "duration_cycles": [0, 7200, 48, 48],
-    "ping_timeout": 1200,
+    "ping_timeout":
+    1200,
 }

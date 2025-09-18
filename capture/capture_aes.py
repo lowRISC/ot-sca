@@ -2,6 +2,16 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
+"""AES SCA capture script.
+
+Captures power traces during AES operations.
+
+The data format of the crypto material (ciphertext, plaintext, and key) inside
+the script is stored in plain integer arrays.
+
+Typical usage:
+>>> ./capture_aes.py -c configs/aes_sca_cw310.yaml -p projects/aes_sca_capture
+"""
 
 import json
 import logging
@@ -32,18 +42,6 @@ from util import check_version, plot
 # Both the number of bytes in the plaintext and key are fixed.
 plaintext_len = 16
 key_len = 16
-
-"""AES SCA capture script.
-
-Captures power traces during AES operations.
-
-The data format of the crypto material (ciphertext, plaintext, and key) inside
-the script is stored in plain integer arrays.
-
-Typical usage:
->>> ./capture_aes.py -c configs/aes_sca_cw310.yaml -p projects/aes_sca_capture
-"""
-
 
 logger = logging.getLogger()
 
@@ -85,9 +83,8 @@ def setup(cfg: dict, project: Path):
     # Calculate pll_frequency of the target.
     # target_freq = pll_frequency * target_clk_mult
     # target_clk_mult is a hardcoded constant in the FPGA bitstream.
-    cfg["target"]["pll_frequency"] = (
-        cfg["target"]["target_freq"] / cfg["target"]["target_clk_mult"]
-    )
+    cfg["target"]["pll_frequency"] = (cfg["target"]["target_freq"] /
+                                      cfg["target"]["target_clk_mult"])
 
     # Create target config & setup target.
     logger.info(f"Initializing target {cfg['target']['target_type']} ...")
@@ -101,7 +98,7 @@ def setup(cfg: dict, project: Path):
         port=cfg["target"].get("port"),
         usb_serial=cfg["target"].get("usb_serial"),
         interface=cfg["target"].get("interface"),
-        husky_serial = cfg["husky"].get("usb_serial"),
+        husky_serial=cfg["husky"].get("usb_serial"),
         opentitantool=cfg["target"]["opentitantool"],
     )
     target = Target(target_cfg)
@@ -115,16 +112,16 @@ def setup(cfg: dict, project: Path):
 
     if scope_type != "none":
         # Will determine sampling rate (for Husky only), if not given in cfg.
-        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(cfg, scope_type)
+        cfg[scope_type]["sampling_rate"] = determine_sampling_rate(
+            cfg, scope_type)
         # Will convert number of cycles into number of samples if they are not given in cfg.
         cfg[scope_type]["num_samples"] = convert_num_cycles(cfg, scope_type)
         # Will convert offset in cycles into offset in samples, if they are not given in cfg.
-        cfg[scope_type]["offset_samples"] = convert_offset_cycles(cfg, scope_type)
+        cfg[scope_type]["offset_samples"] = convert_offset_cycles(
+            cfg, scope_type)
 
-        logger.info(
-            f"Initializing scope {scope_type} with a sampling rate of \
-            {cfg[scope_type]['sampling_rate']}..."
-        )  # noqa: E501
+        logger.info(f"Initializing scope {scope_type} with a sampling rate of \
+            {cfg[scope_type]['sampling_rate']}...")  # noqa: E501
 
         # Determine if we are in batch mode or not.
         batch = True
@@ -213,8 +210,8 @@ def configure_cipher(cfg, ot_aes, ot_prng):
         fpga_mode_bit = 1
     # Initialize AES on the target.
     device_id, owner_page, boot_log, boot_measurements, version = ot_aes.init(
-        fpga_mode_bit, cfg["test"]["core_config"], cfg["test"]["sensor_config"]
-    )
+        fpga_mode_bit, cfg["test"]["core_config"],
+        cfg["test"]["sensor_config"])
     # Configure PRNGs.
     # Seed the software LFSR used for initial key masking and additionally
     # turning off the masking when '0'.
@@ -229,9 +226,8 @@ def configure_cipher(cfg, ot_aes, ot_prng):
     return device_id, owner_page, boot_log, boot_measurements, version
 
 
-def generate_ref_crypto(
-    sample_fixed, mode, fixed_key, fixed_plaintext, last_ciphertext
-):
+def generate_ref_crypto(sample_fixed, mode, fixed_key, fixed_plaintext,
+                        last_ciphertext):
     """Generate cipher material for the encryption.
 
     Args:
@@ -253,17 +249,23 @@ def generate_ref_crypto(
             batch_key = fixed_key
         else:
             batch_key = [random.randint(0, 255) for _ in range(key_len)]
-        batch_plaintext = [random.randint(0, 255) for _ in range(plaintext_len)]
+        batch_plaintext = [
+            random.randint(0, 255) for _ in range(plaintext_len)
+        ]
         new_sample_fixed = random.randint(0, 255) & 0x1
     elif mode == "aes_fvsr_data":
         if sample_fixed == 1:
             batch_plaintext = fixed_plaintext
         else:
-            batch_plaintext = [random.randint(0, 255) for _ in range(plaintext_len)]
+            batch_plaintext = [
+                random.randint(0, 255) for _ in range(plaintext_len)
+            ]
         new_sample_fixed = random.randint(0, 255) & 0x1
         batch_key = fixed_key
     elif mode == "aes_random":
-        batch_plaintext = [random.randint(0, 255) for _ in range(plaintext_len)]
+        batch_plaintext = [
+            random.randint(0, 255) for _ in range(plaintext_len)
+        ]
         batch_key = fixed_key
         new_sample_fixed = 1
     elif mode == "daisy_chain":
@@ -302,8 +304,7 @@ def check_ciphertext(target, expected_last_ciphertext):
     assert actual_last_ciphertext == expected_last_ciphertext, (
         f"Incorrect encryption result!\n"
         f"actual: {actual_last_ciphertext}\n"
-        f"expected: {expected_last_ciphertext}"
-    )
+        f"expected: {expected_last_ciphertext}")
 
 
 def capture(
@@ -345,9 +346,10 @@ def capture(
     signal.signal(signal.SIGINT, partial(abort_handler_during_loop, project))
     # Main capture with progress bar.
     remaining_num_traces = capture_cfg.num_traces
-    with tqdm(
-        total=remaining_num_traces, desc="Capturing", ncols=80, unit=" traces"
-    ) as pbar:
+    with tqdm(total=remaining_num_traces,
+              desc="Capturing",
+              ncols=80,
+              unit=" traces") as pbar:
         while remaining_num_traces > 0:
             # Arm the scope.
             if scope is not None:
@@ -357,13 +359,15 @@ def capture(
                 ot_aes.single_encrypt(key_fixed, text_fixed)
             elif capture_cfg.capture_mode == "daisy_chain":
                 text = ciphertext
-                ot_aes.batch_daisy_chain(capture_cfg.num_segments, key_fixed, text)
+                ot_aes.batch_daisy_chain(capture_cfg.num_segments, key_fixed,
+                                         text)
             elif capture_cfg.capture_mode == "aes_random":
                 ot_aes.batch_random(capture_cfg.num_segments, key_fixed)
             elif capture_cfg.capture_mode == "aes_fvsr_key":
                 ot_aes.batch_fvsr_key(capture_cfg.num_segments, key_fixed)
             elif capture_cfg.capture_mode == "aes_fvsr_data":
-                ot_aes.batch_fvsr_data(capture_cfg.num_segments, key_fixed, text_fixed)
+                ot_aes.batch_fvsr_data(capture_cfg.num_segments, key_fixed,
+                                       text_fixed)
             else:
                 logger.info("Error: Mode not recognized.")
                 return
@@ -400,7 +404,8 @@ def capture(
 
             if scope is not None:
                 # Memory allocation optimization for CW trace library.
-                num_segments_storage = project.optimize_capture(num_segments_storage)
+                num_segments_storage = project.optimize_capture(
+                    num_segments_storage)
 
             # Update the loop variable and the progress bar.
             remaining_num_traces -= capture_cfg.num_segments
@@ -417,7 +422,8 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         config: The capture configuration.
         file: The output file path.
     """
-    if config["capture"]["show_plot"] and config["capture"]["scope_select"] != "none":
+    if config["capture"]["show_plot"] and config["capture"][
+            "scope_select"] != "none":
         plot.save_plot_to_file(
             project.get_waves(0, config["capture"]["plot_traces"]),
             set_indices=None,
@@ -427,8 +433,7 @@ def print_plot(project: SCAProject, config: dict, file: Path) -> None:
         )
         logger.info(
             f'Created plot with {config["capture"]["plot_traces"]} traces: '
-            f'{Path(str(file) + ".html").resolve()}'
-        )
+            f'{Path(str(file) + ".html").resolve()}')
 
 
 def main(argv=None):
@@ -466,8 +471,7 @@ def main(argv=None):
 
     # Configure cipher.
     device_id, owner_page, boot_log, boot_measurements, version = configure_cipher(
-        cfg, ot_aes, ot_prng
-    )
+        cfg, ot_aes, ot_prng)
 
     # Configure trigger source.
     # 0 for HW, 1 for SW.
@@ -502,17 +506,16 @@ def main(argv=None):
         metadata["fpga_bitstream_path"] = cfg["target"].get("fpga_bitstream")
         if cfg["target"].get("fpga_bitstream") is not None:
             metadata["fpga_bitstream_crc"] = helpers.file_crc(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         if args.save_bitstream:
             metadata["fpga_bitstream"] = helpers.get_binary_blob(
-                cfg["target"]["fpga_bitstream"]
-            )
+                cfg["target"]["fpga_bitstream"])
         # Store binary information.
         metadata["fw_bin_path"] = cfg["target"]["fw_bin"]
         metadata["fw_bin_crc"] = helpers.file_crc(cfg["target"]["fw_bin"])
         if args.save_binary:
-            metadata["fw_bin"] = helpers.get_binary_blob(cfg["target"]["fw_bin"])
+            metadata["fw_bin"] = helpers.get_binary_blob(
+                cfg["target"]["fw_bin"])
         # Store user provided notes.
         metadata["notes"] = args.notes
         # Store the Git hash.

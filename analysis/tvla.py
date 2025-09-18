@@ -34,14 +34,16 @@ from util.ttest import ttest_hist_xy  # noqa: E402
 
 app = typer.Typer(add_completion=False)
 
-
 script_dir = Path(__file__).parent.absolute()
 
 
 class UnformattedLog(object):
+
     def __init__(self):
         self.logger = log.getLogger()
-        self.formatters = [handler.formatter for handler in self.logger.handlers]
+        self.formatters = [
+            handler.formatter for handler in self.logger.handlers
+        ]
 
     def __enter__(self):
         for i in range(len(self.formatters)):
@@ -194,9 +196,10 @@ def tvla_plotting_fnc(
             label="trigger high",
         )
     if trigger_low < num_samples:
-        axs[0].plot(
-            xaxs[trigger_low:], single_trace[trigger_low:], "grey", label="trigger low"
-        )
+        axs[0].plot(xaxs[trigger_low:],
+                    single_trace[trigger_low:],
+                    "grey",
+                    label="trigger low")
     axs[0].legend(loc="upper right", prop={"size": 7})
     for i_order in range(num_orders):
         axs[1 + i_order].set_ylabel("t-test " + str(i_order + 1))
@@ -240,31 +243,29 @@ def run_tvla(ctx: typer.Context):
     log.basicConfig(
         format=log_format,
         datefmt="%Y-%m-%d %I:%M:%S",
-        handlers=[log.FileHandler("tmp/log.txt"), log.StreamHandler()],
+        handlers=[log.FileHandler("tmp/log.txt"),
+                  log.StreamHandler()],
         level=log.INFO,
         force=True,
     )
 
-    if (
-        cfg["mode"] != "kmac" and cfg["mode"] != "aes" and
-        cfg["mode"] != "sha3" and cfg["mode"] != "otbn"
-    ):
+    if (cfg["mode"] != "kmac" and cfg["mode"] != "aes" and
+            cfg["mode"] != "sha3" and cfg["mode"] != "otbn"):
         log.info("Unsupported mode:" + cfg["mode"] + ', falling back to "aes"')
 
     # Currently, specific TVLA exists only for AES.
     # Other modes can be tested only using general TVLA.
     if cfg["mode"] in {"kmac", "otbn", "sha3"}:
         assert (
-            cfg["test_type"] != "SPECIFIC_BYTE"
-        ), "Specific test not supported for this mode."
+            cfg["test_type"]
+            != "SPECIFIC_BYTE"), "Specific test not supported for this mode."
         assert (
-            cfg["test_type"] != "SPECIFIC_BIT"
-        ), "Specific test not supported for this mode."
+            cfg["test_type"]
+            != "SPECIFIC_BIT"), "Specific test not supported for this mode."
 
     if cfg["mode"] == "sha3":
-        assert (
-            cfg["test_type"] == "GENERAL_DATA"
-        ), "SHA3 can only be tested using GENERAL_DATA test type"
+        assert (cfg["test_type"] == "GENERAL_DATA"
+                ), "SHA3 can only be tested using GENERAL_DATA test type"
 
     if cfg["test_type"] == "GENERAL_DATA":
         general_test_key = False
@@ -347,7 +348,8 @@ def run_tvla(ctx: typer.Context):
 
     save_to_disk_trace = cfg["save_to_disk"]
     save_to_disk_leakage = cfg["save_to_disk"]
-    save_to_disk_ttest = cfg["save_to_disk_ttest"] and (cfg["ttest_step_file"] is None)
+    save_to_disk_ttest = cfg["save_to_disk_ttest"] and (cfg["ttest_step_file"]
+                                                        is None)
 
     # Step-wise processing isn't compatible with a couple of other arguments.
     if num_steps > 1:
@@ -384,23 +386,19 @@ def run_tvla(ctx: typer.Context):
 
         # Compute statistics.
         # ttest_trace has dimensions [num_orders, num_rnds, num_data, num_samples].
-        ttest_trace = Parallel(n_jobs=num_jobs)(
-            delayed(compute_statistics)(
-                cfg["test_type"],
-                num_orders,
-                histograms_in[:, :, :, i: i + sample_step_ttest, :],
-                x_axis,
-                rnd_list,
-                byte_list,
-                bit_list,
-            )
-            for i in range(0, num_samples, sample_step_ttest)
-        )
+        ttest_trace = Parallel(n_jobs=num_jobs)(delayed(compute_statistics)(
+            cfg["test_type"],
+            num_orders,
+            histograms_in[:, :, :, i:i + sample_step_ttest, :],
+            x_axis,
+            rnd_list,
+            byte_list,
+            bit_list,
+        ) for i in range(0, num_samples, sample_step_ttest))
         ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
-    if (
-        cfg["input_histogram_file"] is None or cfg["output_histogram_file"] is not None
-    ) and cfg["ttest_step_file"] is None:
+    if (cfg["input_histogram_file"] is None or cfg["output_histogram_file"]
+            is not None) and cfg["ttest_step_file"] is None:
         # Either don't have previously generated histograms or we need to append previously
         # generated histograms.
         # Make sure the project file is compatible with the previously generated histograms.
@@ -446,15 +444,11 @@ def run_tvla(ctx: typer.Context):
             num_samples = len(project.get_waves(0)) - sample_start
 
         if num_samples + sample_start > len(project.get_waves(0)):
-            log.warning(
-                f"Selected sample window {sample_start} to " +
-                f"{sample_start + num_samples} is out of range!"
-            )
+            log.warning(f"Selected sample window {sample_start} to " +
+                        f"{sample_start + num_samples} is out of range!")
             num_samples = len(project.get_waves(0)) - sample_start
-            log.warning(
-                f"Will use samples from {sample_start} " +
-                f"to {sample_start + num_samples} instead!"
-            )
+            log.warning(f"Will use samples from {sample_start} " +
+                        f"to {sample_start + num_samples} instead!")
 
         # Overall number of traces, trace start and end indices.
         num_traces_max = metadata.get("num_traces")
@@ -486,14 +480,12 @@ def run_tvla(ctx: typer.Context):
             trace_start_vec.append(trace_start_tot + i_step * num_traces_step)
             if i_step < num_steps - 1 or num_traces_rem == 0:
                 num_traces_vec.append(num_traces_step)
-                trace_end_vec.append(
-                    trace_start_vec[i_step] + num_traces_vec[i_step] - 1
-                )
+                trace_end_vec.append(trace_start_vec[i_step] +
+                                     num_traces_vec[i_step] - 1)
             else:
                 num_traces_vec.append(num_traces_step + num_traces_rem)
-                trace_end_vec.append(
-                    trace_start_vec[i_step] + num_traces_vec[i_step] - 1
-                )
+                trace_end_vec.append(trace_start_vec[i_step] +
+                                     num_traces_vec[i_step] - 1)
 
         # The number of parallel jobs to use for the processing-heavy tasks.
         num_jobs = multiprocessing.cpu_count()
@@ -536,18 +528,20 @@ def run_tvla(ctx: typer.Context):
                 # Converting traces from floating point to integer and creating a dense copy.
                 log.info("Converting Traces")
                 if proj_waves[0].dtype == "uint16":
-                    traces = np.empty((num_traces, num_samples), dtype=np.uint16)
+                    traces = np.empty((num_traces, num_samples),
+                                      dtype=np.uint16)
                     log.info(
                         f"Will use samples from {sample_start} to {sample_start + num_samples}"
                     )
                     for i_trace in range(num_traces):
                         traces[i_trace] = proj_waves[i_trace][
-                            sample_start: sample_start + num_samples
-                        ]
+                            sample_start:sample_start + num_samples]
                 else:
-                    traces = np.empty((num_traces, num_samples), dtype=np.double)
+                    traces = np.empty((num_traces, num_samples),
+                                      dtype=np.double)
                     for i_trace in range(num_traces):
-                        traces[i_trace] = (proj_waves[i_trace] + 0.5) * trace_resolution
+                        traces[i_trace] = (proj_waves[i_trace] +
+                                           0.5) * trace_resolution
                     traces = traces.astype("uint16")
 
                 # Define upper and lower limits.
@@ -565,10 +559,9 @@ def run_tvla(ctx: typer.Context):
                 # Filtering of converted traces (len = num_samples). traces_to_use itself can be
                 # used to index the entire project file (len >= num_samples).
                 traces_to_use = np.zeros(num_traces_max, dtype=bool)
-                traces_to_use[trace_start: trace_end + 1] = np.all(
-                    (traces >= min_trace) & (traces <= max_trace), axis=1
-                )
-                traces = traces[traces_to_use[trace_start: trace_end + 1]]
+                traces_to_use[trace_start:trace_end + 1] = np.all(
+                    (traces >= min_trace) & (traces <= max_trace), axis=1)
+                traces = traces[traces_to_use[trace_start:trace_end + 1]]
 
                 if i_step == 0:
                     # Keep a single trace to create the figures.
@@ -584,10 +577,8 @@ def run_tvla(ctx: typer.Context):
                         trace_end=trace_end,
                     )
 
-                if (
-                    (save_to_disk_trace is True or save_to_disk_ttest is True) and
-                    general_test and i_step == 0
-                ):
+                if ((save_to_disk_trace is True or save_to_disk_ttest is True)
+                        and general_test and i_step == 0):
                     np.save("tmp/single_trace.npy", single_trace)
             else:
                 trace_file = np.load(cfg["trace_file"])
@@ -610,10 +601,8 @@ def run_tvla(ctx: typer.Context):
             # Correct num_traces based on filtering.
             num_traces_orig = num_traces
             num_traces = np.sum(traces_to_use)
-            log.info(
-                f"Will use {num_traces} traces "
-                f"({100 * num_traces / num_traces_orig:.1f}%)"
-            )
+            log.info(f"Will use {num_traces} traces "
+                     f"({100 * num_traces / num_traces_orig:.1f}%)")
 
             num_traces_used_total += num_traces
 
@@ -627,10 +616,12 @@ def run_tvla(ctx: typer.Context):
                 # Create local, dense copies of keys and plaintexts. This allows the leakage
                 # computation to be parallelized.
                 if cfg["mode"] == "otbn":
-                    keys = np.empty((num_traces_orig, key_len_bytes), dtype=np.uint8)
+                    keys = np.empty((num_traces_orig, key_len_bytes),
+                                    dtype=np.uint8)
                 else:
                     keys = np.empty((num_traces_orig, 16), dtype=np.uint8)
-                    plaintexts = np.empty((num_traces_orig, 16), dtype=np.uint8)
+                    plaintexts = np.empty((num_traces_orig, 16),
+                                          dtype=np.uint8)
 
                 if specific_test:
                     keys[:] = project.get_keys(trace_start, trace_end + 1)
@@ -648,47 +639,43 @@ def run_tvla(ctx: typer.Context):
                                 if general_test_data:
                                     plaintexts_nparrays.append(
                                         np.frombuffer(
-                                            project.project.textins[i], dtype=np.uint8
-                                        )
-                                    )
+                                            project.project.textins[i],
+                                            dtype=np.uint8))
                                 else:
                                     keys_nparrays.append(
-                                        np.frombuffer(
-                                            project.project.keys[i], dtype=np.uint8
-                                        )
-                                    )
+                                        np.frombuffer(project.project.keys[i],
+                                                      dtype=np.uint8))
                     # Select the correct slice of keys for each step.
                     if OTTraceLib:
                         if general_test_data:
                             plaintexts[:] = project.get_plaintexts(
-                                trace_start, trace_end + 1
-                            )
+                                trace_start, trace_end + 1)
                         else:
-                            keys[:] = project.get_keys(trace_start, trace_end + 1)
+                            keys[:] = project.get_keys(trace_start,
+                                                       trace_end + 1)
                     else:
                         if general_test_data:
                             plaintexts[:] = plaintexts_nparrays[
-                                trace_start: trace_end + 1
-                            ]
+                                trace_start:trace_end + 1]
                         else:
-                            keys[:] = keys_nparrays[trace_start: trace_end + 1]
+                            keys[:] = keys_nparrays[trace_start:trace_end + 1]
 
                 # Only select traces to use.
                 if general_test_key:
-                    keys = keys[traces_to_use[trace_start: trace_end + 1]]
+                    keys = keys[traces_to_use[trace_start:trace_end + 1]]
                 if general_test_data:
-                    plaintexts = plaintexts[traces_to_use[trace_start: trace_end + 1]]
+                    plaintexts = plaintexts[
+                        traces_to_use[trace_start:trace_end + 1]]
                 if specific_test:
-                    keys = keys[traces_to_use[trace_start: trace_end + 1]]
+                    keys = keys[traces_to_use[trace_start:trace_end + 1]]
                     if OTTraceLib:
-                        plaintexts = project.get_plaintexts(trace_start, trace_end + 1)
+                        plaintexts = project.get_plaintexts(
+                            trace_start, trace_end + 1)
                     else:
                         plaintexts[:] = project.project.textins[
-                            trace_start: trace_end + 1
-                        ]
+                            trace_start:trace_end + 1]
                         plaintexts = plaintexts[
-                            traces_to_use[trace_start: trace_end + 1]
-                        ]
+                            traces_to_use[trace_start:trace_end + 1]]
 
             # We don't need the project file anymore after this point. Close it
             # together with all trace files opened in the background.
@@ -703,19 +690,17 @@ def run_tvla(ctx: typer.Context):
                     if specific_test_byte:
                         leakage = Parallel(n_jobs=num_jobs)(
                             delayed(compute_leakage_aes_byte)(
-                                keys[i: i + trace_step_leakage],
-                                plaintexts[i: i + trace_step_leakage],
+                                keys[i:i + trace_step_leakage],
+                                plaintexts[i:i + trace_step_leakage],
                             )
-                            for i in range(0, num_traces, trace_step_leakage)
-                        )
+                            for i in range(0, num_traces, trace_step_leakage))
                     else:
                         leakage = Parallel(n_jobs=num_jobs)(
                             delayed(compute_leakage_aes_bit)(
-                                keys[i: i + trace_step_leakage],
-                                plaintexts[i: i + trace_step_leakage],
+                                keys[i:i + trace_step_leakage],
+                                plaintexts[i:i + trace_step_leakage],
                             )
-                            for i in range(0, num_traces, trace_step_leakage)
-                        )
+                            for i in range(0, num_traces, trace_step_leakage))
                     leakage = np.concatenate((leakage[:]), axis=2)
                     if save_to_disk_leakage:
                         log.info("Saving Leakage")
@@ -726,14 +711,14 @@ def run_tvla(ctx: typer.Context):
             elif general_test_key:
                 log.info("Computing Leakage")
                 # We identify the fixed key by looking at the first 20 keys in the project.
-                leakage = compute_leakage_general(keys, find_fixed_entry(keys[0:20]))
+                leakage = compute_leakage_general(keys,
+                                                  find_fixed_entry(keys[0:20]))
             else:
                 assert general_test_data
                 log.info("Computing Leakage")
                 # We identify the fixed data by looking at the first 20 plaintexts in the project.
                 leakage = compute_leakage_general(
-                    plaintexts, find_fixed_entry(plaintexts[0:20])
-                )
+                    plaintexts, find_fixed_entry(plaintexts[0:20]))
 
             # Uncomment the function call below for debugging e.g. when the t-test results aren't
             # centered around 0.
@@ -757,11 +742,9 @@ def run_tvla(ctx: typer.Context):
                         trace_resolution,
                         rnd_list,
                         byte_list,
-                        traces[:, i: i + sample_step_hist],
+                        traces[:, i:i + sample_step_hist],
                         leakage,
-                    )
-                    for i in range(0, num_samples, sample_step_hist)
-                )
+                    ) for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
             elif specific_test_bit:
                 histograms = Parallel(n_jobs=num_jobs)(
@@ -769,11 +752,9 @@ def run_tvla(ctx: typer.Context):
                         trace_resolution,
                         rnd_list,
                         bit_list,
-                        traces[:, i: i + sample_step_hist],
+                        traces[:, i:i + sample_step_hist],
                         leakage,
-                    )
-                    for i in range(0, num_samples, sample_step_hist)
-                )
+                    ) for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
             else:
                 # For every time sample we make 2 histograms, one for the fixed set and one for the
@@ -784,11 +765,10 @@ def run_tvla(ctx: typer.Context):
                 # v and w indices are not used but we keep them for code compatiblitly with
                 # non-general AES TVLA.
                 histograms = Parallel(n_jobs=num_jobs)(
-                    delayed(compute_histograms_general)(
-                        trace_resolution, traces[:, i: i + sample_step_hist], leakage
-                    )
-                    for i in range(0, num_samples, sample_step_hist)
-                )
+                    delayed(compute_histograms_general)
+                    (trace_resolution, traces[:,
+                                              i:i + sample_step_hist], leakage)
+                    for i in range(0, num_samples, sample_step_hist))
                 histograms = np.concatenate((histograms[:]), axis=3)
 
             # Free traces from memory as they are not needed anymore.
@@ -828,14 +808,12 @@ def run_tvla(ctx: typer.Context):
                 delayed(compute_statistics)(
                     cfg["test_type"],
                     num_orders,
-                    histograms[:, :, :, i: i + sample_step_ttest, :],
+                    histograms[:, :, :, i:i + sample_step_ttest, :],
                     x_axis,
                     rnd_list,
                     byte_list,
                     bit_list,
-                )
-                for i in range(0, num_samples, sample_step_ttest)
-            )
+                ) for i in range(0, num_samples, sample_step_ttest))
             ttest_trace = np.concatenate((ttest_trace[:]), axis=3)
 
             # Building the t-test statistics vs. number of traces used. ttest_step has dimensions
@@ -844,8 +822,7 @@ def run_tvla(ctx: typer.Context):
             log.info("Updating T-test Statistics vs. Number of Traces")
             if i_step == 0:
                 ttest_step = np.empty(
-                    (num_orders, num_rnds, num_data, num_samples, num_steps)
-                )
+                    (num_orders, num_rnds, num_data, num_samples, num_steps))
             ttest_step[:, :, :, :, i_step] = ttest_trace
 
         rnd_ext = list(range(num_rnds))
@@ -872,14 +849,12 @@ def run_tvla(ctx: typer.Context):
         byte_ext = np.zeros((num_bytes), dtype=np.uint8)
         for i_rnd in range(num_rnds):
             assert rnd_list[i_rnd] in ttest_step_file["rnd_list"]
-            rnd_ext[i_rnd] = np.where(ttest_step_file["rnd_list"] == rnd_list[i_rnd])[
-                0
-            ][0]
+            rnd_ext[i_rnd] = np.where(
+                ttest_step_file["rnd_list"] == rnd_list[i_rnd])[0][0]
         for i_byte in range(num_bytes):
             assert byte_list[i_byte] in ttest_step_file["byte_list"]
             byte_ext[i_byte] = np.where(
-                ttest_step_file["byte_list"] == byte_list[i_byte]
-            )[0][0]
+                ttest_step_file["byte_list"] == byte_list[i_byte])[0][0]
 
         # Plot the t-test vs. time figures for the maximum number of traces.
         ttest_trace = ttest_step[:, :, :, :, num_steps - 1]
@@ -923,13 +898,11 @@ def run_tvla(ctx: typer.Context):
             if np.any(failure):
                 log.info(
                     "Leakage above threshold identified in the following order(s), round(s) "
-                    "and byte(s) marked with X:"
-                )
+                    "and byte(s) marked with X:")
             if np.any(nan):
                 log.info(
                     "Couldn't compute statistics for order(s), round(s) and byte(s) marked "
-                    "with O:"
-                )
+                    "with O:")
             with UnformattedLog():
                 byte_str = "Byte     |"
                 dash_str = "----------"
@@ -942,11 +915,14 @@ def run_tvla(ctx: typer.Context):
                     log.info(f"{byte_str}")
                     log.info(f"{dash_str}")
                     for i_rnd in range(num_rnds):
-                        result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
+                        result_str = "Round " + str(
+                            rnd_list[i_rnd]).rjust(2) + " |"
                         for i_byte in range(num_bytes):
-                            if failure[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
+                            if failure[i_order, rnd_ext[i_rnd],
+                                       byte_ext[i_byte]]:
                                 result_str += str("X").rjust(5)
-                            elif nan[i_order, rnd_ext[i_rnd], byte_ext[i_byte]]:
+                            elif nan[i_order, rnd_ext[i_rnd],
+                                     byte_ext[i_byte]]:
                                 result_str += str("O").rjust(5)
                             else:
                                 result_str += "     "
@@ -956,13 +932,11 @@ def run_tvla(ctx: typer.Context):
             if np.any(failure):
                 log.info(
                     "Leakage above threshold identified in the following order(s), round(s) "
-                    "and bit(s) marked with X:"
-                )
+                    "and bit(s) marked with X:")
             if np.any(nan):
                 log.info(
                     "Couldn't compute statistics for order(s), round(s) and bit(s) marked "
-                    "with O:"
-                )
+                    "with O:")
             with UnformattedLog():
                 bit_str = "Bit     |"
                 dash_str = "----------"
@@ -975,9 +949,11 @@ def run_tvla(ctx: typer.Context):
                     log.info(f"{bit_str}")
                     log.info(f"{dash_str}")
                     for i_rnd in range(num_rnds):
-                        result_str = "Round " + str(rnd_list[i_rnd]).rjust(2) + " |"
+                        result_str = "Round " + str(
+                            rnd_list[i_rnd]).rjust(2) + " |"
                         for i_bit in range(num_bits):
-                            if failure[i_order, rnd_ext[i_rnd], bit_ext[i_bit]]:
+                            if failure[i_order, rnd_ext[i_rnd],
+                                       bit_ext[i_bit]]:
                                 result_str += str("X").rjust(5)
                             elif nan[i_order, rnd_ext[i_rnd], bit_ext[i_bit]]:
                                 result_str += str("O").rjust(5)
@@ -990,7 +966,8 @@ def run_tvla(ctx: typer.Context):
                 "Leakage above threshold identified in the following order(s) marked with X"
             )
             if np.any(nan):
-                log.info("Couldn't compute statistics for order(s) marked with O:")
+                log.info(
+                    "Couldn't compute statistics for order(s) marked with O:")
             with UnformattedLog():
                 for i_order in range(num_orders):
                     result_str = "Order " + str(i_order + 1) + ": "
@@ -1012,12 +989,8 @@ def run_tvla(ctx: typer.Context):
         # Catch case where certain metadata isn't saved to project file (e.g. older measurement)
         try:
             sampling_rate = float(metadata["sampling_rate"]) / 1e6
-            textbox = (
-                textbox +
-                "Sample rate:\n" +
-                str(math.floor(sampling_rate)) +
-                " MS/s\n\n"
-            )
+            textbox = (textbox + "Sample rate:\n" +
+                       str(math.floor(sampling_rate)) + " MS/s\n\n")
         except KeyError:
             textbox = textbox
         try:
@@ -1025,19 +998,23 @@ def run_tvla(ctx: typer.Context):
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Samples:\n" + str(metadata["num_samples"]) + "\n\n"
+            textbox = textbox + "Samples:\n" + str(
+                metadata["num_samples"]) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Offset:\n" + str(metadata["offset_samples"]) + "\n\n"
+            textbox = textbox + "Offset:\n" + str(
+                metadata["offset_samples"]) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Scope gain:\n" + str(metadata["scope_gain"]) + "\n\n"
+            textbox = textbox + "Scope gain:\n" + str(
+                metadata["scope_gain"]) + "\n\n"
         except KeyError:
             textbox = textbox
         try:
-            textbox = textbox + "Traces:\n" + str(num_traces_used_total) + "\n\n"
+            textbox = textbox + "Traces:\n" + str(
+                num_traces_used_total) + "\n\n"
         except KeyError:
             textbox = textbox
         if textbox != "":
@@ -1066,25 +1043,18 @@ def run_tvla(ctx: typer.Context):
                         metadata,
                     )
                     if specific_test_byte:
-                        title = (
-                            "TVLA of " +
-                            "aes_t_test_round_" +
-                            str(rnd_list[i_rnd]) +
-                            "_byte_" +
-                            str(byte_list[i_data])
-                        )
+                        title = ("TVLA of " + "aes_t_test_round_" +
+                                 str(rnd_list[i_rnd]) + "_byte_" +
+                                 str(byte_list[i_data]))
                     elif specific_test_bit:
-                        title = (
-                            "TVLA of " +
-                            "aes_t_test_round_" +
-                            str(rnd_list[i_rnd]) +
-                            "_bit_" +
-                            str(bit_list[i_data])
-                        )
+                        title = ("TVLA of " + "aes_t_test_round_" +
+                                 str(rnd_list[i_rnd]) + "_bit_" +
+                                 str(bit_list[i_data]))
                     # Catch case where datetime data isn't saved
                     # to project file (e.g. older measurement)
                     try:
-                        title = title + "\n" + "Captured: " + metadata["datetime"]
+                        title = title + "\n" + "Captured: " + metadata[
+                            "datetime"]
                     except KeyError:
                         title = title
                     axs[0].set_title(title)
@@ -1102,7 +1072,9 @@ def run_tvla(ctx: typer.Context):
                             fontsize=9,
                             horizontalalignment="center",
                             verticalalignment="center",
-                            bbox=dict(boxstyle="round", facecolor="w", linewidth=0.6),
+                            bbox=dict(boxstyle="round",
+                                      facecolor="w",
+                                      linewidth=0.6),
                         )
                         plt.subplots_adjust(right=0.84)
                     plt.xlabel("time [samples]")
@@ -1173,7 +1145,9 @@ def run_tvla(ctx: typer.Context):
             # Determine resolution.
             xres_vec = [10e6, 1e6, 100e3, 10e3, 1e3, 100, 10, 1]
             for xres in xres_vec:
-                if int(np.around((trace_end_vec[0] - trace_start_vec[0]) / xres)) > 0:
+                if int(
+                        np.around((trace_end_vec[0] - trace_start_vec[0]) /
+                                  xres)) > 0:
                     if xres >= 1e6:
                         xres_label = str(int(xres / 1e6)) + "M"
                     elif xres >= 1e3:
@@ -1182,15 +1156,17 @@ def run_tvla(ctx: typer.Context):
                         xres_label = str(int(xres))
                     break
 
-            xticks = [np.around(trace_end / xres) for trace_end in trace_end_vec]
+            xticks = [
+                np.around(trace_end / xres) for trace_end in trace_end_vec
+            ]
             xticklabels = [str(int(tick)) for tick in xticks]
 
             # Empty every second label if we got more than 10 steps.
             if num_steps > 10:
                 for i_step in range(num_steps):
-                    xticklabels[i_step] = (
-                        "" if (i_step % 2 == 0) else xticklabels[i_step]
-                    )
+                    xticklabels[i_step] = ("" if
+                                           (i_step %
+                                            2 == 0) else xticklabels[i_step])
 
             for i_rnd in range(num_rnds):
 
@@ -1213,7 +1189,8 @@ def run_tvla(ctx: typer.Context):
                     half_window = samples_per_rnd // 2 + 40
 
                     samples = {
-                        "aes": range(
+                        "aes":
+                        range(
                             max(
                                 rnd_offset +
                                 (rnd_list[i_rnd] * samples_per_rnd) -
@@ -1231,62 +1208,50 @@ def run_tvla(ctx: typer.Context):
                 else:
                     # Even if cfg["sample_start"] is specified and cfg["num_samples"] is not,
                     # num_samples is set to a valid value and the code below has valid inputs.
-                    range_specified = (
-                        True
-                        if (
-                            ("sample_start" in cfg and cfg["sample_start"] is not None) or
-                            ("num_samples" in cfg and cfg["num_samples"] is not None)
-                        )
-                        else False
-                    )
+                    range_specified = (True if
+                                       (("sample_start" in cfg and
+                                         cfg["sample_start"] is not None) or
+                                        ("num_samples" in cfg and
+                                         cfg["num_samples"] is not None)) else
+                                       False)
 
                     samples = {
                         # Simply plot all samples within the selected range.
-                        "aes": range(0, num_samples),
+                        "aes":
+                        range(0, num_samples),
                         # Plot samples within key absorption phase, unless a range is specified.
-                        "kmac": (
-                            range(0, num_samples)
-                            if range_specified
-                            else range(520, 2460)
-                        ),
+                        "kmac": (range(0, num_samples)
+                                 if range_specified else range(520, 2460)),
                         # Plot samples within actual SHA3 phase, unless a range is specified.
-                        "sha3": (
-                            range(0, num_samples)
-                            if range_specified
-                            else range(1150, 3150)
-                        ),
+                        "sha3": (range(0, num_samples)
+                                 if range_specified else range(1150, 3150)),
                         # Simply plot all samples within the selected range.
-                        "otbn": range(0, num_samples),
+                        "otbn":
+                        range(0, num_samples),
                     }
 
                 for i_order in range(num_orders):
                     for i_byte in range(num_bytes):
                         for i_sample in samples[cfg["mode"]]:
                             axs[i_order].plot(
-                                ttest_step[
-                                    i_order, rnd_ext[i_rnd], byte_ext[i_byte], i_sample
-                                ],
+                                ttest_step[i_order, rnd_ext[i_rnd],
+                                           byte_ext[i_byte], i_sample],
                                 "k",
                             )
                             axs[i_order].plot(c * threshold, "r")
                             axs[i_order].plot(-threshold * c, "r")
                             axs[i_order].set_xlabel(
-                                str("number of traces [" + xres_label + "]")
-                            )
+                                str("number of traces [" + xres_label + "]"))
                             axs[i_order].set_xticks(range(num_steps))
                             axs[i_order].set_xticklabels(xticklabels)
                             axs[i_order].set_ylabel(
-                                "t-test " +
-                                str(i_order + 1) +
+                                "t-test " + str(i_order + 1) +
                                 "\nfor samples " +
-                                str(samples[cfg["mode"]][0]) +
-                                " to " +
-                                str(samples[cfg["mode"]][-1])
-                            )
+                                str(samples[cfg["mode"]][0]) + " to " +
+                                str(samples[cfg["mode"]][-1]))
 
-                filename = (
-                    cfg["mode"] + "_t_test_steps_round_" + str(rnd_list[i_rnd]) + ".png"
-                )
+                filename = (cfg["mode"] + "_t_test_steps_round_" +
+                            str(rnd_list[i_rnd]) + ".png")
                 plt.savefig("tmp/figures/" + filename)
                 if num_rnds == 1:
                     plt.show()
@@ -1315,142 +1280,110 @@ default_mode = "aes"
 default_filter_traces = True
 default_update_cfg_file = False
 
-
 # Help messages of the options
-help_cfg_file = inspect.cleandoc(
-    """Configuration file. Default: """ + str(default_cfg_file)
-)
+help_cfg_file = inspect.cleandoc("""Configuration file. Default: """ +
+                                 str(default_cfg_file))
 help_project_file = inspect.cleandoc(
     """Name of the ChipWhisperer project file to use. Default:
-    """ +
-    str(default_project_file)
-)
+    """ + str(default_project_file))
 help_trace_file = inspect.cleandoc(
     """Name of the trace file containing the numpy array with all
     traces in 16-bit integer format. If not provided, the data from the ChipWhisperer project file
     is used. Ignored for number-of-steps > 1. Default: """ +
-    str(default_trace_file)
-)
+    str(default_trace_file))
 help_trace_start = inspect.cleandoc(
     """Index of the first trace to use. If not provided, starts at
-    the first trace. Default: """ +
-    str(default_trace_start)
-)
+    the first trace. Default: """ + str(default_trace_start))
 help_trace_end = inspect.cleandoc(
     """Index of the last trace to use. If not provided, ends at the
-    last trace. Default: """ +
-    str(default_trace_end)
-)
+    last trace. Default: """ + str(default_trace_end))
 help_leakage_file = inspect.cleandoc(
     """Name of the leakage file containing the numpy array with the
     leakage model for all rounds, all bytes, and all traces. If not provided, the leakage is
     computed from the data in the ChipWhisperer project file. Ignored for number-of-steps > 1.
-    Default: """ +
-    str(default_leakage_file)
-)
+    Default: """ + str(default_leakage_file))
 help_save_to_disk = inspect.cleandoc(
     """Save trace and leakage files to disk. Ignored when
-    number-of-steps > 1. Default: """ +
-    str(default_save_to_disk)
-)
+    number-of-steps > 1. Default: """ + str(default_save_to_disk))
 help_save_to_disk_ttest = inspect.cleandoc(
     """Save t-test files to disk. Ignored when
     ttset-step-file is not None. Default: """ +
-    str(default_save_to_disk_ttest)
-)
+    str(default_save_to_disk_ttest))
 help_round_select = inspect.cleandoc(
     """Index of the AES round for which the histograms are to be
     computed: 0-10. If not provided, the histograms for all AES rounds are computed. To select
     multiple but not all rounds, specify the argument once per selected round, e.g.,
     "--round-select 0 --round-select 1". Default: """ +
-    str(default_round_select)
-)
+    str(default_round_select))
 help_byte_select = inspect.cleandoc(
     """Index of the AES state byte for which the histograms are to
     be computed: 0-15. If not provided, the histograms for all AES state bytes are computed. To
     select multiple but not all bytes, specify the argument once per selected byte, e.g.,
-    "--byte-select 0 --byte-select 1". Default: """ +
-    str(default_byte_select)
-)
+    "--byte-select 0 --byte-select 1". Default: """ + str(default_byte_select))
 help_input_histogram_file = inspect.cleandoc(
     """Name of the input file containing the histograms.
     Not required. If both -input_histogram_file and -output_histogram_file are provided, the input
     file is appended with more data to produce the output file.
-    Default: """ +
-    str(default_input_histogram_file)
-)
+    Default: """ + str(default_input_histogram_file))
 help_output_histogram_file = inspect.cleandoc(
     """Name of the output file to store generated
     histograms. Not required. If both -input_histogram_file and -output_histogram_file are
     provided, the input file is appended with more data to produce the output file.
-    Default: """ +
-    str(default_output_histogram_file)
-)
+    Default: """ + str(default_output_histogram_file))
 help_number_of_steps = inspect.cleandoc(
     """Number of steps to breakdown the analysis into. For
     every step, traces are separately filtered and the leakage is computed. The histograms are
     appended to the ones of the previous step. This is useful when operating on very large trace
     sets and/or when analyzing how results change with the number of traces used. Default:
-    """ +
-    str(default_number_of_steps)
-)
+    """ + str(default_number_of_steps))
 help_ttest_step_file = inspect.cleandoc(
     """Name of the t-test step file containing one t-test
     analysis per step. If not provided, the data is recomputed. Default:
-    """ +
-    str(default_ttest_step_file)
-)
+    """ + str(default_ttest_step_file))
 help_plot_figures = inspect.cleandoc(
     """Plot figures and save them to disk. Default:
-    """ +
-    str(default_plot_figures)
-)
+    """ + str(default_plot_figures))
 help_test_type = inspect.cleandoc(
     """Select test type: can be either "SPECIFIC_BYTE", "GENERA_KEY",
     or "GENERAL_DATA".
-    Default: """ +
-    str(default_test_type)
-)
+    Default: """ + str(default_test_type))
 help_mode = inspect.cleandoc(
     """Select mode: can be either "aes", "kmac", "sha3" or "otbn".
-    Default: """ +
-    str(default_mode)
-)
+    Default: """ + str(default_mode))
 help_filter_traces = inspect.cleandoc(
     """Excludes the outlier traces from the analysis. A trace is
     an outlier if any of the points is more than 3.5 sigma away from the mean.
-    Default: """ +
-    str(default_filter_traces)
-)
+    Default: """ + str(default_filter_traces))
 help_update_cfg_file = inspect.cleandoc(
     """Update existing configuration file or create if there
-    isn't any configuration file. Default: """ +
-    str(default_update_cfg_file)
-)
+    isn't any configuration file. Default: """ + str(default_update_cfg_file))
 
 
 @app.callback()
 def main(
-    ctx: typer.Context,
-    cfg_file: str = typer.Option(None, help=help_cfg_file),
-    project_file: str = typer.Option(None, help=help_project_file),
-    trace_file: str = typer.Option(None, help=help_trace_file),
-    trace_start: int = typer.Option(None, help=help_trace_start),
-    trace_end: int = typer.Option(None, help=help_trace_end),
-    leakage_file: str = typer.Option(None, help=help_leakage_file),
-    save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
-    save_to_disk_ttest: bool = typer.Option(None, help=help_save_to_disk_ttest),
-    round_select: list[int] = typer.Option(None, help=help_round_select),
-    byte_select: list[int] = typer.Option(None, help=help_byte_select),
-    input_histogram_file: str = typer.Option(None, help=help_input_histogram_file),
-    output_histogram_file: str = typer.Option(None, help=help_output_histogram_file),
-    number_of_steps: int = typer.Option(None, help=help_number_of_steps),
-    ttest_step_file: str = typer.Option(None, help=help_ttest_step_file),
-    plot_figures: bool = typer.Option(None, help=help_plot_figures),
-    test_type: str = typer.Option(None, help=help_test_type),
-    mode: str = typer.Option(None, help=help_mode),
-    filter_traces: bool = typer.Option(None, help=help_filter_traces),
-    update_cfg_file: bool = typer.Option(None, help=help_update_cfg_file),
+        ctx: typer.Context,
+        cfg_file: str = typer.Option(None, help=help_cfg_file),
+        project_file: str = typer.Option(None, help=help_project_file),
+        trace_file: str = typer.Option(None, help=help_trace_file),
+        trace_start: int = typer.Option(None, help=help_trace_start),
+        trace_end: int = typer.Option(None, help=help_trace_end),
+        leakage_file: str = typer.Option(None, help=help_leakage_file),
+        save_to_disk: bool = typer.Option(None, help=help_save_to_disk),
+        save_to_disk_ttest: bool = typer.Option(None,
+                                                help=help_save_to_disk_ttest),
+        round_select: list[int] = typer.Option(None, help=help_round_select),
+        byte_select: list[int] = typer.Option(None, help=help_byte_select),
+        input_histogram_file: str = typer.Option(
+            None, help=help_input_histogram_file),
+        output_histogram_file: str = typer.Option(
+            None, help=help_output_histogram_file),
+        number_of_steps: int = typer.Option(None, help=help_number_of_steps),
+        ttest_step_file: str = typer.Option(None, help=help_ttest_step_file),
+        plot_figures: bool = typer.Option(None, help=help_plot_figures),
+        test_type: str = typer.Option(None, help=help_test_type),
+        mode: str = typer.Option(None, help=help_mode),
+        filter_traces: bool = typer.Option(None, help=help_filter_traces),
+        update_cfg_file: bool = typer.Option(None, help=help_update_cfg_file),
 ):
     """A histogram-based TVLA described in "Fast Leakage Assessment" by O. Reparaz, B. Gierlichs and
     I. Verbauwhede (https://eprint.iacr.org/2017/624.pdf)."""
@@ -1459,23 +1392,23 @@ def main(
 
     # Assign default values to the options.
     for v in [
-        "project_file",
-        "trace_file",
-        "trace_start",
-        "trace_end",
-        "leakage_file",
-        "save_to_disk",
-        "save_to_disk_ttest",
-        "round_select",
-        "byte_select",
-        "input_histogram_file",
-        "output_histogram_file",
-        "number_of_steps",
-        "ttest_step_file",
-        "plot_figures",
-        "test_type",
-        "mode",
-        "filter_traces",
+            "project_file",
+            "trace_file",
+            "trace_start",
+            "trace_end",
+            "leakage_file",
+            "save_to_disk",
+            "save_to_disk_ttest",
+            "round_select",
+            "byte_select",
+            "input_histogram_file",
+            "output_histogram_file",
+            "number_of_steps",
+            "ttest_step_file",
+            "plot_figures",
+            "test_type",
+            "mode",
+            "filter_traces",
     ]:
         run_cmd = f"""cfg[v] = default_{v}"""
         exec(run_cmd)
@@ -1488,21 +1421,21 @@ def main(
 
     # Overwrite options from CLI, if provided.
     for v in [
-        "project_file",
-        "trace_file",
-        "trace_start",
-        "trace_end",
-        "leakage_file",
-        "save_to_disk",
-        "save_to_disk_ttest",
-        "input_histogram_file",
-        "output_histogram_file",
-        "number_of_steps",
-        "ttest_step_file",
-        "plot_figures",
-        "test_type",
-        "mode",
-        "filter_traces",
+            "project_file",
+            "trace_file",
+            "trace_start",
+            "trace_end",
+            "leakage_file",
+            "save_to_disk",
+            "save_to_disk_ttest",
+            "input_histogram_file",
+            "output_histogram_file",
+            "number_of_steps",
+            "ttest_step_file",
+            "plot_figures",
+            "test_type",
+            "mode",
+            "filter_traces",
     ]:
         run_cmd = f"""if {v} is not None: cfg[v] = {v}"""
         exec(run_cmd)

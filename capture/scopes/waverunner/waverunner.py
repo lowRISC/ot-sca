@@ -1,7 +1,6 @@
 # Copyright lowRISC contributors.
 # Licensed under the Apache License, Version 2.0, see LICENSE for details.
 # SPDX-License-Identifier: Apache-2.0
-
 """Support for capturing traces using LeCroy WaveRunner 9104."""
 
 import re
@@ -140,14 +139,16 @@ class WaveRunner:
             print("WAVERUNNER: ERROR in last command: " + return_msg)
 
     def _fetch_file_from_scope(self, file_name_scope):
-        fetched_file = self._ask("TRANSFER_FILE? DISK,HDD,FILE," + file_name_scope)
+        fetched_file = self._ask("TRANSFER_FILE? DISK,HDD,FILE," +
+                                 file_name_scope)
         # remove echoed command characters from beginning
         fetched_file = fetched_file[5:]
         self._get_and_print_cmd_error()
         return fetched_file
 
     def _write_to_file_on_scope(self, file_name_scope, data):
-        self._write("TRANSFER_FILE DISK,HDD,FILE," + file_name_scope + "," + data)
+        self._write("TRANSFER_FILE DISK,HDD,FILE," + file_name_scope + "," +
+                    data)
         self._get_and_print_cmd_error()
 
     def _delete_file_on_scope(self, file_name_scope):
@@ -184,8 +185,7 @@ class WaveRunner:
 
     def _populate_device_info(self):
         manufacturer, model, serial, version = re.match(
-            "([^,]*),([^,]*),([^,]*),([^,]*)", self._ask("*IDN?")
-        ).groups()
+            "([^,]*),([^,]*),([^,]*),([^,]*)", self._ask("*IDN?")).groups()
         opts = ", ".join(self._ask("*OPT?").split(","))
         self._device_info = {
             "manufacturer": manufacturer,
@@ -196,18 +196,16 @@ class WaveRunner:
         }
 
     def _print_device_info(self):
+
         def print_info(manufacturer, model, serial, version, opts):
             # TODO: logging
-            print(
-                f"WAVERUNNER: Connected to {manufacturer} {model} (ip: "
-                f"{self._ip_addr}, serial: {serial}, "
-                f"version: {version}, options: {opts})"
-            )
+            print(f"WAVERUNNER: Connected to {manufacturer} {model} (ip: "
+                  f"{self._ip_addr}, serial: {serial}, "
+                  f"version: {version}, options: {opts})")
             if opts == "WARNING : CURRENT REMOTE CONTROL INTERFACE IS TCPIP":
                 print(
                     "ERROR: WAVERUNNER: Must set remote control to VXI11 on scope under: "
-                    "Utilities > Utilities Setup > Remote"
-                )
+                    "Utilities > Utilities Setup > Remote")
 
         print_info(**self._device_info)
 
@@ -296,7 +294,8 @@ class WaveRunner:
         # Note this is a default configuration and might not be meaningfull always
         # Only use channels 2 and 3 to maximize sampling rate.
         self._write("vbs 'app.Acquisition.Horizontal.ActiveChannels = \"2\"'")
-        self._write("vbs 'app.Acquisition.Horizontal.Maximize = \"FixedSampleRate\"'")
+        self._write(
+            "vbs 'app.Acquisition.Horizontal.Maximize = \"FixedSampleRate\"'")
         self._write("vbs 'app.Acquisition.Horizontal.SampleRate = \"1 GS/s\"'")
 
     def _configure_waveform_transfer(self):
@@ -314,15 +313,13 @@ class WaveRunner:
         ]
         self._write(";".join(commands))
 
-    def configure_waveform_transfer_general(
-        self, num_segments, sparsing, num_samples, first_point, acqu_channel
-    ):
+    def configure_waveform_transfer_general(self, num_segments, sparsing,
+                                            num_samples, first_point,
+                                            acqu_channel):
         """Configures the oscilloscope for acqu with given parameters."""
-        print(
-            f"WAVERUNNER: Configuring with num_segments={num_segments}, "
-            f"sparsing={sparsing}, num_samples={num_samples}, "
-            f"first_point={first_point}, acqu_channel=" + acqu_channel
-        )
+        print(f"WAVERUNNER: Configuring with num_segments={num_segments}, "
+              f"sparsing={sparsing}, num_samples={num_samples}, "
+              f"first_point={first_point}, acqu_channel=" + acqu_channel)
         self.num_samples = num_samples
         self.num_segments = num_segments
         self.acqu_channel = acqu_channel
@@ -389,14 +386,13 @@ class WaveRunner:
         waves = np.frombuffer(data, dtype, len_, 22)
         # Reshape
         waves = waves.reshape(
-            (self.num_segments, int(waves.shape[0] / self.num_segments))
-        )
+            (self.num_segments, int(waves.shape[0] / self.num_segments)))
         if waves.shape[1] != self.num_samples:
             print(
                 "WAVERUNNER: ERROR: scope returned too many samples per trace or segment"
             )
             # Truncate, but means scope returns more samples than expected!
-            waves = waves[:, 0: self.num_samples]
+            waves = waves[:, 0:self.num_samples]
         return waves
 
     def capture_and_transfer_waves(self):
